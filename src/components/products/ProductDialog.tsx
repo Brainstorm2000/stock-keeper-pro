@@ -9,12 +9,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUnits } from '@/hooks/useUnits';
+import { useBranches } from '@/hooks/useBranches';
 import { useCreateProduct, useUpdateProduct, type Product, type ProductInput } from '@/hooks/useProducts';
+import { useAuth } from '@/lib/auth';
 import { Loader2 } from 'lucide-react';
 
 const productSchema = z.object({
   name: z.string().trim().min(1, 'Product name is required').max(200),
   unit_id: z.string().min(1, 'Unit is required'),
+  branch_id: z.string().optional(),
   opening_stock: z.coerce.number().min(0, 'Must be 0 or greater'),
   current_stock: z.coerce.number().min(0, 'Must be 0 or greater'),
   low_stock_threshold: z.coerce.number().min(0, 'Must be 0 or greater'),
@@ -33,8 +36,10 @@ interface ProductDialogProps {
 
 export function ProductDialog({ product, open, onOpenChange }: ProductDialogProps) {
   const { data: units = [] } = useUnits();
+  const { data: branches = [] } = useBranches();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const { isSuperAdmin } = useAuth();
 
   const isEditing = !!product;
   const isLoading = createProduct.isPending || updateProduct.isPending;
@@ -51,6 +56,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
     defaultValues: {
       name: '',
       unit_id: '',
+      branch_id: '',
       opening_stock: 0,
       current_stock: 0,
       low_stock_threshold: 10,
@@ -65,6 +71,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
       reset({
         name: product.name,
         unit_id: product.unit_id,
+        branch_id: product.branch_id || '',
         opening_stock: Number(product.opening_stock),
         current_stock: Number(product.current_stock),
         low_stock_threshold: Number(product.low_stock_threshold),
@@ -76,6 +83,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
       reset({
         name: '',
         unit_id: '',
+        branch_id: '',
         opening_stock: 0,
         current_stock: 0,
         low_stock_threshold: 10,
@@ -90,6 +98,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
     const productData: ProductInput = {
       name: data.name,
       unit_id: data.unit_id,
+      branch_id: data.branch_id || undefined,
       opening_stock: data.opening_stock,
       current_stock: data.current_stock,
       low_stock_threshold: data.low_stock_threshold,
@@ -108,6 +117,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
   };
 
   const selectedUnitId = watch('unit_id');
+  const selectedBranchId = watch('branch_id');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -144,6 +154,25 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
               </Select>
               {errors.unit_id && <p className="text-sm text-destructive">{errors.unit_id.message}</p>}
             </div>
+
+            {branches.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="branch_id">Branch (Optional)</Label>
+                <Select value={selectedBranchId || ''} onValueChange={(value) => setValue('branch_id', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No branch</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="sku">SKU (Optional)</Label>
