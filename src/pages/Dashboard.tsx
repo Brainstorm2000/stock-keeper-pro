@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Ruler, Download, Upload, MapPin } from 'lucide-react';
+import { Plus, Ruler, Download, Upload, MapPin, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatsCards } from '@/components/dashboard/StatsCards';
@@ -10,6 +10,7 @@ import { ProductDialog } from '@/components/products/ProductDialog';
 import { UnitsDialog } from '@/components/units/UnitsDialog';
 import { BranchesDialog } from '@/components/branches/BranchesDialog';
 import { CSVImportDialog } from '@/components/csv/CSVImportDialog';
+import { UsersManagementDialog } from '@/components/users/UsersManagementDialog';
 import { useProducts, useDeleteProduct, type Product } from '@/hooks/useProducts';
 import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/lib/auth';
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const [unitsDialogOpen, setUnitsDialogOpen] = useState(false);
   const [branchesDialogOpen, setBranchesDialogOpen] = useState(false);
   const [csvImportDialogOpen, setCsvImportDialogOpen] = useState(false);
+  const [usersDialogOpen, setUsersDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
@@ -131,10 +133,16 @@ export default function Dashboard() {
                 Units
               </Button>
               {isSuperAdmin && (
-                <Button variant="outline" onClick={() => setBranchesDialogOpen(true)}>
-                  <MapPin className="mr-2 h-4 w-4" />
-                  Branches
-                </Button>
+                <>
+                  <Button variant="outline" onClick={() => setBranchesDialogOpen(true)}>
+                    <MapPin className="mr-2 h-4 w-4" />
+                    Branches
+                  </Button>
+                  <Button variant="outline" onClick={() => setUsersDialogOpen(true)}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Manage Admins
+                  </Button>
+                </>
               )}
               <Button onClick={() => setProductDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -203,6 +211,12 @@ export default function Dashboard() {
       <CSVImportDialog
         open={csvImportDialogOpen}
         onOpenChange={setCsvImportDialogOpen}
+      />
+
+      {/* Users Management Dialog */}
+      <UsersManagementDialog
+        open={usersDialogOpen}
+        onOpenChange={setUsersDialogOpen}
       />
 
       {/* Delete Confirmation Dialog */}
