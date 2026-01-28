@@ -100,7 +100,14 @@ export function useDeleteUnit() {
       toast({ title: 'Unit deleted successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to delete unit', description: error.message, variant: 'destructive' });
+      const isInUse = error.message.includes('violates foreign key constraint');
+      toast({ 
+        title: isInUse ? 'Cannot delete unit' : 'Failed to delete unit', 
+        description: isInUse 
+          ? 'This unit is being used by one or more products. Remove or reassign those products first.' 
+          : error.message, 
+        variant: 'destructive' 
+      });
     },
   });
 }
