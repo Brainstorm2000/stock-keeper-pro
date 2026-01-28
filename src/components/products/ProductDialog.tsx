@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUnits } from '@/hooks/useUnits';
 import { useBranches } from '@/hooks/useBranches';
-import { useCreateProduct, useUpdateProduct, type Product, type ProductInput } from '@/hooks/useProducts';
+import { useCreateProduct, useUpdateProduct, checkProductDuplicate, type Product, type ProductInput } from '@/hooks/useProducts';
 import { useAuth } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
 const productSchema = z.object({
@@ -35,14 +36,16 @@ interface ProductDialogProps {
 }
 
 export function ProductDialog({ product, open, onOpenChange }: ProductDialogProps) {
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const { isSuperAdmin } = useAuth();
+  const { toast } = useToast();
 
   const isEditing = !!product;
-  const isLoading = createProduct.isPending || updateProduct.isPending;
+  const isLoading = createProduct.isPending || updateProduct.isPending || isCheckingDuplicate;
 
   const {
     register,
@@ -95,25 +98,53 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
   }, [product, reset]);
 
   const onSubmit = async (data: ProductFormData) => {
-    const productData: ProductInput = {
-      name: data.name,
-      unit_id: data.unit_id,
-      branch_id: data.branch_id || undefined,
-      opening_stock: data.opening_stock,
-      current_stock: data.current_stock,
-      low_stock_threshold: data.low_stock_threshold,
-      out_of_stock_threshold: data.out_of_stock_threshold,
-      sku: data.sku || undefined,
-      description: data.description || undefined,
-    };
+    setIsCheckingDuplicate(true);
+    
+    try {
+      // Check for duplicates
+      const duplicateCheck = await checkProductDuplicate(
+        data.name,
+        data.branch_id || null,
+        data.sku || null,
+        isEditing ? product?.id : undefined
+      );
 
-    if (isEditing && product) {
-      await updateProduct.mutateAsync({ id: product.id, ...productData });
-    } else {
-      await createProduct.mutateAsync(productData);
+      if (duplicateCheck.isDuplicate) {
+        const message = duplicateCheck.reason === 'sku'
+          ? `A product with SKU "${data.sku}" already exists.`
+          : `A product named "${data.name}" already exists in this branch.`;
+        
+        toast({
+          title: 'Duplicate product',
+          description: message,
+          variant: 'destructive',
+        });
+        setIsCheckingDuplicate(false);
+        return;
+      }
+
+      const productData: ProductInput = {
+        name: data.name,
+        unit_id: data.unit_id,
+        branch_id: data.branch_id || undefined,
+        opening_stock: data.opening_stock,
+        current_stock: data.current_stock,
+        low_stock_threshold: data.low_stock_threshold,
+        out_of_stock_threshold: data.out_of_stock_threshold,
+        sku: data.sku || undefined,
+        description: data.description || undefined,
+      };
+
+      if (isEditing && product) {
+        await updateProduct.mutateAsync({ id: product.id, ...productData });
+      } else {
+        await createProduct.mutateAsync(productData);
+      }
+
+      onOpenChange(false);
+    } finally {
+      setIsCheckingDuplicate(false);
     }
-
-    onOpenChange(false);
   };
 
   const selectedUnitId = watch('unit_id');
