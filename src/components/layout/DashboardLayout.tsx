@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, LogOut, User, Shield } from 'lucide-react';
+import { Package, LogOut, User, Shield, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -12,7 +12,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, role, isAdmin, signOut } = useAuth();
+  const { user, role, isAdmin, isSuperAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -43,9 +43,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <Badge variant={isAdmin ? 'default' : 'secondary'} className="hidden sm:flex items-center gap-1">
-              {isAdmin ? <Shield className="h-3 w-3" /> : <User className="h-3 w-3" />}
-              {isAdmin ? 'Admin' : 'Viewer'}
+            <Badge variant={isSuperAdmin ? 'default' : isAdmin ? 'default' : 'secondary'} className="hidden sm:flex items-center gap-1">
+              {isSuperAdmin ? <Crown className="h-3 w-3" /> : isAdmin ? <Shield className="h-3 w-3" /> : <User className="h-3 w-3" />}
+              {isSuperAdmin ? 'Super Admin' : isAdmin ? 'Admin' : 'Viewer'}
             </Badge>
 
             <DropdownMenu>
@@ -65,9 +65,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="sm:hidden">
-                  <Badge variant={isAdmin ? 'default' : 'secondary'} className="flex items-center gap-1">
-                    {isAdmin ? <Shield className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                    {isAdmin ? 'Admin' : 'Viewer'}
+                  <Badge variant={isSuperAdmin ? 'default' : isAdmin ? 'default' : 'secondary'} className="flex items-center gap-1">
+                    {isSuperAdmin ? <Crown className="h-3 w-3" /> : isAdmin ? <Shield className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                    {isSuperAdmin ? 'Super Admin' : isAdmin ? 'Admin' : 'Viewer'}
                   </Badge>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive">

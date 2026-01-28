@@ -7,6 +7,7 @@ export interface Product {
   id: string;
   name: string;
   unit_id: string;
+  branch_id: string | null;
   opening_stock: number;
   current_stock: number;
   low_stock_threshold: number;
@@ -20,11 +21,16 @@ export interface Product {
     name: string;
     abbreviation: string | null;
   };
+  branches?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface ProductInput {
   name: string;
   unit_id: string;
+  branch_id?: string;
   opening_stock: number;
   current_stock: number;
   low_stock_threshold: number;
@@ -41,7 +47,8 @@ export function useProducts() {
         .from('products')
         .select(`
           *,
-          units (id, name, abbreviation)
+          units (id, name, abbreviation),
+          branches (id, name)
         `)
         .order('name');
 

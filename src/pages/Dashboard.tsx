@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Ruler, Download, Upload } from 'lucide-react';
+import { Plus, Ruler, Download, Upload, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatsCards } from '@/components/dashboard/StatsCards';
@@ -8,22 +8,36 @@ import { StockCharts } from '@/components/dashboard/StockCharts';
 import { ProductTable } from '@/components/products/ProductTable';
 import { ProductDialog } from '@/components/products/ProductDialog';
 import { UnitsDialog } from '@/components/units/UnitsDialog';
+import { BranchesDialog } from '@/components/branches/BranchesDialog';
+import { CSVImportDialog } from '@/components/csv/CSVImportDialog';
 import { useProducts, useDeleteProduct, type Product } from '@/hooks/useProducts';
+import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { exportProductsToCSV, downloadCSV } from '@/lib/csv-utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function Dashboard() {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [unitsDialogOpen, setUnitsDialogOpen] = useState(false);
+  const [branchesDialogOpen, setBranchesDialogOpen] = useState(false);
+  const [csvImportDialogOpen, setCsvImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
   
-  const { user, loading: authLoading, isAdmin } = useAuth();
+  const { user, loading: authLoading, isAdmin, isSuperAdmin } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: branches = [] } = useBranches();
   const deleteProduct = useDeleteProduct();
   const navigate = useNavigate();
+
+  // Filter products by selected branch
+  const filteredProducts = selectedBranchId === 'all' 
+    ? products 
+    : products.filter(p => p.branch_id === selectedBranchId);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -72,6 +86,12 @@ export default function Dashboard() {
     }
   };
 
+  const handleExportCSV = () => {
+    const csv = exportProductsToCSV(filteredProducts, branches);
+    const date = new Date().toISOString().split('T')[0];
+    downloadCSV(csv, `products_export_${date}.csv`);
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -88,16 +108,34 @@ export default function Dashboard() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
             <p className="text-muted-foreground">
-              {isAdmin ? 'Manage your inventory and track stock levels' : 'View inventory and stock levels'}
+              {isSuperAdmin 
+                ? 'Super Admin: Manage all branches and inventory' 
+                : isAdmin 
+                  ? 'Manage your inventory and track stock levels' 
+                  : 'View inventory and stock levels'}
             </p>
           </div>
           
           {isAdmin && (
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={handleExportCSV}>
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+              <Button variant="outline" onClick={() => setCsvImportDialogOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
+              </Button>
               <Button variant="outline" onClick={() => setUnitsDialogOpen(true)}>
                 <Ruler className="mr-2 h-4 w-4" />
-                Manage Units
+                Units
               </Button>
+              {isSuperAdmin && (
+                <Button variant="outline" onClick={() => setBranchesDialogOpen(true)}>
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Branches
+                </Button>
+              )}
               <Button onClick={() => setProductDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Product
@@ -106,18 +144,39 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* Branch Filter */}
+        {branches.length > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">Filter by branch:</span>
+            <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="All Branches" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* Stats Cards */}
-        <StatsCards products={products} />
+        <StatsCards products={filteredProducts} />
 
         {/* Charts */}
-        <StockCharts products={products} />
+        <StockCharts products={filteredProducts} />
 
         {/* Products Table */}
         <ProductTable
-          products={products}
+          products={filteredProducts}
           onEdit={handleEdit}
           onDelete={handleDelete}
           isLoading={productsLoading}
+          showBranch={branches.length > 0}
         />
       </div>
 
@@ -132,6 +191,18 @@ export default function Dashboard() {
       <UnitsDialog
         open={unitsDialogOpen}
         onOpenChange={setUnitsDialogOpen}
+      />
+
+      {/* Branches Dialog */}
+      <BranchesDialog
+        open={branchesDialogOpen}
+        onOpenChange={setBranchesDialogOpen}
+      />
+
+      {/* CSV Import Dialog */}
+      <CSVImportDialog
+        open={csvImportDialogOpen}
+        onOpenChange={setCsvImportDialogOpen}
       />
 
       {/* Delete Confirmation Dialog */}

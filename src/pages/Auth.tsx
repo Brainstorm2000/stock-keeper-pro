@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Shield, User, Loader2 } from 'lucide-react';
+import { Package, Shield, User, Loader2, Crown } from 'lucide-react';
 import { z } from 'zod';
 
 const authSchema = z.object({
@@ -21,7 +21,7 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'admin' | 'user'>('user');
+  const [role, setRole] = useState<'admin' | 'user' | 'super_admin'>('user');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
@@ -178,9 +178,22 @@ export default function Auth() {
                   <Label>Account Type</Label>
                   <RadioGroup
                     value={role}
-                    onValueChange={(value) => setRole(value as 'admin' | 'user')}
-                    className="grid grid-cols-2 gap-3"
+                    onValueChange={(value) => setRole(value as 'admin' | 'user' | 'super_admin')}
+                    className="grid grid-cols-3 gap-3"
                   >
+                    <Label
+                      htmlFor="super_admin"
+                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        role === 'super_admin' 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <RadioGroupItem value="super_admin" id="super_admin" className="sr-only" />
+                      <Crown className={`h-6 w-6 ${role === 'super_admin' ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span className={`font-medium text-sm ${role === 'super_admin' ? 'text-primary' : 'text-foreground'}`}>Super Admin</span>
+                      <span className="text-xs text-muted-foreground text-center">Manage all branches</span>
+                    </Label>
                     <Label
                       htmlFor="admin"
                       className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all ${
@@ -191,8 +204,8 @@ export default function Auth() {
                     >
                       <RadioGroupItem value="admin" id="admin" className="sr-only" />
                       <Shield className={`h-6 w-6 ${role === 'admin' ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className={`font-medium ${role === 'admin' ? 'text-primary' : 'text-foreground'}`}>Admin</span>
-                      <span className="text-xs text-muted-foreground text-center">Full access & control</span>
+                      <span className={`font-medium text-sm ${role === 'admin' ? 'text-primary' : 'text-foreground'}`}>Admin</span>
+                      <span className="text-xs text-muted-foreground text-center">Branch access</span>
                     </Label>
                     <Label
                       htmlFor="user"
@@ -204,8 +217,8 @@ export default function Auth() {
                     >
                       <RadioGroupItem value="user" id="user" className="sr-only" />
                       <User className={`h-6 w-6 ${role === 'user' ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className={`font-medium ${role === 'user' ? 'text-primary' : 'text-foreground'}`}>Viewer</span>
-                      <span className="text-xs text-muted-foreground text-center">View-only access</span>
+                      <span className={`font-medium text-sm ${role === 'user' ? 'text-primary' : 'text-foreground'}`}>Viewer</span>
+                      <span className="text-xs text-muted-foreground text-center">View-only</span>
                     </Label>
                   </RadioGroup>
                 </div>

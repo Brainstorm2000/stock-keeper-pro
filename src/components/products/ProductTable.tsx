@@ -16,9 +16,10 @@ interface ProductTableProps {
   onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
   isLoading?: boolean;
+  showBranch?: boolean;
 }
 
-export function ProductTable({ products, onEdit, onDelete, isLoading }: ProductTableProps) {
+export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch }: ProductTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'normal' | 'low' | 'out'>('all');
   const [stockUpdateProduct, setStockUpdateProduct] = useState<Product | null>(null);
@@ -83,6 +84,7 @@ export function ProductTable({ products, onEdit, onDelete, isLoading }: ProductT
                 <TableRow>
                   <TableHead>Product Name</TableHead>
                   <TableHead>Unit</TableHead>
+                  {showBranch && <TableHead>Branch</TableHead>}
                   <TableHead className="text-right">Opening</TableHead>
                   <TableHead className="text-right">Current</TableHead>
                   <TableHead>Status</TableHead>
@@ -93,13 +95,13 @@ export function ProductTable({ products, onEdit, onDelete, isLoading }: ProductT
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8">
+                    <TableCell colSpan={isAdmin ? (showBranch ? 9 : 8) : (showBranch ? 8 : 7)} className="text-center py-8">
                       <div className="animate-pulse-soft text-muted-foreground">Loading products...</div>
                     </TableCell>
                   </TableRow>
                 ) : filteredProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={isAdmin ? (showBranch ? 9 : 8) : (showBranch ? 8 : 7)} className="text-center py-8 text-muted-foreground">
                       {products.length === 0 ? 'No products yet. Add your first product!' : 'No products match your search.'}
                     </TableCell>
                   </TableRow>
@@ -131,6 +133,11 @@ export function ProductTable({ products, onEdit, onDelete, isLoading }: ProductT
                             </span>
                           )}
                         </TableCell>
+                        {showBranch && (
+                          <TableCell className="text-muted-foreground">
+                            {product.branches?.name || '—'}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right">{Number(product.opening_stock).toLocaleString()}</TableCell>
                         <TableCell className="text-right font-semibold">{Number(product.current_stock).toLocaleString()}</TableCell>
                         <TableCell>
