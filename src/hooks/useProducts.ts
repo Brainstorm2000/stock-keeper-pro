@@ -39,6 +39,74 @@ export interface ProductInput {
   description?: string;
 }
 
+export interface DuplicateCheckResult {
+  isDuplicate: boolean;
+  reason?: 'name_branch' | 'sku';
+  existingProduct?: Product;
+}
+
+// Check if a product with the same name+branch or SKU exists
+export async function checkProductDuplicate(
+  name: string,
+  branchId: string | null | undefined,
+  sku: string | null | undefined,
+  excludeProductId?: string
+): Promise<DuplicateCheckResult> {
+  // Check for name + branch duplicate
+  let query = supabase
+    .from('products')
+    .select('id, name, sku, branch_id')
+    .ilike('name', name.trim());
+
+  if (branchId) {
+    query = query.eq('branch_id', branchId);
+  } else {
+    query = query.is('branch_id', null);
+  }
+
+  if (excludeProductId) {
+    query = query.neq('id', excludeProductId);
+  }
+
+  const { data: nameMatches, error: nameError } = await query;
+  
+  if (nameError) throw nameError;
+
+  if (nameMatches && nameMatches.length > 0) {
+    return { 
+      isDuplicate: true, 
+      reason: 'name_branch',
+      existingProduct: nameMatches[0] as unknown as Product
+    };
+  }
+
+  // Check for SKU duplicate if SKU is provided
+  if (sku && sku.trim()) {
+    let skuQuery = supabase
+      .from('products')
+      .select('id, name, sku, branch_id')
+      .ilike('sku', sku.trim());
+
+    if (excludeProductId) {
+      skuQuery = skuQuery.neq('id', excludeProductId);
+    }
+
+    const { data: skuMatches, error: skuError } = await skuQuery;
+
+    if (skuError) throw skuError;
+
+    if (skuMatches && skuMatches.length > 0) {
+      return { 
+        isDuplicate: true, 
+        reason: 'sku',
+        existingProduct: skuMatches[0] as unknown as Product
+      };
+    }
+  }
+
+  return { isDuplicate: false };
+}
+
 export function useProducts() {
   return useQuery({
     queryKey: ['products'],

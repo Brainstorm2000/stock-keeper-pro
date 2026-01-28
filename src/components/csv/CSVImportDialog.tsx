@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { parseCSV, generateCSVTemplate, downloadCSV, type ParsedCSVProduct } from '@/lib/csv-utils';
 import { useUnits, useCreateUnit } from '@/hooks/useUnits';
 import { useBranches, useCreateBranch } from '@/hooks/useBranches';
-import { useCreateProduct } from '@/hooks/useProducts';
+import { useCreateProduct, checkProductDuplicate } from '@/hooks/useProducts';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileText, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -17,11 +17,18 @@ interface CSVImportDialogProps {
 
 type ImportStatus = 'idle' | 'parsing' | 'preview' | 'importing' | 'complete' | 'error';
 
+interface ImportResult {
+  imported: number;
+  skipped: number;
+  skippedProducts: string[];
+}
+
 export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
   const [status, setStatus] = useState<ImportStatus>('idle');
   const [parsedProducts, setParsedProducts] = useState<ParsedCSVProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: units = [] } = useUnits();
@@ -52,6 +59,12 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
   const handleImport = async () => {
     setStatus('importing');
     setImportProgress({ current: 0, total: parsedProducts.length });
+    
+    const result: ImportResult = {
+      imported: 0,
+      skipped: 0,
+      skippedProducts: [],
+    };
 
     try {
       // Create missing units and branches first
@@ -79,7 +92,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
         }
       }
 
-      // Import products
+      // Import products with duplicate checking
       for (let i = 0; i < parsedProducts.length; i++) {
         const product = parsedProducts[i];
         const unitId = unitMap.get(product.unit_name.toLowerCase());
@@ -89,6 +102,22 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
 
         if (!unitId) {
           throw new Error(`Unit not found for product: ${product.name}`);
+        }
+
+        // Check for duplicates before importing
+        const duplicateCheck = await checkProductDuplicate(
+          product.name,
+          branchId || null,
+          product.sku || null
+        );
+
+        if (duplicateCheck.isDuplicate) {
+          result.skipped++;
+          result.skippedProducts.push(
+            `${product.name}${product.sku ? ` (SKU: ${product.sku})` : ''}`
+          );
+          setImportProgress({ current: i + 1, total: parsedProducts.length });
+          continue;
         }
 
         await createProduct.mutateAsync({
@@ -103,14 +132,24 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
           branch_id: branchId,
         });
 
+        result.imported++;
         setImportProgress({ current: i + 1, total: parsedProducts.length });
       }
 
+      setImportResult(result);
       setStatus('complete');
-      toast({
-        title: 'Import Complete',
-        description: `Successfully imported ${parsedProducts.length} products`,
-      });
+      
+      if (result.skipped > 0) {
+        toast({
+          title: 'Import Complete with Duplicates',
+          description: `Imported ${result.imported} products, skipped ${result.skipped} duplicates`,
+        });
+      } else {
+        toast({
+          title: 'Import Complete',
+          description: `Successfully imported ${result.imported} products`,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');
       setStatus('error');
@@ -127,6 +166,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
     setParsedProducts([]);
     setError(null);
     setImportProgress({ current: 0, total: 0 });
+    setImportResult(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -230,13 +270,31 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
             </div>
           )}
 
-          {status === 'complete' && (
-            <Alert>
-              <CheckCircle2 className="h-4 w-4 text-status-normal" />
-              <AlertDescription>
-                Successfully imported {parsedProducts.length} products!
-              </AlertDescription>
-            </Alert>
+          {status === 'complete' && importResult && (
+            <div className="space-y-3">
+              <Alert>
+                <CheckCircle2 className="h-4 w-4 text-status-normal" />
+                <AlertDescription>
+                  Successfully imported {importResult.imported} products!
+                </AlertDescription>
+              </Alert>
+              
+              {importResult.skipped > 0 && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4 text-status-low" />
+                  <AlertDescription>
+                    <p className="font-medium">Skipped {importResult.skipped} duplicate(s):</p>
+                    <ScrollArea className="h-[100px] mt-2">
+                      <ul className="text-sm space-y-1">
+                        {importResult.skippedProducts.map((name, index) => (
+                          <li key={index}>• {name}</li>
+                        ))}
+                      </ul>
+                    </ScrollArea>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
           )}
 
           {status === 'error' && (
