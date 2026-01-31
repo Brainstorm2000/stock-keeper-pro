@@ -7,6 +7,9 @@ export interface Organization {
   id: string;
   name: string;
   slug: string;
+  logo_url: string | null;
+  email: string | null;
+  address: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -14,6 +17,9 @@ export interface Organization {
 export interface OrganizationInput {
   name: string;
   slug: string;
+  logo_url?: string;
+  email?: string;
+  address?: string;
 }
 
 export function useOrganization() {
@@ -76,13 +82,13 @@ export function useCreateOrganization() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ name, slug, fullName }: OrganizationInput & { fullName: string }) => {
+    mutationFn: async ({ name, slug, fullName, logo_url, email, address }: OrganizationInput & { fullName: string }) => {
       if (!user) throw new Error('User not authenticated');
 
       // 1. Create the organization
       const { data: org, error: orgError } = await supabase
         .from('organizations')
-        .insert({ name, slug })
+        .insert({ name, slug, logo_url: logo_url || null, email: email || null, address: address || null })
         .select()
         .single();
 

@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { useCreateOrganization, useJoinOrganization } from '@/hooks/useOrganization';
 import { Package, Building2, Users, Loader2, Shield, User } from 'lucide-react';
+import { LogoUpload } from '@/components/onboarding/LogoUpload';
 
 type OnboardingStep = 'choice' | 'create' | 'join';
 
@@ -16,6 +18,9 @@ export default function Onboarding() {
   const [step, setStep] = useState<OnboardingStep>('choice');
   const [orgName, setOrgName] = useState('');
   const [orgSlug, setOrgSlug] = useState('');
+  const [orgLogoUrl, setOrgLogoUrl] = useState('');
+  const [orgEmail, setOrgEmail] = useState('');
+  const [orgAddress, setOrgAddress] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [fullName, setFullName] = useState('');
   const [joinRole, setJoinRole] = useState<'admin' | 'user'>('user');
@@ -54,13 +59,20 @@ export default function Onboarding() {
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orgName.trim() || !orgSlug.trim() || !fullName.trim()) {
-      toast({ title: 'Please fill in all fields', variant: 'destructive' });
+      toast({ title: 'Please fill in all required fields', variant: 'destructive' });
       return;
     }
 
     setIsLoading(true);
     try {
-      await createOrg.mutateAsync({ name: orgName, slug: orgSlug, fullName });
+      await createOrg.mutateAsync({ 
+        name: orgName, 
+        slug: orgSlug, 
+        fullName,
+        logo_url: orgLogoUrl || undefined,
+        email: orgEmail || undefined,
+        address: orgAddress || undefined,
+      });
       await refreshProfile();
       navigate('/dashboard');
     } finally {
@@ -169,7 +181,7 @@ export default function Onboarding() {
             <CardContent>
               <form onSubmit={handleCreateOrg} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Your Name</Label>
+                  <Label htmlFor="fullName">Your Name *</Label>
                   <Input
                     id="fullName"
                     placeholder="John Doe"
@@ -180,7 +192,7 @@ export default function Onboarding() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="orgName">Organization Name</Label>
+                  <Label htmlFor="orgName">Organization Name *</Label>
                   <Input
                     id="orgName"
                     placeholder="Acme Inc."
@@ -191,7 +203,7 @@ export default function Onboarding() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="orgSlug">Organization ID (Invite Code)</Label>
+                  <Label htmlFor="orgSlug">Organization ID (Invite Code) *</Label>
                   <Input
                     id="orgSlug"
                     placeholder="acme-inc"
@@ -202,6 +214,36 @@ export default function Onboarding() {
                   <p className="text-xs text-muted-foreground">
                     Share this code with team members to let them join
                   </p>
+                </div>
+
+                <LogoUpload
+                  value={orgLogoUrl}
+                  onChange={setOrgLogoUrl}
+                  disabled={isLoading}
+                />
+
+                <div className="space-y-2">
+                  <Label htmlFor="orgEmail">Organization Email (Optional)</Label>
+                  <Input
+                    id="orgEmail"
+                    type="email"
+                    placeholder="contact@acme.com"
+                    value={orgEmail}
+                    onChange={(e) => setOrgEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="orgAddress">Organization Address (Optional)</Label>
+                  <Textarea
+                    id="orgAddress"
+                    placeholder="123 Main St, City, Country"
+                    value={orgAddress}
+                    onChange={(e) => setOrgAddress(e.target.value)}
+                    disabled={isLoading}
+                    rows={2}
+                  />
                 </div>
 
                 <div className="flex gap-2 pt-2">
