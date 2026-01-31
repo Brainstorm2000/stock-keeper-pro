@@ -1,19 +1,40 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, AreaChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { TrendingDown, AlertTriangle, Calendar } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { TrendingDown, AlertTriangle, Calendar, Search, Check, ChevronsUpDown } from 'lucide-react';
 import { useStockForecast, useStockTrends } from '@/hooks/useStockHistory';
 import { useProducts } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 export function StockForecastChart() {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [open, setOpen] = useState(false);
+  
   const { data: products = [] } = useProducts();
   const { data: forecastData, isLoading: forecastLoading } = useStockForecast(selectedProductId, 14);
   const { data: trends, isLoading: trendsLoading } = useStockTrends(30);
+
+  const selectedProduct = useMemo(() => {
+    return products.find(p => p.id === selectedProductId);
+  }, [products, selectedProductId]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -85,18 +106,51 @@ export function StockForecastChart() {
               </CardTitle>
               <CardDescription>Projected stock levels for next 14 days</CardDescription>
             </div>
-            <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select a product" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            
+            {/* Searchable Product Selector */}
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-[220px] justify-between"
+                >
+                  <span className="truncate">
+                    {selectedProduct?.name || "Select a product..."}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[220px] p-0" align="end">
+                <Command>
+                  <CommandInput placeholder="Search products..." />
+                  <CommandList>
+                    <CommandEmpty>No product found.</CommandEmpty>
+                    <CommandGroup>
+                      {products.map((product) => (
+                        <CommandItem
+                          key={product.id}
+                          value={product.name}
+                          onSelect={() => {
+                            setSelectedProductId(product.id);
+                            setOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedProductId === product.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <span className="truncate">{product.name}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardHeader>
         <CardContent>
