@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useUnits } from '@/hooks/useUnits';
 import { useBranches } from '@/hooks/useBranches';
 import { useCreateProduct, useUpdateProduct, checkProductDuplicate, type Product, type ProductInput } from '@/hooks/useProducts';
+import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -39,6 +40,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
+  const { data: organization } = useOrganization();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const { isSuperAdmin } = useAuth();
@@ -138,7 +140,15 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
       if (isEditing && product) {
         await updateProduct.mutateAsync({ id: product.id, ...productData });
       } else {
-        await createProduct.mutateAsync(productData);
+        if (!organization?.id) {
+          toast({
+            title: 'Organization not found',
+            description: 'Please refresh the page and try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        await createProduct.mutateAsync({ ...productData, organization_id: organization.id });
       }
 
       onOpenChange(false);

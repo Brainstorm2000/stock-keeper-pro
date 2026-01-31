@@ -5,6 +5,7 @@ import { parseCSV, generateCSVTemplate, downloadCSV, type ParsedCSVProduct } fro
 import { useUnits, useCreateUnit } from '@/hooks/useUnits';
 import { useBranches, useCreateBranch } from '@/hooks/useBranches';
 import { useCreateProduct, checkProductDuplicate } from '@/hooks/useProducts';
+import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -33,6 +34,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
 
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
+  const { data: organization } = useOrganization();
   const createUnit = useCreateUnit();
   const createBranch = useCreateBranch();
   const createProduct = useCreateProduct();
@@ -57,6 +59,15 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
   };
 
   const handleImport = async () => {
+    if (!organization?.id) {
+      toast({
+        title: 'Organization not found',
+        description: 'Please refresh the page and try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setStatus('importing');
     setImportProgress({ current: 0, total: parsedProducts.length });
     
@@ -130,6 +141,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
           sku: product.sku,
           description: product.description,
           branch_id: branchId,
+          organization_id: organization.id,
         });
 
         result.imported++;

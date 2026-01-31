@@ -96,6 +96,7 @@ export type Database = {
           low_stock_threshold: number
           name: string
           opening_stock: number
+          organization_id: string
           out_of_stock_threshold: number
           sku: string | null
           unit_id: string
@@ -111,6 +112,7 @@ export type Database = {
           low_stock_threshold?: number
           name: string
           opening_stock?: number
+          organization_id: string
           out_of_stock_threshold?: number
           sku?: string | null
           unit_id: string
@@ -126,6 +128,7 @@ export type Database = {
           low_stock_threshold?: number
           name?: string
           opening_stock?: number
+          organization_id?: string
           out_of_stock_threshold?: number
           sku?: string | null
           unit_id?: string
@@ -137,6 +140,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
