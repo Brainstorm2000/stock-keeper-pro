@@ -84,3 +84,47 @@ export function useAdminUsers() {
     },
   });
 }
+
+// Fetch all non-super_admin users (admins and regular users/viewers)
+export function useManageableUsers() {
+  return useQuery({
+    queryKey: ['manageable-users'],
+    queryFn: async () => {
+      // Get all user roles that are not super_admin
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('role', ['admin', 'user']);
+
+      if (rolesError) throw rolesError;
+
+      if (!userRoles || userRoles.length === 0) {
+        return [];
+      }
+
+      const userIds = userRoles.map((r) => r.user_id);
+
+      // Get profiles for these users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('user_id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      const users: UserWithRole[] = (profiles || []).map((profile) => {
+        const userRole = userRoles.find((r) => r.user_id === profile.user_id);
+        return {
+          id: profile.id,
+          user_id: profile.user_id,
+          email: profile.email,
+          full_name: profile.full_name,
+          role: (userRole?.role || 'user') as 'admin' | 'user' | 'super_admin',
+          created_at: profile.created_at,
+        };
+      });
+
+      return users;
+    },
+  });
+}
