@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, LogOut, User, Shield, Crown, Building2, Settings } from 'lucide-react';
+import { LogOut, User, Shield, Crown, Building2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useOrganization } from '@/hooks/useOrganization';
 import { ProfileSettingsDialog } from '@/components/profile/ProfileSettingsDialog';
+import faviconIcon from '/favicon.png';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -45,9 +46,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 className="h-10 w-10 rounded-xl object-cover"
               />
             ) : (
-              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-                <Package className="h-5 w-5 text-primary-foreground" />
-              </div>
+              <img
+                src={faviconIcon}
+                alt="StockFlow"
+                className="h-10 w-10 rounded-xl object-cover"
+              />
             )}
             <div>
               <h1 className="text-lg font-bold text-foreground">StockFlow</h1>
