@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Ruler, Download, Upload, MapPin, Users } from 'lucide-react';
+import { Plus, Ruler, Download, Upload, MapPin, Users, History, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatsCards } from '@/components/dashboard/StatsCards';
 import { StockCharts } from '@/components/dashboard/StockCharts';
+import { StockHistoryTable } from '@/components/dashboard/StockHistoryTable';
+import { StockForecastChart } from '@/components/dashboard/StockForecastChart';
 import { ProductTable } from '@/components/products/ProductTable';
 import { ProductDialog } from '@/components/products/ProductDialog';
 import { UnitsDialog } from '@/components/units/UnitsDialog';
@@ -16,6 +18,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { exportProductsToCSV, downloadCSV } from '@/lib/csv-utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -175,17 +178,47 @@ export default function Dashboard() {
         {/* Stats Cards */}
         <StatsCards products={filteredProducts} />
 
-        {/* Charts */}
-        <StockCharts products={filteredProducts} />
+        {/* Tabs for different views */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              History
+            </TabsTrigger>
+            <TabsTrigger value="forecast" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Forecast
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Products Table */}
-        <ProductTable
-          products={filteredProducts}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          isLoading={productsLoading}
-          showBranch={branches.length > 0}
-        />
+          <TabsContent value="overview" className="space-y-6">
+            {/* Charts */}
+            <StockCharts products={filteredProducts} />
+
+            {/* Products Table */}
+            <ProductTable
+              products={filteredProducts}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              isLoading={productsLoading}
+              showBranch={branches.length > 0}
+            />
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-6">
+            {/* Stock History Table */}
+            <StockHistoryTable limit={50} />
+          </TabsContent>
+
+          <TabsContent value="forecast" className="space-y-6">
+            {/* Stock Forecast Charts */}
+            <StockForecastChart />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Product Dialog */}
