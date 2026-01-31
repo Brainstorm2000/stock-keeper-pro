@@ -133,12 +133,13 @@ export function useCreateProduct() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (product: ProductInput) => {
+    mutationFn: async (product: ProductInput & { organization_id: string }) => {
       const { data, error } = await supabase
         .from('products')
         .insert({
           ...product,
           created_by: user?.id,
+          organization_id: product.organization_id,
         })
         .select()
         .single();
