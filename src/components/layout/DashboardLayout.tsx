@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -42,11 +43,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Badge variant={isSuperAdmin ? 'default' : isAdmin ? 'default' : 'secondary'} className="hidden sm:flex items-center gap-1">
               {isSuperAdmin ? <Crown className="h-3 w-3" /> : isAdmin ? <Shield className="h-3 w-3" /> : <User className="h-3 w-3" />}
               {isSuperAdmin ? 'Super Admin' : isAdmin ? 'Admin' : 'Viewer'}
             </Badge>
+
+            <ThemeToggle />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
