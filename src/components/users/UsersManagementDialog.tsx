@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useAdminUsers, type UserWithRole } from '@/hooks/useUsers';
+import { useManageableUsers, type UserWithRole } from '@/hooks/useUsers';
 import { useBranches, useUserBranchAssignments } from '@/hooks/useBranches';
 import { UserBranchAssignmentDialog } from './UserBranchAssignmentDialog';
-import { Users, MapPin, Loader2, Settings } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { Users, Loader2, Settings, Shield, Eye } from 'lucide-react';
 
 interface UsersManagementDialogProps {
   open: boolean;
@@ -39,8 +37,25 @@ function UserBranchBadges({ userId }: { userId: string }) {
   );
 }
 
+function RoleBadge({ role }: { role: 'admin' | 'user' | 'super_admin' }) {
+  if (role === 'admin') {
+    return (
+      <Badge variant="default" className="text-xs gap-1">
+        <Shield className="h-3 w-3" />
+        Admin
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-xs gap-1">
+      <Eye className="h-3 w-3" />
+      Viewer
+    </Badge>
+  );
+}
+
 export function UsersManagementDialog({ open, onOpenChange }: UsersManagementDialogProps) {
-  const { data: adminUsers = [], isLoading } = useAdminUsers();
+  const { data: users = [], isLoading } = useManageableUsers();
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
 
@@ -56,6 +71,13 @@ export function UsersManagementDialog({ open, onOpenChange }: UsersManagementDia
     }
   };
 
+  // Sort users: admins first, then viewers
+  const sortedUsers = [...users].sort((a, b) => {
+    if (a.role === 'admin' && b.role !== 'admin') return -1;
+    if (a.role !== 'admin' && b.role === 'admin') return 1;
+    return (a.full_name || '').localeCompare(b.full_name || '');
+  });
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,37 +85,40 @@ export function UsersManagementDialog({ open, onOpenChange }: UsersManagementDia
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Manage Admin Branch Access
+              Manage User Branch Access
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Assign branches to admin users. Each admin will only be able to manage products in their assigned branches.
+              Assign branches to users. Admins can manage products in their assigned branches. Viewers can only view products in their assigned branches.
             </p>
 
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : adminUsers.length === 0 ? (
+            ) : sortedUsers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No admin users found</p>
-                <p className="text-sm">Users with admin role will appear here</p>
+                <p>No users found</p>
+                <p className="text-sm">Users with admin or viewer role will appear here</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {adminUsers.map((user) => (
+                {sortedUsers.map((user) => (
                   <div
                     key={user.id}
                     className="p-4 rounded-lg border bg-card space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate">
-                          {user.full_name || 'Unnamed User'}
-                        </p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium truncate">
+                            {user.full_name || 'Unnamed User'}
+                          </p>
+                          <RoleBadge role={user.role} />
+                        </div>
                         <p className="text-sm text-muted-foreground truncate">
                           {user.email}
                         </p>
