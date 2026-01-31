@@ -1,12 +1,13 @@
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, LogOut, User, Shield, Crown } from 'lucide-react';
+import { Package, LogOut, User, Shield, Crown, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -14,6 +15,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, role, isAdmin, isSuperAdmin, signOut } = useAuth();
+  const { data: organization } = useOrganization();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -39,7 +41,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground">StockFlow</h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">Inventory Management</p>
+              {organization && (
+                <p className="text-xs text-muted-foreground hidden sm:flex items-center gap-1">
+                  <Building2 className="h-3 w-3" />
+                  {organization.name}
+                </p>
+              )}
             </div>
           </div>
 

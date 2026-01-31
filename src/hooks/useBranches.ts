@@ -7,6 +7,7 @@ export interface Branch {
   id: string;
   name: string;
   address: string | null;
+  organization_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -59,16 +60,19 @@ export function useUserBranchAssignments(userId?: string) {
 
 export function useCreateBranch() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, organizationId } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (branch: BranchInput) => {
+      if (!organizationId) throw new Error('No organization found');
+      
       const { data, error } = await supabase
         .from('branches')
         .insert({
           ...branch,
           created_by: user?.id,
+          organization_id: organizationId,
         })
         .select()
         .single();

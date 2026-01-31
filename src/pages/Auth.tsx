@@ -5,43 +5,39 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Shield, User, Loader2, Crown } from 'lucide-react';
+import { Package, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email address" }).max(255),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100),
-  fullName: z.string().trim().min(1, { message: "Full name is required" }).max(100).optional(),
 });
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'admin' | 'user' | 'super_admin'>('user');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, hasCompletedOnboarding } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      if (hasCompletedOnboarding) {
+        navigate('/dashboard');
+      } else if (hasCompletedOnboarding === false) {
+        navigate('/onboarding');
+      }
     }
-  }, [user, navigate]);
+  }, [user, hasCompletedOnboarding, navigate]);
 
   const validateForm = () => {
     try {
-      if (isLogin) {
-        authSchema.pick({ email: true, password: true }).parse({ email, password });
-      } else {
-        authSchema.parse({ email, password, fullName });
-      }
+      authSchema.parse({ email, password });
       setErrors({});
       return true;
     } catch (err) {
@@ -78,7 +74,7 @@ export default function Auth() {
           });
         }
       } else {
-        const { error } = await signUp(email, password, fullName, role);
+        const { error } = await signUp(email, password);
         if (error) {
           toast({
             title: "Sign Up Failed",
@@ -89,8 +85,8 @@ export default function Auth() {
           });
         } else {
           toast({
-            title: "Account Created",
-            description: "Welcome! You've been automatically signed in.",
+            title: "Check Your Email",
+            description: "We've sent you a confirmation link. Please verify your email to continue.",
           });
         }
       }
@@ -127,22 +123,6 @@ export default function Auth() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  {errors.fullName && (
-                    <p className="text-sm text-destructive">{errors.fullName}</p>
-                  )}
-                </div>
-              )}
-              
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -172,57 +152,6 @@ export default function Auth() {
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
               </div>
-
-              {!isLogin && (
-                <div className="space-y-3">
-                  <Label>Account Type</Label>
-                  <RadioGroup
-                    value={role}
-                    onValueChange={(value) => setRole(value as 'admin' | 'user' | 'super_admin')}
-                    className="grid grid-cols-3 gap-3"
-                  >
-                    <Label
-                      htmlFor="super_admin"
-                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        role === 'super_admin' 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <RadioGroupItem value="super_admin" id="super_admin" className="sr-only" />
-                      <Crown className={`h-6 w-6 ${role === 'super_admin' ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className={`font-medium text-sm ${role === 'super_admin' ? 'text-primary' : 'text-foreground'}`}>Super Admin</span>
-                      <span className="text-xs text-muted-foreground text-center">Manage all branches</span>
-                    </Label>
-                    <Label
-                      htmlFor="admin"
-                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        role === 'admin' 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <RadioGroupItem value="admin" id="admin" className="sr-only" />
-                      <Shield className={`h-6 w-6 ${role === 'admin' ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className={`font-medium text-sm ${role === 'admin' ? 'text-primary' : 'text-foreground'}`}>Admin</span>
-                      <span className="text-xs text-muted-foreground text-center">Branch access</span>
-                    </Label>
-                    <Label
-                      htmlFor="user"
-                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        role === 'user' 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <RadioGroupItem value="user" id="user" className="sr-only" />
-                      <User className={`h-6 w-6 ${role === 'user' ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className={`font-medium text-sm ${role === 'user' ? 'text-primary' : 'text-foreground'}`}>Viewer</span>
-                      <span className="text-xs text-muted-foreground text-center">View-only</span>
-                    </Label>
-                  </RadioGroup>
-                </div>
-              )}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
