@@ -3,34 +3,34 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { TrendingDown, AlertTriangle, Calendar, Search, Check, ChevronsUpDown } from 'lucide-react';
+import { TrendingDown, AlertTriangle, Calendar, Search } from 'lucide-react';
 import { useStockForecast, useStockTrends } from '@/hooks/useStockHistory';
 import { useProducts } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export function StockForecastChart() {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const { data: products = [] } = useProducts();
   const { data: forecastData, isLoading: forecastLoading } = useStockForecast(selectedProductId, 14);
   const { data: trends, isLoading: trendsLoading } = useStockTrends(30);
+
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return products;
+    return products.filter(p => 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [products, searchQuery]);
 
   const selectedProduct = useMemo(() => {
     return products.find(p => p.id === selectedProductId);
@@ -108,49 +108,35 @@ export function StockForecastChart() {
             </div>
             
             {/* Searchable Product Selector */}
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-[220px] justify-between"
-                >
-                  <span className="truncate">
-                    {selectedProduct?.name || "Select a product..."}
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[220px] p-0" align="end">
-                <Command>
-                  <CommandInput placeholder="Search products..." />
-                  <CommandList>
-                    <CommandEmpty>No product found.</CommandEmpty>
-                    <CommandGroup>
-                      {products.map((product) => (
-                        <CommandItem
-                          key={product.id}
-                          value={product.name}
-                          onSelect={() => {
-                            setSelectedProductId(product.id);
-                            setOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedProductId === product.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          <span className="truncate">{product.name}</span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <div className="w-[220px] space-y-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
+              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a product..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredProducts.length === 0 ? (
+                    <div className="py-2 px-2 text-sm text-muted-foreground text-center">
+                      No product found.
+                    </div>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
