@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { parseDbError } from '@/lib/db-errors';
 
 export interface Organization {
   id: string;
@@ -125,11 +126,8 @@ export function useCreateOrganization() {
       toast({ title: 'Organization created successfully' });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Failed to create organization',
-        description: error.message,
-        variant: 'destructive',
-      });
+      const { title, description } = parseDbError(error, 'create organization');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -151,7 +149,7 @@ export function useJoinOrganization() {
         .single();
 
       if (orgError || !org) {
-        throw new Error('Organization not found. Please check the invite code.');
+        throw new Error('Organization not found. Please check the invite code and try again.');
       }
 
       // 2. Create user profile with organization
@@ -185,11 +183,17 @@ export function useJoinOrganization() {
       toast({ title: 'Joined organization successfully' });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Failed to join organization',
-        description: error.message,
-        variant: 'destructive',
-      });
+      // Custom message for "not found" case
+      if (error.message.includes('not found')) {
+        toast({
+          title: 'Organization not found',
+          description: 'Please check the invite code and try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const { title, description } = parseDbError(error, 'join organization');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -215,11 +219,8 @@ export function useUpdateOrganization() {
       toast({ title: 'Organization updated successfully' });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Failed to update organization',
-        description: error.message,
-        variant: 'destructive',
-      });
+      const { title, description } = parseDbError(error, 'update organization');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }

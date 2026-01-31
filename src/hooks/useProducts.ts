@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { parseDbError } from '@/lib/db-errors';
 
 export interface Product {
   id: string;
@@ -162,7 +163,8 @@ export function useCreateProduct() {
       toast({ title: 'Product created successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to create product', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'create product');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -188,7 +190,8 @@ export function useUpdateProduct() {
       toast({ title: 'Product updated successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to update product', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'update product');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -207,7 +210,8 @@ export function useDeleteProduct() {
       toast({ title: 'Product deleted successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to delete product', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'Product');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -258,7 +262,8 @@ export function useUpdateStock() {
       toast({ title: 'Stock updated successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to update stock', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'update stock');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
