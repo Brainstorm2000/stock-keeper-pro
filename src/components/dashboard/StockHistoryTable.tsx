@@ -1,9 +1,15 @@
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { ArrowUp, ArrowDown, RefreshCw, Package } from 'lucide-react';
+import { ArrowUp, ArrowDown, RefreshCw, Package, Search, CalendarIcon, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 import { useStockHistory, type StockHistoryEntry } from '@/hooks/useStockHistory';
 
 interface StockHistoryTableProps {
@@ -37,8 +43,55 @@ function getChangeBadgeVariant(changeType: string) {
   }
 }
 
-export function StockHistoryTable({ productId, limit = 20 }: StockHistoryTableProps) {
+export function StockHistoryTable({ productId, limit = 100 }: StockHistoryTableProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  
   const { data: history, isLoading } = useStockHistory(productId, limit);
+
+  const filteredHistory = useMemo(() => {
+    if (!history) return [];
+    
+    return history.filter((entry) => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const productName = entry.products?.name?.toLowerCase() || '';
+        const notes = entry.notes?.toLowerCase() || '';
+        const changeType = entry.change_type.toLowerCase();
+        
+        if (!productName.includes(query) && !notes.includes(query) && !changeType.includes(query)) {
+          return false;
+        }
+      }
+      
+      // Date filter
+      const entryDate = new Date(entry.created_at);
+      
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (entryDate < start) return false;
+      }
+      
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (entryDate > end) return false;
+      }
+      
+      return true;
+    });
+  }, [history, searchQuery, startDate, endDate]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
+
+  const hasActiveFilters = searchQuery || startDate || endDate;
 
   if (isLoading) {
     return (
@@ -60,10 +113,91 @@ export function StockHistoryTable({ productId, limit = 20 }: StockHistoryTablePr
   return (
     <Card className="glass-card animate-fade-in">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Recent Stock Changes</CardTitle>
+        <div className="flex flex-col gap-4">
+          <CardTitle className="text-lg font-semibold">Recent Stock Changes</CardTitle>
+          
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products, notes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            {/* Start Date */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[140px] justify-start text-left font-normal",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, "MMM d, yyyy") : "From"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            
+            {/* End Date */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[140px] justify-start text-left font-normal",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "MMM d, yyyy") : "To"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="mr-1 h-4 w-4" />
+                Clear
+              </Button>
+            )}
+          </div>
+          
+          {/* Results count */}
+          {hasActiveFilters && (
+            <p className="text-sm text-muted-foreground">
+              Showing {filteredHistory.length} of {history?.length || 0} entries
+            </p>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
-        {history && history.length > 0 ? (
+        {filteredHistory.length > 0 ? (
           <div className="relative overflow-x-auto">
             <Table>
               <TableHeader>
@@ -78,7 +212,7 @@ export function StockHistoryTable({ productId, limit = 20 }: StockHistoryTablePr
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {history.map((entry) => (
+                {filteredHistory.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="whitespace-nowrap text-sm">
                       {format(new Date(entry.created_at), 'MMM d, yyyy HH:mm')}
@@ -115,7 +249,7 @@ export function StockHistoryTable({ productId, limit = 20 }: StockHistoryTablePr
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
-            No stock history available
+            {hasActiveFilters ? 'No entries match your filters' : 'No stock history available'}
           </div>
         )}
       </CardContent>
