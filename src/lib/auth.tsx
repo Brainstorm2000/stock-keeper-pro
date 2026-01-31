@@ -8,12 +8,15 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  organizationId: string | null;
+  hasCompletedOnboarding: boolean | null;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, role: AppRole) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,24 +25,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserRole = async (userId: string) => {
+  const fetchUserProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
+      // Fetch profile to check if onboarding is complete
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('organization_id')
         .eq('user_id', userId)
         .single();
 
-      if (error) {
-        console.error('Error fetching role:', error);
-        return null;
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileError);
       }
-      return data?.role as AppRole;
-    } catch (err) {
-      console.error('Error in fetchUserRole:', err);
+
+      const orgId = profile?.organization_id || null;
+      setOrganizationId(orgId);
+      setHasCompletedOnboarding(!!orgId);
+
+      // Fetch role
+      if (orgId) {
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .single();
+
+        if (roleError) {
+          console.error('Error fetching role:', roleError);
+          return null;
+        }
+        return roleData?.role as AppRole;
+      }
       return null;
+    } catch (err) {
+      console.error('Error in fetchUserProfile:', err);
+      return null;
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user) {
+      const fetchedRole = await fetchUserProfile(user.id);
+      setRole(fetchedRole);
     }
   };
 
@@ -50,13 +81,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer role fetching with setTimeout
+        // Defer profile/role fetching with setTimeout
         if (session?.user) {
           setTimeout(() => {
-            fetchUserRole(session.user.id).then(setRole);
+            fetchUserProfile(session.user.id).then(setRole);
           }, 0);
         } else {
           setRole(null);
+          setOrganizationId(null);
+          setHasCompletedOnboarding(null);
         }
         
         setLoading(false);
@@ -69,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchUserRole(session.user.id).then(setRole);
+        fetchUserProfile(session.user.id).then(setRole);
       }
       
       setLoading(false);
@@ -78,18 +111,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, selectedRole: AppRole) => {
-    const redirectUrl = `${window.location.origin}/`;
+  const signUp = async (email: string, password: string) => {
+    const redirectUrl = `${window.location.origin}/onboarding`;
     
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-          role: selectedRole,
-        },
       },
     });
 
@@ -110,18 +139,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setRole(null);
+    setOrganizationId(null);
+    setHasCompletedOnboarding(null);
   };
 
   const value = {
     user,
     session,
     role,
+    organizationId,
+    hasCompletedOnboarding,
     isAdmin: role === 'admin' || role === 'super_admin',
     isSuperAdmin: role === 'super_admin',
     loading,
     signUp,
     signIn,
     signOut,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

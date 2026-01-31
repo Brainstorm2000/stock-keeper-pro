@@ -7,6 +7,7 @@ export interface Unit {
   id: string;
   name: string;
   abbreviation: string | null;
+  organization_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -33,16 +34,19 @@ export function useUnits() {
 
 export function useCreateUnit() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, organizationId } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (unit: UnitInput) => {
+      if (!organizationId) throw new Error('No organization found');
+      
       const { data, error } = await supabase
         .from('units')
         .insert({
           ...unit,
           created_by: user?.id,
+          organization_id: organizationId,
         })
         .select()
         .single();
