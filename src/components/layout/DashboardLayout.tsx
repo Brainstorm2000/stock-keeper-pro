@@ -1,6 +1,6 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, LogOut, User, Shield, Crown, Building2 } from 'lucide-react';
+import { Package, LogOut, User, Shield, Crown, Building2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useOrganization } from '@/hooks/useOrganization';
+import { ProfileSettingsDialog } from '@/components/profile/ProfileSettingsDialog';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, role, isAdmin, isSuperAdmin, signOut } = useAuth();
   const { data: organization } = useOrganization();
   const navigate = useNavigate();
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -88,6 +90,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     {isSuperAdmin ? 'Super Admin' : isAdmin ? 'Admin' : 'Viewer'}
                   </Badge>
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Profile Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign out
@@ -102,6 +109,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <main className="container mx-auto px-4 py-6">
         {children}
       </main>
+
+      <ProfileSettingsDialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen} />
     </div>
   );
 }
