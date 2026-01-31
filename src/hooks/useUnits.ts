@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { parseDbError } from '@/lib/db-errors';
 
 export interface Unit {
   id: string;
@@ -59,7 +60,8 @@ export function useCreateUnit() {
       toast({ title: 'Unit created successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to create unit', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'create unit');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -85,7 +87,8 @@ export function useUpdateUnit() {
       toast({ title: 'Unit updated successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to update unit', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'update unit');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -104,14 +107,8 @@ export function useDeleteUnit() {
       toast({ title: 'Unit deleted successfully' });
     },
     onError: (error: Error) => {
-      const isInUse = error.message.includes('violates foreign key constraint');
-      toast({ 
-        title: isInUse ? 'Cannot delete unit' : 'Failed to delete unit', 
-        description: isInUse 
-          ? 'This unit is being used by one or more products. Remove or reassign those products first.' 
-          : error.message, 
-        variant: 'destructive' 
-      });
+      const { title, description } = parseDbError(error, 'Unit');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }

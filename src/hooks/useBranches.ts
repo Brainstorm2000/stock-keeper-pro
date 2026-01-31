@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { parseDbError } from '@/lib/db-errors';
 
 export interface Branch {
   id: string;
@@ -85,7 +86,8 @@ export function useCreateBranch() {
       toast({ title: 'Branch created successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to create branch', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'create branch');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -111,7 +113,8 @@ export function useUpdateBranch() {
       toast({ title: 'Branch updated successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to update branch', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'update branch');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -130,7 +133,8 @@ export function useDeleteBranch() {
       toast({ title: 'Branch deleted successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to delete branch', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'Branch');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -158,7 +162,8 @@ export function useAssignUserToBranch() {
       toast({ title: 'User assigned to branch successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to assign user to branch', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'assign user to branch');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
@@ -182,7 +187,8 @@ export function useRemoveUserFromBranch() {
       toast({ title: 'User removed from branch successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to remove user from branch', description: error.message, variant: 'destructive' });
+      const { title, description } = parseDbError(error, 'remove user from branch');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 }
