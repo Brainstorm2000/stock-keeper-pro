@@ -143,7 +143,7 @@ export default function Dashboard() {
                   </Button>
                   <Button variant="outline" onClick={() => setUsersDialogOpen(true)}>
                     <Users className="mr-2 h-4 w-4" />
-                    Manage Admins
+                    Manage Users
                   </Button>
                 </>
               )}
