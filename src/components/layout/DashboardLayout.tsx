@@ -36,9 +36,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <Package className="h-5 w-5 text-primary-foreground" />
-            </div>
+            {organization?.logo_url ? (
+              <img
+                src={organization.logo_url}
+                alt={organization.name}
+                className="h-10 w-10 rounded-xl object-cover"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
+                <Package className="h-5 w-5 text-primary-foreground" />
+              </div>
+            )}
             <div>
               <h1 className="text-lg font-bold text-foreground">StockFlow</h1>
               {organization && (
