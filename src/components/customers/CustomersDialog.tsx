@@ -119,7 +119,11 @@ export function CustomersDialog() {
 
     try {
       const rows = await parseGenericCSV(file);
-      const customersToImport = rows.map(row => ({
+      
+      // Create a set of existing customer names (lowercase for case-insensitive comparison)
+      const existingNames = new Set(customers.map(c => c.name.toLowerCase().trim()));
+      
+      const allParsed = rows.map(row => ({
         name: row.name || '',
         email: row.email || undefined,
         phone: row.phone || undefined,
@@ -128,12 +132,34 @@ export function CustomersDialog() {
         organization_id: organization.id,
       })).filter(c => c.name);
 
+      // Filter out duplicates (existing in DB or duplicates within the CSV itself)
+      const seenInCsv = new Set<string>();
+      const customersToImport = allParsed.filter(c => {
+        const key = c.name.toLowerCase().trim();
+        if (existingNames.has(key) || seenInCsv.has(key)) {
+          return false;
+        }
+        seenInCsv.add(key);
+        return true;
+      });
+
+      const skippedCount = allParsed.length - customersToImport.length;
+
       if (customersToImport.length === 0) {
-        toast({ title: 'No valid customers found in CSV', variant: 'destructive' });
+        toast({ 
+          title: skippedCount > 0 
+            ? `All ${skippedCount} customers already exist` 
+            : 'No valid customers found in CSV', 
+          variant: 'destructive' 
+        });
         return;
       }
 
       await bulkCreateCustomers.mutateAsync(customersToImport);
+      
+      if (skippedCount > 0) {
+        toast({ title: `Imported ${customersToImport.length} customers, skipped ${skippedCount} duplicates` });
+      }
     } catch {
       toast({ title: 'Failed to parse CSV file', variant: 'destructive' });
     }

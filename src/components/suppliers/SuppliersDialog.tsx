@@ -119,7 +119,11 @@ export function SuppliersDialog() {
 
     try {
       const rows = await parseGenericCSV(file);
-      const suppliersToImport = rows.map(row => ({
+      
+      // Create a set of existing supplier names (lowercase for case-insensitive comparison)
+      const existingNames = new Set(suppliers.map(s => s.name.toLowerCase().trim()));
+      
+      const allParsed = rows.map(row => ({
         name: row.name || '',
         email: row.email || undefined,
         phone: row.phone || undefined,
@@ -128,12 +132,34 @@ export function SuppliersDialog() {
         organization_id: organization.id,
       })).filter(s => s.name);
 
+      // Filter out duplicates (existing in DB or duplicates within the CSV itself)
+      const seenInCsv = new Set<string>();
+      const suppliersToImport = allParsed.filter(s => {
+        const key = s.name.toLowerCase().trim();
+        if (existingNames.has(key) || seenInCsv.has(key)) {
+          return false;
+        }
+        seenInCsv.add(key);
+        return true;
+      });
+
+      const skippedCount = allParsed.length - suppliersToImport.length;
+
       if (suppliersToImport.length === 0) {
-        toast({ title: 'No valid suppliers found in CSV', variant: 'destructive' });
+        toast({ 
+          title: skippedCount > 0 
+            ? `All ${skippedCount} suppliers already exist` 
+            : 'No valid suppliers found in CSV', 
+          variant: 'destructive' 
+        });
         return;
       }
 
       await bulkCreateSuppliers.mutateAsync(suppliersToImport);
+      
+      if (skippedCount > 0) {
+        toast({ title: `Imported ${suppliersToImport.length} suppliers, skipped ${skippedCount} duplicates` });
+      }
     } catch {
       toast({ title: 'Failed to parse CSV file', variant: 'destructive' });
     }
