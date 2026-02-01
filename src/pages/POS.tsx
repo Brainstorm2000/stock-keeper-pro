@@ -59,6 +59,50 @@ export default function POS() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const productBranchById = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const p of products) map.set(p.id, p.branch_id ?? null);
+    return map;
+  }, [products]);
+
+  const resolveTransactionBranch = (): { ok: true; branchId?: string } | { ok: false; message: string } => {
+    // If the org has no branches configured, keep the transaction unassigned.
+    if (branches.length === 0) return { ok: true };
+
+    const branchIds = new Set<string>();
+    for (const item of cart) {
+      const b = productBranchById.get(item.product_id);
+      if (b) branchIds.add(b);
+    }
+
+    const ids = Array.from(branchIds);
+    const inferred = ids.length === 1 ? ids[0] : undefined;
+    const branchId = selectedBranchId || inferred;
+
+    // If all items are "global" (no product branch_id), we still need an explicit branch.
+    if (!branchId) {
+      return { ok: false, message: 'Please select a branch for this transaction.' };
+    }
+
+    // Prevent mixing multiple branch-specific items in one transaction.
+    if (ids.length > 1) {
+      return {
+        ok: false,
+        message: 'Cart contains items from multiple branches. Please clear the cart or select one branch and only sell items from that branch.',
+      };
+    }
+
+    // If cart items belong to a specific branch, ensure the chosen branch matches it.
+    if (ids.length === 1 && branchId !== ids[0]) {
+      return {
+        ok: false,
+        message: 'This cart contains items from a different branch. Switch branch (or clear the cart) to continue.',
+      };
+    }
+
+    return { ok: true, branchId };
+  };
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
@@ -173,9 +217,15 @@ export default function POS() {
       return;
     }
 
+    const branchResult = resolveTransactionBranch();
+    if (branchResult.ok === false) {
+      toast({ title: branchResult.message, variant: 'destructive' });
+      return;
+    }
+
     await createHeldOrder.mutateAsync({
       organization_id: organization.id,
-      branch_id: selectedBranchId || undefined,
+      branch_id: branchResult.branchId,
       customer_name: customerName || undefined,
       items: cart,
       notes: notes || undefined,
@@ -198,9 +248,15 @@ export default function POS() {
       return;
     }
 
+    const branchResult = resolveTransactionBranch();
+    if (branchResult.ok === false) {
+      toast({ title: branchResult.message, variant: 'destructive' });
+      return;
+    }
+
     const result = await createSale.mutateAsync({
       organization_id: organization.id,
-      branch_id: selectedBranchId || undefined,
+      branch_id: branchResult.branchId,
       customer_id: selectedCustomerId && selectedCustomerId !== 'none' ? selectedCustomerId : undefined,
       customer_name: customerName || undefined,
       customer_phone: customerPhone || undefined,
