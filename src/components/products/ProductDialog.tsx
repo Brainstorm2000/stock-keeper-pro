@@ -20,10 +20,13 @@ const productSchema = z.object({
   name: z.string().trim().min(1, 'Product name is required').max(200),
   unit_id: z.string().min(1, 'Unit is required'),
   branch_id: z.string().optional(),
+  item_type: z.enum(['product', 'service']),
   opening_stock: z.coerce.number().min(0, 'Must be 0 or greater'),
   current_stock: z.coerce.number().min(0, 'Must be 0 or greater'),
   low_stock_threshold: z.coerce.number().min(0, 'Must be 0 or greater'),
   out_of_stock_threshold: z.coerce.number().min(0, 'Must be 0 or greater'),
+  cost_price: z.coerce.number().min(0, 'Must be 0 or greater'),
+  selling_price: z.coerce.number().min(0, 'Must be 0 or greater'),
   sku: z.string().max(50).optional(),
   description: z.string().max(500).optional(),
 });
@@ -62,10 +65,13 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
       name: '',
       unit_id: '',
       branch_id: '',
+      item_type: 'product',
       opening_stock: 0,
       current_stock: 0,
       low_stock_threshold: 10,
       out_of_stock_threshold: 0,
+      cost_price: 0,
+      selling_price: 0,
       sku: '',
       description: '',
     },
@@ -77,10 +83,13 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         name: product.name,
         unit_id: product.unit_id,
         branch_id: product.branch_id || '',
+        item_type: product.item_type || 'product',
         opening_stock: Number(product.opening_stock),
         current_stock: Number(product.current_stock),
         low_stock_threshold: Number(product.low_stock_threshold),
         out_of_stock_threshold: Number(product.out_of_stock_threshold),
+        cost_price: Number(product.cost_price) || 0,
+        selling_price: Number(product.selling_price) || 0,
         sku: product.sku || '',
         description: product.description || '',
       });
@@ -89,10 +98,13 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         name: '',
         unit_id: '',
         branch_id: '',
+        item_type: 'product',
         opening_stock: 0,
         current_stock: 0,
         low_stock_threshold: 10,
         out_of_stock_threshold: 0,
+        cost_price: 0,
+        selling_price: 0,
         sku: '',
         description: '',
       });
@@ -129,10 +141,13 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         name: data.name,
         unit_id: data.unit_id,
         branch_id: data.branch_id || undefined,
+        item_type: data.item_type,
         opening_stock: data.opening_stock,
         current_stock: data.current_stock,
         low_stock_threshold: data.low_stock_threshold,
         out_of_stock_threshold: data.out_of_stock_threshold,
+        cost_price: data.cost_price,
+        selling_price: data.selling_price,
         sku: data.sku || undefined,
         description: data.description || undefined,
       };
@@ -159,6 +174,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
 
   const selectedUnitId = watch('unit_id');
   const selectedBranchId = watch('branch_id');
+  const selectedItemType = watch('item_type');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -170,13 +186,26 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="name">Product Name *</Label>
+              <Label htmlFor="name">Name *</Label>
               <Input
                 id="name"
                 {...register('name')}
                 placeholder="e.g., Coca-Cola 500ml"
               />
               {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Type *</Label>
+              <Select value={selectedItemType} onValueChange={(value: 'product' | 'service') => setValue('item_type', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="product">Product</SelectItem>
+                  <SelectItem value="service">Service</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -228,59 +257,87 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="opening_stock">Opening Stock</Label>
+              <Label htmlFor="cost_price">Cost Price</Label>
               <Input
-                id="opening_stock"
+                id="cost_price"
                 type="number"
                 min="0"
                 step="0.01"
-                {...register('opening_stock')}
+                {...register('cost_price')}
               />
-              {errors.opening_stock && <p className="text-sm text-destructive">{errors.opening_stock.message}</p>}
+              {errors.cost_price && <p className="text-sm text-destructive">{errors.cost_price.message}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="current_stock">Current Stock</Label>
+              <Label htmlFor="selling_price">Selling Price</Label>
               <Input
-                id="current_stock"
+                id="selling_price"
                 type="number"
                 min="0"
                 step="0.01"
-                {...register('current_stock')}
+                {...register('selling_price')}
               />
-              {errors.current_stock && <p className="text-sm text-destructive">{errors.current_stock.message}</p>}
+              {errors.selling_price && <p className="text-sm text-destructive">{errors.selling_price.message}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="low_stock_threshold">Low Stock Threshold</Label>
-              <Input
-                id="low_stock_threshold"
-                type="number"
-                min="0"
-                step="0.01"
-                {...register('low_stock_threshold')}
-              />
-              {errors.low_stock_threshold && <p className="text-sm text-destructive">{errors.low_stock_threshold.message}</p>}
-            </div>
+            {selectedItemType === 'product' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="opening_stock">Opening Stock</Label>
+                  <Input
+                    id="opening_stock"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    {...register('opening_stock')}
+                  />
+                  {errors.opening_stock && <p className="text-sm text-destructive">{errors.opening_stock.message}</p>}
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="out_of_stock_threshold">Out of Stock Threshold</Label>
-              <Input
-                id="out_of_stock_threshold"
-                type="number"
-                min="0"
-                step="0.01"
-                {...register('out_of_stock_threshold')}
-              />
-              {errors.out_of_stock_threshold && <p className="text-sm text-destructive">{errors.out_of_stock_threshold.message}</p>}
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="current_stock">Current Stock</Label>
+                  <Input
+                    id="current_stock"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    {...register('current_stock')}
+                  />
+                  {errors.current_stock && <p className="text-sm text-destructive">{errors.current_stock.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="low_stock_threshold">Low Stock Threshold</Label>
+                  <Input
+                    id="low_stock_threshold"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    {...register('low_stock_threshold')}
+                  />
+                  {errors.low_stock_threshold && <p className="text-sm text-destructive">{errors.low_stock_threshold.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="out_of_stock_threshold">Out of Stock Threshold</Label>
+                  <Input
+                    id="out_of_stock_threshold"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    {...register('out_of_stock_threshold')}
+                  />
+                  {errors.out_of_stock_threshold && <p className="text-sm text-destructive">{errors.out_of_stock_threshold.message}</p>}
+                </div>
+              </>
+            )}
 
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="description">Description (Optional)</Label>
               <Textarea
                 id="description"
                 {...register('description')}
-                placeholder="Product description..."
+                placeholder="Description..."
                 rows={2}
               />
             </div>
@@ -297,7 +354,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
                   {isEditing ? 'Updating...' : 'Creating...'}
                 </>
               ) : (
-                isEditing ? 'Update Product' : 'Create Product'
+                isEditing ? 'Update' : 'Create'
               )}
             </Button>
           </DialogFooter>
