@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, Trash2, Plus, Minus, Pause, CreditCard, Banknote, Smartphone, Building, Clock, Loader2, Printer, X } from 'lucide-react';
+import { ShoppingCart, Search, Trash2, Pause, CreditCard, Banknote, Smartphone, Building, Clock, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,9 +16,11 @@ import { useProducts, type Product } from '@/hooks/useProducts';
 import { useBranches } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
-import { useCreateSale, useHeldOrders, useCreateHeldOrder, useDeleteHeldOrder, type SaleItem, type PaymentMethod } from '@/hooks/useSales';
+import { useCreateSale, useSaleWithItems, useHeldOrders, useCreateHeldOrder, useDeleteHeldOrder, type SaleItem, type PaymentMethod, type Sale } from '@/hooks/useSales';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { CartItemRow } from '@/components/pos/CartItemRow';
+import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
 
 interface CartItem extends SaleItem {
   product_name: string;
@@ -38,7 +40,7 @@ export default function POS() {
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [heldOrdersDialogOpen, setHeldOrdersDialogOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
-  const [lastSaleNumber, setLastSaleNumber] = useState('');
+  const [lastSaleId, setLastSaleId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 
   const { user, loading: authLoading, isAdmin, hasCompletedOnboarding } = useAuth();
@@ -46,6 +48,7 @@ export default function POS() {
   const { data: branches = [] } = useBranches();
   const { data: organization } = useOrganization();
   const { data: heldOrders = [] } = useHeldOrders();
+  const { data: lastSale } = useSaleWithItems(lastSaleId);
   const createSale = useCreateSale();
   const createHeldOrder = useCreateHeldOrder();
   const deleteHeldOrder = useDeleteHeldOrder();
@@ -111,9 +114,8 @@ export default function POS() {
     }
   };
 
-  const updateQuantity = (index: number, delta: number) => {
+  const updateQuantity = (index: number, newQty: number) => {
     const newCart = [...cart];
-    const newQty = newCart[index].quantity + delta;
     
     if (newQty <= 0) {
       newCart.splice(index, 1);
@@ -192,14 +194,15 @@ export default function POS() {
       items: cart.map(({ max_quantity, item_type, product_name, ...item }) => item),
     });
 
-    setLastSaleNumber(result.sale_number);
+    setLastSaleId(result.id);
     setCheckoutDialogOpen(false);
     setReceiptDialogOpen(true);
     clearCart();
   };
 
-  const handlePrintReceipt = () => {
-    window.print();
+  const handleNewSale = () => {
+    setReceiptDialogOpen(false);
+    setLastSaleId(null);
   };
 
   const paymentMethods: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
@@ -325,46 +328,15 @@ export default function POS() {
                   Cart is empty
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {cart.map((item, index) => (
-                    <div key={item.product_id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{item.product_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.unit_price.toLocaleString()} × {item.quantity}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => updateQuantity(index, -1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center text-sm">{item.quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => updateQuantity(index, 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="text-right w-20">
-                        <p className="font-medium text-sm">{item.total_price.toLocaleString()}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => removeFromCart(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <CartItemRow
+                      key={item.product_id}
+                      item={item}
+                      index={index}
+                      onQuantityChange={updateQuantity}
+                      onRemove={removeFromCart}
+                    />
                   ))}
                 </div>
               )}
@@ -578,29 +550,16 @@ export default function POS() {
       </Dialog>
 
       {/* Receipt Dialog */}
-      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-center">Sale Complete!</DialogTitle>
-          </DialogHeader>
-          
-          <div className="text-center space-y-4">
-            <div className="text-6xl">✓</div>
-            <p className="text-lg">Invoice #{lastSaleNumber}</p>
-            <p className="text-2xl font-bold">{total.toLocaleString()}</p>
-          </div>
-
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={handlePrintReceipt} className="flex-1">
-              <Printer className="h-4 w-4 mr-2" />
-              Print Receipt
-            </Button>
-            <Button onClick={() => setReceiptDialogOpen(false)} className="flex-1">
-              New Sale
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ReceiptDialog
+        open={receiptDialogOpen}
+        onOpenChange={setReceiptDialogOpen}
+        sale={lastSale || null}
+        organizationName={organization?.name}
+        organizationAddress={organization?.address || undefined}
+        organizationEmail={organization?.email || undefined}
+        showSuccessMessage={true}
+        onNewSale={handleNewSale}
+      />
     </DashboardLayout>
   );
 }

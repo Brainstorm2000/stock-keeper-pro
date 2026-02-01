@@ -1,17 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, Eye, Calendar, Filter } from 'lucide-react';
+import { Search, Loader2, Eye, Calendar, Printer, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useBranches } from '@/hooks/useBranches';
+import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
-import { useSales, useSaleWithItems, type Sale, type PaymentMethod, type SaleStatus } from '@/hooks/useSales';
+import { useSales, useSaleWithItems, useUpdateSale, type Sale, type PaymentMethod, type SaleStatus } from '@/hooks/useSales';
+import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
 import { format } from 'date-fns';
 
 const statusColors: Record<SaleStatus, string> = {
@@ -37,11 +41,29 @@ export default function Sales() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
+  const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editData, setEditData] = useState<{
+    customer_name: string;
+    customer_phone: string;
+    payment_method: PaymentMethod;
+    status: SaleStatus;
+    notes: string;
+  }>({
+    customer_name: '',
+    customer_phone: '',
+    payment_method: 'cash',
+    status: 'completed',
+    notes: '',
+  });
 
   const { user, loading: authLoading, hasCompletedOnboarding } = useAuth();
   const { data: sales = [], isLoading: salesLoading } = useSales();
   const { data: branches = [] } = useBranches();
+  const { data: organization } = useOrganization();
   const { data: selectedSale } = useSaleWithItems(selectedSaleId);
+  const { data: receiptSale } = useSaleWithItems(receiptSaleId);
+  const updateSale = useUpdateSale();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -74,6 +96,36 @@ export default function Sales() {
   const totalSales = filteredSales.reduce((sum, s) => sum + Number(s.total_amount), 0);
   const completedSales = filteredSales.filter(s => s.status === 'completed');
   const totalRevenue = completedSales.reduce((sum, s) => sum + Number(s.total_amount), 0);
+
+  const handleOpenEdit = (sale: Sale) => {
+    setEditData({
+      customer_name: sale.customer_name || '',
+      customer_phone: sale.customer_phone || '',
+      payment_method: sale.payment_method,
+      status: sale.status,
+      notes: sale.notes || '',
+    });
+    setSelectedSaleId(sale.id);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedSaleId) return;
+    
+    await updateSale.mutateAsync({
+      saleId: selectedSaleId,
+      updates: {
+        customer_name: editData.customer_name || null,
+        customer_phone: editData.customer_phone || null,
+        payment_method: editData.payment_method,
+        status: editData.status,
+        notes: editData.notes || null,
+      },
+    });
+
+    setEditDialogOpen(false);
+    setSelectedSaleId(null);
+  };
 
   if (authLoading) {
     return (
@@ -204,7 +256,7 @@ export default function Sales() {
                 <TableHead>Payment</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="w-[80px]">Actions</TableHead>
+                <TableHead className="w-[120px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -236,9 +288,32 @@ export default function Sales() {
                       {Number(sale.total_amount).toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedSaleId(sale.id)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="View Details"
+                          onClick={() => setSelectedSaleId(sale.id)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Print Receipt"
+                          onClick={() => setReceiptSaleId(sale.id)}
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Edit Sale"
+                          onClick={() => handleOpenEdit(sale)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -249,7 +324,7 @@ export default function Sales() {
       </div>
 
       {/* Sale Detail Dialog */}
-      <Dialog open={!!selectedSaleId} onOpenChange={() => setSelectedSaleId(null)}>
+      <Dialog open={!!selectedSaleId && !editDialogOpen} onOpenChange={() => setSelectedSaleId(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Sale Details - {selectedSale?.sale_number}</DialogTitle>
@@ -325,13 +400,123 @@ export default function Sales() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => {
+              if (selectedSaleId) setReceiptSaleId(selectedSaleId);
+              setSelectedSaleId(null);
+            }}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Receipt
+            </Button>
             <Button variant="outline" onClick={() => setSelectedSaleId(null)}>
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Sale Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Sale</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Customer Name</Label>
+                <Input
+                  value={editData.customer_name}
+                  onChange={(e) => setEditData(prev => ({ ...prev, customer_name: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input
+                  value={editData.customer_phone}
+                  onChange={(e) => setEditData(prev => ({ ...prev, customer_phone: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <Select
+                value={editData.payment_method}
+                onValueChange={(val: PaymentMethod) => setEditData(prev => ({ ...prev, payment_method: val }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                  <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={editData.status}
+                onValueChange={(val: SaleStatus) => setEditData(prev => ({ ...prev, status: val }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="on_hold">On Hold</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={editData.notes}
+                onChange={(e) => setEditData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Optional notes..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={updateSale.isPending}>
+              {updateSale.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Dialog */}
+      <ReceiptDialog
+        open={!!receiptSaleId}
+        onOpenChange={(open) => !open && setReceiptSaleId(null)}
+        sale={receiptSale || null}
+        organizationName={organization?.name}
+        organizationAddress={organization?.address || undefined}
+        organizationEmail={organization?.email || undefined}
+      />
     </DashboardLayout>
   );
 }

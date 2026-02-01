@@ -215,6 +215,83 @@ export function useCreateSale() {
   });
 }
 
+export function useUpdateSale() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      saleId,
+      updates,
+      items,
+    }: {
+      saleId: string;
+      updates: {
+        customer_name?: string | null;
+        customer_phone?: string | null;
+        discount_amount?: number;
+        discount_percent?: number;
+        subtotal?: number;
+        total_amount?: number;
+        payment_method?: PaymentMethod;
+        status?: SaleStatus;
+        notes?: string | null;
+      };
+      items?: SaleItem[];
+    }) => {
+      // Update sale record
+      const { error: saleError } = await supabase
+        .from('sales')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', saleId);
+
+      if (saleError) throw saleError;
+
+      // If items are provided, update them
+      if (items) {
+        // Delete existing items
+        const { error: deleteError } = await supabase
+          .from('sale_items')
+          .delete()
+          .eq('sale_id', saleId);
+
+        if (deleteError) throw deleteError;
+
+        // Insert new items
+        const saleItems = items.map(item => ({
+          sale_id: saleId,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          cost_price: item.cost_price,
+          discount_amount: item.discount_amount,
+          total_price: item.total_price,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('sale_items')
+          .insert(saleItems);
+
+        if (insertError) throw insertError;
+      }
+
+      return { saleId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['sale'] });
+      toast({ title: 'Sale updated successfully' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'update sale');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
 export function useHeldOrders() {
   return useQuery({
     queryKey: ['held-orders'],
