@@ -48,15 +48,15 @@ export default function Dashboard() {
     ? products 
     : products.filter(p => p.branch_id === selectedBranchId);
 
-  // Filter sales by selected branch (include null branch_id as "global" sales)
+  // Filter sales by selected branch
   const filteredSales = selectedBranchId === 'all'
     ? sales
-    : sales.filter(s => s.branch_id === selectedBranchId || s.branch_id === null);
+    : sales.filter(s => s.branch_id === selectedBranchId);
 
-  // Filter expenses by selected branch (include null branch_id as "global" expenses)
+  // Filter expenses by selected branch
   const filteredExpenses = selectedBranchId === 'all'
     ? expenses
-    : expenses.filter(e => e.branch_id === selectedBranchId || e.branch_id === null);
+    : expenses.filter(e => e.branch_id === selectedBranchId);
 
   useEffect(() => {
     if (!authLoading && !user) {
