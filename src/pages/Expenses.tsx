@@ -155,8 +155,8 @@ export default function Expenses() {
       amount: Number(amount),
       description,
       expense_date: expenseDate,
-      category_id: categoryId || undefined,
-      branch_id: branchId || undefined,
+      category_id: categoryId && categoryId !== 'none' ? categoryId : undefined,
+      branch_id: branchId && branchId !== 'none' ? branchId : undefined,
       notes: notes || undefined,
       receipt_url: finalReceiptUrl || undefined,
     };
@@ -416,7 +416,7 @@ export default function Expenses() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No category</SelectItem>
+                    <SelectItem value="none">No category</SelectItem>
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                     ))}
@@ -431,7 +431,7 @@ export default function Expenses() {
                       <SelectValue placeholder="Select branch" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No branch</SelectItem>
+                      <SelectItem value="none">No branch</SelectItem>
                       {branches.map((branch) => (
                         <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
                       ))}
