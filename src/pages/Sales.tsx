@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, Eye, Calendar, Printer, Edit2 } from 'lucide-react';
+import { Search, Loader2, Eye, Calendar, Printer, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,13 +8,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useBranches } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
-import { useSales, useSaleWithItems, useUpdateSale, type Sale, type PaymentMethod, type SaleStatus } from '@/hooks/useSales';
+import { useSales, useSaleWithItems, useUpdateSale, useDeleteSale, type Sale, type PaymentMethod, type SaleStatus } from '@/hooks/useSales';
 import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
 import { format } from 'date-fns';
 
@@ -56,6 +66,7 @@ export default function Sales() {
     status: 'completed',
     notes: '',
   });
+  const [deleteConfirmSale, setDeleteConfirmSale] = useState<Sale | null>(null);
 
   const { user, loading: authLoading, hasCompletedOnboarding } = useAuth();
   const { data: sales = [], isLoading: salesLoading } = useSales();
@@ -64,6 +75,7 @@ export default function Sales() {
   const { data: selectedSale } = useSaleWithItems(selectedSaleId);
   const { data: receiptSale } = useSaleWithItems(receiptSaleId);
   const updateSale = useUpdateSale();
+  const deleteSale = useDeleteSale();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -125,6 +137,12 @@ export default function Sales() {
 
     setEditDialogOpen(false);
     setSelectedSaleId(null);
+  };
+
+  const handleDeleteSale = async () => {
+    if (!deleteConfirmSale) return;
+    await deleteSale.mutateAsync(deleteConfirmSale.id);
+    setDeleteConfirmSale(null);
   };
 
   if (authLoading) {
@@ -312,6 +330,15 @@ export default function Sales() {
                           onClick={() => handleOpenEdit(sale)}
                         >
                           <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Delete Sale"
+                          onClick={() => setDeleteConfirmSale(sale)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -517,6 +544,36 @@ export default function Sales() {
         organizationAddress={organization?.address || undefined}
         organizationEmail={organization?.email || undefined}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmSale} onOpenChange={(open) => !open && setDeleteConfirmSale(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Sale</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete sale <span className="font-mono font-semibold">{deleteConfirmSale?.sale_number}</span>? 
+              This will restore the stock for all items in this sale. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteSale}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteSale.isPending}
+            >
+              {deleteSale.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Sale'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
