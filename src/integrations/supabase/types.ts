@@ -52,6 +52,91 @@ export type Database = {
           },
         ]
       }
+      brands: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brands_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          organization_id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           created_at: string
@@ -241,6 +326,7 @@ export type Database = {
       products: {
         Row: {
           branch_id: string | null
+          brand_id: string | null
           category: Database["public"]["Enums"]["product_category"]
           cost_price: number
           created_at: string
@@ -256,11 +342,13 @@ export type Database = {
           out_of_stock_threshold: number
           selling_price: number
           sku: string | null
+          supplier_id: string | null
           unit_id: string
           updated_at: string
         }
         Insert: {
           branch_id?: string | null
+          brand_id?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           cost_price?: number
           created_at?: string
@@ -276,11 +364,13 @@ export type Database = {
           out_of_stock_threshold?: number
           selling_price?: number
           sku?: string | null
+          supplier_id?: string | null
           unit_id: string
           updated_at?: string
         }
         Update: {
           branch_id?: string | null
+          brand_id?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           cost_price?: number
           created_at?: string
@@ -296,6 +386,7 @@ export type Database = {
           out_of_stock_threshold?: number
           selling_price?: number
           sku?: string | null
+          supplier_id?: string | null
           unit_id?: string
           updated_at?: string
         }
@@ -308,10 +399,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "products_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
           {
@@ -417,6 +522,7 @@ export type Database = {
           branch_id: string | null
           created_at: string
           created_by: string | null
+          customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
           discount_amount: number
@@ -436,6 +542,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount?: number
@@ -455,6 +562,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount?: number
@@ -476,6 +584,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
@@ -527,6 +642,53 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          organization_id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

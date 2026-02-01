@@ -22,6 +22,7 @@ export interface Sale {
   id: string;
   organization_id: string;
   branch_id: string | null;
+  customer_id: string | null;
   sale_number: string;
   customer_name: string | null;
   customer_phone: string | null;
@@ -42,6 +43,7 @@ export interface Sale {
 export interface CreateSaleInput {
   organization_id: string;
   branch_id?: string;
+  customer_id?: string;
   customer_name?: string;
   customer_phone?: string;
   subtotal: number;
@@ -136,6 +138,7 @@ export function useCreateSale() {
         .insert({
           organization_id: input.organization_id,
           branch_id: input.branch_id || null,
+          customer_id: input.customer_id || null,
           sale_number: saleNumber,
           customer_name: input.customer_name || null,
           customer_phone: input.customer_phone || null,
