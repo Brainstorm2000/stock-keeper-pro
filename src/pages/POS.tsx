@@ -233,12 +233,12 @@ export default function POS() {
               />
             </div>
             {branches.length > 0 && (
-              <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+              <Select value={selectedBranchId || "all"} onValueChange={(val) => setSelectedBranchId(val === "all" ? "" : val)}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="All Branches" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Branches</SelectItem>
+                  <SelectItem value="all">All Branches</SelectItem>
                   {branches.map((branch) => (
                     <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
                   ))}
