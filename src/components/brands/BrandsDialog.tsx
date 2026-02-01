@@ -109,18 +109,44 @@ export function BrandsDialog() {
 
     try {
       const rows = await parseGenericCSV(file);
-      const brandsToImport = rows.map(row => ({
+      
+      // Create a set of existing brand names (lowercase for case-insensitive comparison)
+      const existingNames = new Set(brands.map(b => b.name.toLowerCase().trim()));
+      
+      const allParsed = rows.map(row => ({
         name: row.name || '',
         description: row.description || undefined,
         organization_id: organization.id,
       })).filter(b => b.name);
 
+      // Filter out duplicates (existing in DB or duplicates within the CSV itself)
+      const seenInCsv = new Set<string>();
+      const brandsToImport = allParsed.filter(b => {
+        const key = b.name.toLowerCase().trim();
+        if (existingNames.has(key) || seenInCsv.has(key)) {
+          return false;
+        }
+        seenInCsv.add(key);
+        return true;
+      });
+
+      const skippedCount = allParsed.length - brandsToImport.length;
+
       if (brandsToImport.length === 0) {
-        toast({ title: 'No valid brands found in CSV', variant: 'destructive' });
+        toast({ 
+          title: skippedCount > 0 
+            ? `All ${skippedCount} brands already exist` 
+            : 'No valid brands found in CSV', 
+          variant: 'destructive' 
+        });
         return;
       }
 
       await bulkCreateBrands.mutateAsync(brandsToImport);
+      
+      if (skippedCount > 0) {
+        toast({ title: `Imported ${brandsToImport.length} brands, skipped ${skippedCount} duplicates` });
+      }
     } catch {
       toast({ title: 'Failed to parse CSV file', variant: 'destructive' });
     }
