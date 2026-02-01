@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Upload, Download, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Upload, Download, Pencil, Trash2, Search, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useSuppliers, useCreateSupplier, useUpdateSupplier, useDeleteSupplier, useBulkCreateSuppliers, Supplier, SupplierInput } from '@/hooks/useSuppliers';
 import { useOrganization } from '@/hooks/useOrganization';
-import { parseGenericCSV, exportToCSV } from '@/lib/csv-utils';
+import { parseGenericCSV, exportToCSV, generateSuppliersCSVTemplate, downloadCSV } from '@/lib/csv-utils';
 import { useToast } from '@/hooks/use-toast';
 
 export function SuppliersDialog() {
@@ -196,6 +196,9 @@ export function SuppliersDialog() {
             onChange={handleImport}
             className="hidden"
           />
+          <Button variant="outline" size="sm" onClick={() => { downloadCSV(generateSuppliersCSVTemplate(), 'suppliers_template.csv'); toast({ title: 'Template downloaded' }); }}>
+            <FileDown className="h-4 w-4 mr-1" /> Template
+          </Button>
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-1" /> Import
           </Button>

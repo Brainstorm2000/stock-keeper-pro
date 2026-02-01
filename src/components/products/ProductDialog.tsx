@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,7 +16,9 @@ import { useCreateProduct, useUpdateProduct, checkProductDuplicate, type Product
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, Download, FileDown } from 'lucide-react';
+import { exportProductsToCSV, downloadCSV, generateCSVTemplate } from '@/lib/csv-utils';
+import { CSVImportDialog } from '@/components/csv/CSVImportDialog';
 
 const productSchema = z.object({
   name: z.string().trim().min(1, 'Product name is required').max(200),
@@ -42,10 +44,12 @@ interface ProductDialogProps {
   product?: Product | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  allProducts?: Product[];
 }
 
-export function ProductDialog({ product, open, onOpenChange }: ProductDialogProps) {
+export function ProductDialog({ product, open, onOpenChange, allProducts = [] }: ProductDialogProps) {
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+  const [csvImportDialogOpen, setCsvImportDialogOpen] = useState(false);
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
   const { data: suppliers = [] } = useSuppliers();
@@ -198,12 +202,39 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
   const selectedItemType = watch('item_type');
   const selectedCategory = watch('category');
 
+  const handleExportCSV = () => {
+    const csv = exportProductsToCSV(allProducts, branches, suppliers, brands);
+    const date = new Date().toISOString().split('T')[0];
+    downloadCSV(csv, `products_export_${date}.csv`);
+    toast({ title: 'Products exported successfully' });
+  };
+
+  const handleDownloadTemplate = () => {
+    downloadCSV(generateCSVTemplate(), 'products_template.csv');
+    toast({ title: 'Template downloaded' });
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Product' : 'Add New Product'}</DialogTitle>
         </DialogHeader>
+
+        {!isEditing && (
+          <div className="flex flex-wrap gap-2 pb-4 border-b">
+            <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
+              <FileDown className="h-4 w-4 mr-1" /> Template
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setCsvImportDialogOpen(true)}>
+              <Upload className="h-4 w-4 mr-1" /> Import CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={allProducts.length === 0}>
+              <Download className="h-4 w-4 mr-1" /> Export CSV
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -447,5 +478,11 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         </form>
       </DialogContent>
     </Dialog>
+    
+    <CSVImportDialog
+      open={csvImportDialogOpen}
+      onOpenChange={setCsvImportDialogOpen}
+    />
+    </>
   );
 }
