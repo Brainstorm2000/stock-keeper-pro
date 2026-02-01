@@ -52,6 +52,159 @@ export type Database = {
           },
         ]
       }
+      expense_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          expense_date: string
+          id: string
+          notes: string | null
+          organization_id: string
+          receipt_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          expense_date?: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          receipt_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          expense_date?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          receipt_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      held_orders: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          id: string
+          items: Json
+          notes: string | null
+          organization_id: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          organization_id: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "held_orders_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "held_orders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           address: string | null
@@ -88,48 +241,57 @@ export type Database = {
       products: {
         Row: {
           branch_id: string | null
+          cost_price: number
           created_at: string
           created_by: string | null
           current_stock: number
           description: string | null
           id: string
+          item_type: Database["public"]["Enums"]["item_type"]
           low_stock_threshold: number
           name: string
           opening_stock: number
           organization_id: string
           out_of_stock_threshold: number
+          selling_price: number
           sku: string | null
           unit_id: string
           updated_at: string
         }
         Insert: {
           branch_id?: string | null
+          cost_price?: number
           created_at?: string
           created_by?: string | null
           current_stock?: number
           description?: string | null
           id?: string
+          item_type?: Database["public"]["Enums"]["item_type"]
           low_stock_threshold?: number
           name: string
           opening_stock?: number
           organization_id: string
           out_of_stock_threshold?: number
+          selling_price?: number
           sku?: string | null
           unit_id: string
           updated_at?: string
         }
         Update: {
           branch_id?: string | null
+          cost_price?: number
           created_at?: string
           created_by?: string | null
           current_stock?: number
           description?: string | null
           id?: string
+          item_type?: Database["public"]["Enums"]["item_type"]
           low_stock_threshold?: number
           name?: string
           opening_stock?: number
           organization_id?: string
           out_of_stock_threshold?: number
+          selling_price?: number
           sku?: string | null
           unit_id?: string
           updated_at?: string
@@ -189,6 +351,132 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_items: {
+        Row: {
+          cost_price: number
+          created_at: string
+          discount_amount: number
+          id: string
+          product_id: string
+          quantity: number
+          sale_id: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          cost_price?: number
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          product_id: string
+          quantity: number
+          sale_id: string
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          cost_price?: number
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          product_id?: string
+          quantity?: number
+          sale_id?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          discount_amount: number
+          discount_percent: number
+          id: string
+          notes: string | null
+          organization_id: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          sale_number: string
+          status: Database["public"]["Enums"]["sale_status"]
+          subtotal: number
+          tax_amount: number
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          discount_amount?: number
+          discount_percent?: number
+          id?: string
+          notes?: string | null
+          organization_id: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          sale_number: string
+          status?: Database["public"]["Enums"]["sale_status"]
+          subtotal?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          discount_amount?: number
+          discount_percent?: number
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          sale_number?: string
+          status?: Database["public"]["Enums"]["sale_status"]
+          subtotal?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -344,6 +632,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_sale_number: { Args: { org_id: string }; Returns: string }
       get_user_organization: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -368,6 +657,14 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "super_admin"
+      item_type: "product" | "service"
+      payment_method:
+        | "cash"
+        | "card"
+        | "mobile_money"
+        | "bank_transfer"
+        | "credit"
+      sale_status: "pending" | "completed" | "cancelled" | "on_hold"
       stock_status: "normal" | "low" | "out_of_stock"
     }
     CompositeTypes: {
@@ -497,6 +794,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "super_admin"],
+      item_type: ["product", "service"],
+      payment_method: [
+        "cash",
+        "card",
+        "mobile_money",
+        "bank_transfer",
+        "credit",
+      ],
+      sale_status: ["pending", "completed", "cancelled", "on_hold"],
       stock_status: ["normal", "low", "out_of_stock"],
     },
   },

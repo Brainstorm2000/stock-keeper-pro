@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Shield, Crown, Building2, Settings } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useOrganization } from '@/hooks/useOrganization';
 import { ProfileSettingsDialog } from '@/components/profile/ProfileSettingsDialog';
+import { cn } from '@/lib/utils';
 import faviconIcon from '/favicon.png';
 
 interface DashboardLayoutProps {
@@ -19,7 +20,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, role, isAdmin, isSuperAdmin, signOut } = useAuth();
   const { data: organization } = useOrganization();
   const navigate = useNavigate();
+  const location = useLocation();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+
+  const navLinks = [
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/pos', label: 'POS', icon: ShoppingCart, adminOnly: true },
+    { href: '/sales', label: 'Sales', icon: Receipt },
+    { href: '/expenses', label: 'Expenses', icon: Wallet },
+  ];
 
   const handleSignOut = async () => {
     await signOut();
@@ -61,6 +70,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </p>
               )}
             </div>
+
+            {/* Navigation Links */}
+            <nav className="hidden md:flex items-center gap-1 ml-6">
+              {navLinks.filter(link => !link.adminOnly || isAdmin).map((link) => (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    location.pathname === link.href
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                >
+                  <link.icon className="h-4 w-4" />
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
@@ -107,6 +135,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </div>
       </header>
+
+      {/* Mobile Navigation */}
+      <nav className="md:hidden border-b bg-card sticky top-16 z-40">
+        <div className="container mx-auto px-4 flex overflow-x-auto gap-1 py-2">
+          {navLinks.filter(link => !link.adminOnly || isAdmin).map((link) => (
+            <Link
+              key={link.href}
+              to={link.href}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
+                location.pathname === link.href
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              )}
+            >
+              <link.icon className="h-4 w-4" />
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-6">

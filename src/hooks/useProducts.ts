@@ -4,6 +4,8 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 
+export type ItemType = 'product' | 'service';
+
 export interface Product {
   id: string;
   name: string;
@@ -15,6 +17,9 @@ export interface Product {
   out_of_stock_threshold: number;
   sku: string | null;
   description: string | null;
+  item_type: ItemType;
+  cost_price: number;
+  selling_price: number;
   created_at: string;
   updated_at: string;
   units?: {
@@ -38,6 +43,9 @@ export interface ProductInput {
   out_of_stock_threshold: number;
   sku?: string;
   description?: string;
+  item_type?: ItemType;
+  cost_price?: number;
+  selling_price?: number;
 }
 
 export interface DuplicateCheckResult {

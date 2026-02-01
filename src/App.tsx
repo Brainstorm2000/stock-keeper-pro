@@ -8,6 +8,9 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
+import POS from "./pages/POS";
+import Sales from "./pages/Sales";
+import Expenses from "./pages/Expenses";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +28,9 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/pos" element={<POS />} />
+              <Route path="/sales" element={<Sales />} />
+              <Route path="/expenses" element={<Expenses />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
