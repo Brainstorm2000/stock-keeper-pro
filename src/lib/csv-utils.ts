@@ -302,6 +302,27 @@ export function generateCSVTemplate(): string {
   return [headers.join(','), sampleRow.join(',')].join('\n');
 }
 
+// Generate CSV template for brands
+export function generateBrandsCSVTemplate(): string {
+  const headers = ['name', 'description'];
+  const sampleRow = ['Sample Brand', 'Description of the brand'];
+  return [headers.join(','), sampleRow.join(',')].join('\n');
+}
+
+// Generate CSV template for suppliers
+export function generateSuppliersCSVTemplate(): string {
+  const headers = ['name', 'phone', 'email', 'address', 'notes'];
+  const sampleRow = ['Sample Supplier', '+1234567890', 'supplier@example.com', '123 Main St', 'Notes about supplier'];
+  return [headers.join(','), sampleRow.join(',')].join('\n');
+}
+
+// Generate CSV template for customers
+export function generateCustomersCSVTemplate(): string {
+  const headers = ['name', 'phone', 'email', 'address', 'notes'];
+  const sampleRow = ['Sample Customer', '+1234567890', 'customer@example.com', '456 Oak Ave', 'Preferred customer'];
+  return [headers.join(','), sampleRow.join(',')].join('\n');
+}
+
 // Generic CSV export for any data array
 export function exportToCSV<T extends Record<string, unknown>>(data: T[], filename: string): void {
   if (data.length === 0) return;
