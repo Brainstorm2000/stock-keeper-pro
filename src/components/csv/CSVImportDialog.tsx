@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { parseCSV, generateCSVTemplate, downloadCSV, type ParsedCSVProduct } from '@/lib/csv-utils';
 import { useUnits, useCreateUnit } from '@/hooks/useUnits';
 import { useBranches, useCreateBranch } from '@/hooks/useBranches';
+import { useSuppliers, useCreateSupplier } from '@/hooks/useSuppliers';
+import { useBrands, useCreateBrand } from '@/hooks/useBrands';
 import { useCreateProduct, checkProductDuplicate } from '@/hooks/useProducts';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
@@ -34,9 +36,13 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
 
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
+  const { data: suppliers = [] } = useSuppliers();
+  const { data: brands = [] } = useBrands();
   const { data: organization } = useOrganization();
   const createUnit = useCreateUnit();
   const createBranch = useCreateBranch();
+  const createSupplier = useCreateSupplier();
+  const createBrand = useCreateBrand();
   const createProduct = useCreateProduct();
   const { toast } = useToast();
 
@@ -78,9 +84,11 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
     };
 
     try {
-      // Create missing units and branches first
+      // Create missing units, branches, suppliers, and brands first
       const unitMap = new Map(units.map((u) => [u.name.toLowerCase(), u.id]));
       const branchMap = new Map(branches.map((b) => [b.name.toLowerCase(), b.id]));
+      const supplierMap = new Map(suppliers.map((s) => [s.name.toLowerCase(), s.id]));
+      const brandMap = new Map(brands.map((b) => [b.name.toLowerCase(), b.id]));
 
       for (const product of parsedProducts) {
         const unitName = product.unit_name.toLowerCase();
@@ -101,6 +109,28 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
             branchMap.set(branchName, newBranch.id);
           }
         }
+
+        if (product.supplier_name) {
+          const supplierName = product.supplier_name.toLowerCase();
+          if (!supplierMap.has(supplierName)) {
+            const newSupplier = await createSupplier.mutateAsync({ 
+              name: product.supplier_name,
+              organization_id: organization.id,
+            });
+            supplierMap.set(supplierName, newSupplier.id);
+          }
+        }
+
+        if (product.brand_name) {
+          const brandName = product.brand_name.toLowerCase();
+          if (!brandMap.has(brandName)) {
+            const newBrand = await createBrand.mutateAsync({ 
+              name: product.brand_name,
+              organization_id: organization.id,
+            });
+            brandMap.set(brandName, newBrand.id);
+          }
+        }
       }
 
       // Import products with duplicate checking
@@ -109,6 +139,12 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
         const unitId = unitMap.get(product.unit_name.toLowerCase());
         const branchId = product.branch_name 
           ? branchMap.get(product.branch_name.toLowerCase()) 
+          : undefined;
+        const supplierId = product.supplier_name 
+          ? supplierMap.get(product.supplier_name.toLowerCase()) 
+          : undefined;
+        const brandId = product.brand_name 
+          ? brandMap.get(product.brand_name.toLowerCase()) 
           : undefined;
 
         if (!unitId) {
@@ -134,13 +170,19 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
         await createProduct.mutateAsync({
           name: product.name,
           unit_id: unitId,
+          item_type: product.item_type,
+          category: product.category,
           opening_stock: product.opening_stock,
           current_stock: product.current_stock,
           low_stock_threshold: product.low_stock_threshold,
           out_of_stock_threshold: product.out_of_stock_threshold,
+          cost_price: product.cost_price,
+          selling_price: product.selling_price,
           sku: product.sku,
           description: product.description,
           branch_id: branchId,
+          supplier_id: supplierId,
+          brand_id: brandId,
           organization_id: organization.id,
         });
 
