@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 
 export type ItemType = 'product' | 'service';
+export type ProductCategory = 'sellable' | 'consumable';
 
 export interface Product {
   id: string;
@@ -17,6 +18,7 @@ export interface Product {
   out_of_stock_threshold: number;
   sku: string | null;
   description: string | null;
+  category: ProductCategory;
   item_type: ItemType;
   cost_price: number;
   selling_price: number;
@@ -44,6 +46,7 @@ export interface ProductInput {
   sku?: string;
   description?: string;
   item_type?: ItemType;
+  category?: ProductCategory;
   cost_price?: number;
   selling_price?: number;
 }

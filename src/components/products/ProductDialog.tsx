@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUnits } from '@/hooks/useUnits';
 import { useBranches } from '@/hooks/useBranches';
-import { useCreateProduct, useUpdateProduct, checkProductDuplicate, type Product, type ProductInput } from '@/hooks/useProducts';
+import { useCreateProduct, useUpdateProduct, checkProductDuplicate, type Product, type ProductInput, type ProductCategory } from '@/hooks/useProducts';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ const productSchema = z.object({
   unit_id: z.string().min(1, 'Unit is required'),
   branch_id: z.string().optional(),
   item_type: z.enum(['product', 'service']),
+  category: z.enum(['sellable', 'consumable']),
   opening_stock: z.coerce.number().min(0, 'Must be 0 or greater'),
   current_stock: z.coerce.number().min(0, 'Must be 0 or greater'),
   low_stock_threshold: z.coerce.number().min(0, 'Must be 0 or greater'),
@@ -66,6 +67,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
       unit_id: '',
       branch_id: '',
       item_type: 'product',
+      category: 'sellable',
       opening_stock: 0,
       current_stock: 0,
       low_stock_threshold: 10,
@@ -84,6 +86,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         unit_id: product.unit_id,
         branch_id: product.branch_id || '',
         item_type: product.item_type || 'product',
+        category: product.category || 'sellable',
         opening_stock: Number(product.opening_stock),
         current_stock: Number(product.current_stock),
         low_stock_threshold: Number(product.low_stock_threshold),
@@ -99,6 +102,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         unit_id: '',
         branch_id: '',
         item_type: 'product',
+        category: 'sellable',
         opening_stock: 0,
         current_stock: 0,
         low_stock_threshold: 10,
@@ -142,6 +146,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         unit_id: data.unit_id,
         branch_id: data.branch_id || undefined,
         item_type: data.item_type,
+        category: data.category,
         opening_stock: data.opening_stock,
         current_stock: data.current_stock,
         low_stock_threshold: data.low_stock_threshold,
@@ -175,6 +180,7 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
   const selectedUnitId = watch('unit_id');
   const selectedBranchId = watch('branch_id');
   const selectedItemType = watch('item_type');
+  const selectedCategory = watch('category');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -206,6 +212,24 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
                   <SelectItem value="service">Service</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Category *</Label>
+              <Select value={selectedCategory} onValueChange={(value: 'sellable' | 'consumable') => setValue('category', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sellable">Sellable</SelectItem>
+                  <SelectItem value="consumable">Consumable</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {selectedCategory === 'sellable' 
+                  ? 'Sold at POS, appears on invoices, generates revenue'
+                  : 'Not sold, purchased for internal use, stock managed'}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -268,17 +292,19 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
               {errors.cost_price && <p className="text-sm text-destructive">{errors.cost_price.message}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="selling_price">Selling Price</Label>
-              <Input
-                id="selling_price"
-                type="number"
-                min="0"
-                step="0.01"
-                {...register('selling_price')}
-              />
-              {errors.selling_price && <p className="text-sm text-destructive">{errors.selling_price.message}</p>}
-            </div>
+            {selectedCategory === 'sellable' && (
+              <div className="space-y-2">
+                <Label htmlFor="selling_price">Selling Price</Label>
+                <Input
+                  id="selling_price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  {...register('selling_price')}
+                />
+                {errors.selling_price && <p className="text-sm text-destructive">{errors.selling_price.message}</p>}
+              </div>
+            )}
 
             {selectedItemType === 'product' && (
               <>

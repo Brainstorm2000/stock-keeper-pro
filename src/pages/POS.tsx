@@ -60,14 +60,15 @@ export default function POS() {
     }
   }, [user, authLoading, hasCompletedOnboarding, navigate]);
 
-  // Filter products for sale (only those with selling price)
+  // Filter products for sale (only sellable items with selling price)
   const availableProducts = useMemo(() => {
     return products.filter(p => {
+      const isSellable = p.category === 'sellable';
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.sku && p.sku.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesBranch = !selectedBranchId || p.branch_id === selectedBranchId || !p.branch_id;
       const hasStock = p.item_type === 'service' || Number(p.current_stock) > 0;
-      return matchesSearch && matchesBranch && hasStock;
+      return isSellable && matchesSearch && matchesBranch && hasStock;
     });
   }, [products, searchQuery, selectedBranchId]);
 

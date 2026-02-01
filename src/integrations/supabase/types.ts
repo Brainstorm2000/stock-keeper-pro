@@ -241,6 +241,7 @@ export type Database = {
       products: {
         Row: {
           branch_id: string | null
+          category: Database["public"]["Enums"]["product_category"]
           cost_price: number
           created_at: string
           created_by: string | null
@@ -260,6 +261,7 @@ export type Database = {
         }
         Insert: {
           branch_id?: string | null
+          category?: Database["public"]["Enums"]["product_category"]
           cost_price?: number
           created_at?: string
           created_by?: string | null
@@ -279,6 +281,7 @@ export type Database = {
         }
         Update: {
           branch_id?: string | null
+          category?: Database["public"]["Enums"]["product_category"]
           cost_price?: number
           created_at?: string
           created_by?: string | null
@@ -664,6 +667,7 @@ export type Database = {
         | "mobile_money"
         | "bank_transfer"
         | "credit"
+      product_category: "sellable" | "consumable"
       sale_status: "pending" | "completed" | "cancelled" | "on_hold"
       stock_status: "normal" | "low" | "out_of_stock"
     }
@@ -802,6 +806,7 @@ export const Constants = {
         "bank_transfer",
         "credit",
       ],
+      product_category: ["sellable", "consumable"],
       sale_status: ["pending", "completed", "cancelled", "on_hold"],
       stock_status: ["normal", "low", "out_of_stock"],
     },
