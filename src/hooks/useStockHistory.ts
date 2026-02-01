@@ -26,15 +26,15 @@ export interface StockTrend {
   changes: number;
 }
 
-export function useStockHistory(productId?: string, limit = 50) {
+export function useStockHistory(productId?: string, limit = 50, category?: 'sellable' | 'consumable') {
   return useQuery({
-    queryKey: ['stock-history', productId, limit],
+    queryKey: ['stock-history', productId, limit, category],
     queryFn: async () => {
       let query = supabase
         .from('stock_history')
         .select(`
           *,
-          products (id, name, units (abbreviation))
+          products (id, name, category, units (abbreviation))
         `)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -45,7 +45,14 @@ export function useStockHistory(productId?: string, limit = 50) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as StockHistoryEntry[];
+      
+      // Filter by category if specified
+      let filtered = data as (StockHistoryEntry & { products?: { category?: string } })[];
+      if (category) {
+        filtered = filtered.filter(entry => entry.products?.category === category);
+      }
+      
+      return filtered as StockHistoryEntry[];
     },
   });
 }
@@ -107,7 +114,7 @@ export function useStockTrends(days = 30) {
 }
 
 // Simple forecasting based on moving average
-export function useStockForecast(productId: string, forecastDays = 7) {
+export function useStockForecast(productId: string, forecastDays = 30) {
   return useQuery({
     queryKey: ['stock-forecast', productId, forecastDays],
     queryFn: async () => {
@@ -128,7 +135,7 @@ export function useStockForecast(productId: string, forecastDays = 7) {
       const dailyDecreases: Record<string, number> = {};
       
       data?.forEach(entry => {
-        if (entry.change_type === 'decrease' || Number(entry.change_amount) < 0) {
+        if (entry.change_type === 'decrease' || entry.change_type === 'sale' || Number(entry.change_amount) < 0) {
           const date = new Date(entry.created_at).toISOString().split('T')[0];
           if (!dailyDecreases[date]) {
             dailyDecreases[date] = 0;

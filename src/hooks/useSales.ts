@@ -375,3 +375,86 @@ export function useDeleteHeldOrder() {
     },
   });
 }
+
+export function useDeleteSale() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (saleId: string) => {
+      // Get the sale with items first
+      const { data: sale, error: saleError } = await supabase
+        .from('sales')
+        .select('*, sale_number')
+        .eq('id', saleId)
+        .single();
+
+      if (saleError) throw saleError;
+
+      const { data: saleItems, error: itemsError } = await supabase
+        .from('sale_items')
+        .select('*')
+        .eq('sale_id', saleId);
+
+      if (itemsError) throw itemsError;
+
+      // Restore stock for each item (only for 'product' type items)
+      for (const item of saleItems || []) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('current_stock, item_type')
+          .eq('id', item.product_id)
+          .single();
+
+        if (product && product.item_type === 'product') {
+          const restoredStock = Number(product.current_stock) + Number(item.quantity);
+          
+          await supabase
+            .from('products')
+            .update({ current_stock: restoredStock })
+            .eq('id', item.product_id);
+
+          // Record stock history for restoration
+          await supabase.from('stock_history').insert({
+            product_id: item.product_id,
+            previous_stock: product.current_stock,
+            new_stock: restoredStock,
+            change_amount: Number(item.quantity),
+            change_type: 'increase',
+            notes: `Sale deleted: ${sale.sale_number}`,
+            changed_by: user?.id,
+          });
+        }
+      }
+
+      // Delete sale items first
+      const { error: deleteItemsError } = await supabase
+        .from('sale_items')
+        .delete()
+        .eq('sale_id', saleId);
+
+      if (deleteItemsError) throw deleteItemsError;
+
+      // Delete the sale
+      const { error: deleteSaleError } = await supabase
+        .from('sales')
+        .delete()
+        .eq('id', saleId);
+
+      if (deleteSaleError) throw deleteSaleError;
+
+      return { saleNumber: sale.sale_number };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      toast({ title: `Sale ${data.saleNumber} deleted`, description: 'Stock has been restored.' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'delete sale');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useStockHistory, type StockHistoryEntry } from '@/hooks/useStockHistory';
 
@@ -22,6 +23,7 @@ function getChangeIcon(changeType: string) {
     case 'increase':
       return <ArrowUp className="h-4 w-4 text-stock-normal" />;
     case 'decrease':
+    case 'sale':
       return <ArrowDown className="h-4 w-4 text-destructive" />;
     case 'adjustment':
       return <RefreshCw className="h-4 w-4 text-stock-low" />;
@@ -35,6 +37,7 @@ function getChangeBadgeVariant(changeType: string) {
     case 'increase':
       return 'default';
     case 'decrease':
+    case 'sale':
       return 'destructive';
     case 'adjustment':
       return 'secondary';
@@ -47,8 +50,13 @@ export function StockHistoryTable({ productId, limit = 100 }: StockHistoryTableP
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   
-  const { data: history, isLoading } = useStockHistory(productId, limit);
+  const { data: history, isLoading } = useStockHistory(
+    productId, 
+    limit, 
+    categoryFilter !== 'all' ? categoryFilter as 'sellable' | 'consumable' : undefined
+  );
 
   const filteredHistory = useMemo(() => {
     if (!history) return [];
@@ -89,9 +97,10 @@ export function StockHistoryTable({ productId, limit = 100 }: StockHistoryTableP
     setSearchQuery('');
     setStartDate(undefined);
     setEndDate(undefined);
+    setCategoryFilter('all');
   };
 
-  const hasActiveFilters = searchQuery || startDate || endDate;
+  const hasActiveFilters = searchQuery || startDate || endDate || categoryFilter !== 'all';
 
   if (isLoading) {
     return (
@@ -118,6 +127,18 @@ export function StockHistoryTable({ productId, limit = 100 }: StockHistoryTableP
           
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* Category Filter */}
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="sellable">Sellable</SelectItem>
+                <SelectItem value="consumable">Consumable</SelectItem>
+              </SelectContent>
+            </Select>
+            
             {/* Search */}
             <div className="relative flex-1 min-w-[200px] max-w-[300px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

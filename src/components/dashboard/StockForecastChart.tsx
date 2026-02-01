@@ -20,17 +20,27 @@ import {
 export function StockForecastChart() {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   
   const { data: products = [] } = useProducts();
-  const { data: forecastData, isLoading: forecastLoading } = useStockForecast(selectedProductId, 14);
+  const { data: forecastData, isLoading: forecastLoading } = useStockForecast(selectedProductId, 30);
   const { data: trends, isLoading: trendsLoading } = useStockTrends(30);
 
+  // Filter products by category and only include 'product' item_type (not services)
+  const categoryProducts = useMemo(() => {
+    let filtered = products.filter(p => p.item_type === 'product');
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(p => p.category === categoryFilter);
+    }
+    return filtered;
+  }, [products, categoryFilter]);
+
   const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return products;
-    return products.filter(p => 
+    if (!searchQuery.trim()) return categoryProducts;
+    return categoryProducts.filter(p => 
       p.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [products, searchQuery]);
+  }, [categoryProducts, searchQuery]);
 
   const selectedProduct = useMemo(() => {
     return products.find(p => p.id === selectedProductId);
@@ -104,11 +114,24 @@ export function StockForecastChart() {
                 <Calendar className="h-5 w-5 text-primary" />
                 Stock Forecast
               </CardTitle>
-              <CardDescription>Projected stock levels for next 14 days</CardDescription>
+              <CardDescription>Projected stock levels for next 30 days</CardDescription>
             </div>
             
-            {/* Searchable Product Selector */}
-            <div className="w-[220px] space-y-2">
+            {/* Category + Searchable Product Selector */}
+            <div className="w-[240px] space-y-2">
+              <Select value={categoryFilter} onValueChange={(v) => {
+                setCategoryFilter(v);
+                setSelectedProductId(''); // Reset selection when category changes
+              }}>
+                <SelectTrigger className="w-full h-9">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="sellable">Sellable</SelectItem>
+                  <SelectItem value="consumable">Consumable</SelectItem>
+                </SelectContent>
+              </Select>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
