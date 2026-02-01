@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, Trash2, Pause, CreditCard, Banknote, Smartphone, Building, Clock, Loader2, X } from 'lucide-react';
+import { ShoppingCart, Search, Trash2, Pause, CreditCard, Banknote, Smartphone, Building, Clock, Loader2, X, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,12 +15,14 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useBranches } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useCustomers, type Customer } from '@/hooks/useCustomers';
 import { useAuth } from '@/lib/auth';
 import { useCreateSale, useSaleWithItems, useHeldOrders, useCreateHeldOrder, useDeleteHeldOrder, type SaleItem, type PaymentMethod, type Sale } from '@/hooks/useSales';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { CartItemRow } from '@/components/pos/CartItemRow';
 import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
+import { CustomersDialog } from '@/components/customers/CustomersDialog';
 
 interface CartItem extends SaleItem {
   product_name: string;
@@ -33,6 +35,7 @@ export default function POS() {
   const [searchQuery, setSearchQuery] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [notes, setNotes] = useState('');
@@ -47,6 +50,7 @@ export default function POS() {
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: branches = [] } = useBranches();
   const { data: organization } = useOrganization();
+  const { data: customers = [] } = useCustomers();
   const { data: heldOrders = [] } = useHeldOrders();
   const { data: lastSale } = useSaleWithItems(lastSaleId);
   const createSale = useCreateSale();
@@ -138,9 +142,24 @@ export default function POS() {
     setCart([]);
     setDiscountPercent(0);
     setDiscountAmount(0);
+    setSelectedCustomerId('');
     setCustomerName('');
     setCustomerPhone('');
     setNotes('');
+  };
+
+  const handleCustomerSelect = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    if (customerId && customerId !== 'none') {
+      const customer = customers.find(c => c.id === customerId);
+      if (customer) {
+        setCustomerName(customer.name);
+        setCustomerPhone(customer.phone || '');
+      }
+    } else {
+      setCustomerName('');
+      setCustomerPhone('');
+    }
   };
 
   const handleHoldOrder = async () => {
@@ -182,6 +201,7 @@ export default function POS() {
     const result = await createSale.mutateAsync({
       organization_id: organization.id,
       branch_id: selectedBranchId || undefined,
+      customer_id: selectedCustomerId && selectedCustomerId !== 'none' ? selectedCustomerId : undefined,
       customer_name: customerName || undefined,
       customer_phone: customerPhone || undefined,
       subtotal,
@@ -427,6 +447,30 @@ export default function POS() {
           </DialogHeader>
           
           <div className="space-y-4">
+            {/* Customer Selection */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Customer</Label>
+                <CustomersDialog />
+              </div>
+              <Select 
+                value={selectedCustomerId || 'none'} 
+                onValueChange={handleCustomerSelect}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select customer (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Walk-in Customer</SelectItem>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name} {customer.phone && `(${customer.phone})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Customer Name</Label>

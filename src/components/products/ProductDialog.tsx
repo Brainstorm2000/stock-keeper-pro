@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUnits } from '@/hooks/useUnits';
 import { useBranches } from '@/hooks/useBranches';
+import { useSuppliers } from '@/hooks/useSuppliers';
+import { useBrands } from '@/hooks/useBrands';
 import { useCreateProduct, useUpdateProduct, checkProductDuplicate, type Product, type ProductInput, type ProductCategory } from '@/hooks/useProducts';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
@@ -20,6 +22,8 @@ const productSchema = z.object({
   name: z.string().trim().min(1, 'Product name is required').max(200),
   unit_id: z.string().min(1, 'Unit is required'),
   branch_id: z.string().optional(),
+  supplier_id: z.string().optional(),
+  brand_id: z.string().optional(),
   item_type: z.enum(['product', 'service']),
   category: z.enum(['sellable', 'consumable']),
   opening_stock: z.coerce.number().min(0, 'Must be 0 or greater'),
@@ -44,6 +48,8 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
+  const { data: suppliers = [] } = useSuppliers();
+  const { data: brands = [] } = useBrands();
   const { data: organization } = useOrganization();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -66,6 +72,8 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
       name: '',
       unit_id: '',
       branch_id: '',
+      supplier_id: '',
+      brand_id: '',
       item_type: 'product',
       category: 'sellable',
       opening_stock: 0,
@@ -85,6 +93,8 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         name: product.name,
         unit_id: product.unit_id,
         branch_id: product.branch_id || '',
+        supplier_id: product.supplier_id || '',
+        brand_id: product.brand_id || '',
         item_type: product.item_type || 'product',
         category: product.category || 'sellable',
         opening_stock: Number(product.opening_stock),
@@ -101,6 +111,8 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         name: '',
         unit_id: '',
         branch_id: '',
+        supplier_id: '',
+        brand_id: '',
         item_type: 'product',
         category: 'sellable',
         opening_stock: 0,
@@ -145,6 +157,8 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
         name: data.name,
         unit_id: data.unit_id,
         branch_id: data.branch_id || undefined,
+        supplier_id: data.supplier_id || undefined,
+        brand_id: data.brand_id || undefined,
         item_type: data.item_type,
         category: data.category,
         opening_stock: data.opening_stock,
@@ -179,6 +193,8 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
 
   const selectedUnitId = watch('unit_id');
   const selectedBranchId = watch('branch_id');
+  const selectedSupplierId = watch('supplier_id');
+  const selectedBrandId = watch('brand_id');
   const selectedItemType = watch('item_type');
   const selectedCategory = watch('category');
 
@@ -279,6 +295,50 @@ export function ProductDialog({ product, open, onOpenChange }: ProductDialogProp
                 placeholder="e.g., SKU-001"
               />
             </div>
+
+            {suppliers.length > 0 && (
+              <div className="space-y-2">
+                <Label>Supplier (Optional)</Label>
+                <Select 
+                  value={selectedSupplierId || 'none'} 
+                  onValueChange={(value) => setValue('supplier_id', value === 'none' ? '' : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No supplier</SelectItem>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {brands.length > 0 && (
+              <div className="space-y-2">
+                <Label>Brand (Optional)</Label>
+                <Select 
+                  value={selectedBrandId || 'none'} 
+                  onValueChange={(value) => setValue('brand_id', value === 'none' ? '' : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No brand</SelectItem>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand.id} value={brand.id}>
+                        {brand.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="cost_price">Cost Price</Label>

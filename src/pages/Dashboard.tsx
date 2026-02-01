@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Ruler, Download, Upload, MapPin, Users, History, TrendingUp } from 'lucide-react';
+import { Plus, Ruler, Download, Upload, MapPin, Users, History, TrendingUp, Package, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatsCards } from '@/components/dashboard/StatsCards';
@@ -13,6 +13,9 @@ import { UnitsDialog } from '@/components/units/UnitsDialog';
 import { BranchesDialog } from '@/components/branches/BranchesDialog';
 import { CSVImportDialog } from '@/components/csv/CSVImportDialog';
 import { UsersManagementDialog } from '@/components/users/UsersManagementDialog';
+import { CustomersDialog } from '@/components/customers/CustomersDialog';
+import { SuppliersDialog } from '@/components/suppliers/SuppliersDialog';
+import { BrandsDialog } from '@/components/brands/BrandsDialog';
 import { useProducts, useDeleteProduct, type Product } from '@/hooks/useProducts';
 import { useBranches } from '@/hooks/useBranches';
 import { useSales } from '@/hooks/useSales';
@@ -141,12 +144,15 @@ export default function Dashboard() {
                 <Ruler className="mr-2 h-4 w-4" />
                 Units
               </Button>
+              <SuppliersDialog />
+              <BrandsDialog />
               {isSuperAdmin && (
                 <>
                   <Button variant="outline" onClick={() => setBranchesDialogOpen(true)}>
                     <MapPin className="mr-2 h-4 w-4" />
                     Branches
                   </Button>
+                  <CustomersDialog />
                   <Button variant="outline" onClick={() => setUsersDialogOpen(true)}>
                     <Users className="mr-2 h-4 w-4" />
                     Manage Users

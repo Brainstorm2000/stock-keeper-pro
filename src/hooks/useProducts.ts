@@ -12,6 +12,8 @@ export interface Product {
   name: string;
   unit_id: string;
   branch_id: string | null;
+  supplier_id: string | null;
+  brand_id: string | null;
   opening_stock: number;
   current_stock: number;
   low_stock_threshold: number;
@@ -33,12 +35,22 @@ export interface Product {
     id: string;
     name: string;
   };
+  suppliers?: {
+    id: string;
+    name: string;
+  };
+  brands?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface ProductInput {
   name: string;
   unit_id: string;
   branch_id?: string;
+  supplier_id?: string;
+  brand_id?: string;
   opening_stock: number;
   current_stock: number;
   low_stock_threshold: number;
@@ -128,7 +140,9 @@ export function useProducts() {
         .select(`
           *,
           units (id, name, abbreviation),
-          branches (id, name)
+          branches (id, name),
+          suppliers (id, name),
+          brands (id, name)
         `)
         .order('name');
 

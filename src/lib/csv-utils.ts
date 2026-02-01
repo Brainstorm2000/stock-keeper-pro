@@ -24,6 +24,11 @@ export interface ParsedCSVProduct {
   branch_name?: string;
 }
 
+// Generic CSV row for simple imports
+export interface GenericCSVRow {
+  [key: string]: string;
+}
+
 // Export products to CSV
 export function exportProductsToCSV(
   products: Product[],
@@ -227,4 +232,56 @@ export function generateCSVTemplate(): string {
   ];
 
   return [headers.join(','), sampleRow.join(',')].join('\n');
+}
+
+// Generic CSV export for any data array
+export function exportToCSV<T extends Record<string, unknown>>(data: T[], filename: string): void {
+  if (data.length === 0) return;
+  
+  const headers = Object.keys(data[0]);
+  const rows = data.map(item => 
+    headers.map(header => escapeCSV(String(item[header] ?? '')))
+  );
+  
+  const content = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+  downloadCSV(content, filename);
+}
+
+// Parse generic CSV file
+export async function parseGenericCSV(file: File): Promise<GenericCSVRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const lines = content.trim().split('\n');
+        if (lines.length < 2) {
+          throw new Error('CSV file must have at least a header row and one data row');
+        }
+
+        const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim().replace(/\s+/g, '_'));
+        const rows: GenericCSVRow[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          const values = parseCSVLine(line);
+          const row: GenericCSVRow = {};
+          
+          headers.forEach((header, index) => {
+            row[header] = values[index]?.trim() || '';
+          });
+
+          rows.push(row);
+        }
+
+        resolve(rows);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsText(file);
+  });
 }
