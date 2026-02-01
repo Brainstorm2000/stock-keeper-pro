@@ -15,6 +15,8 @@ import { CSVImportDialog } from '@/components/csv/CSVImportDialog';
 import { UsersManagementDialog } from '@/components/users/UsersManagementDialog';
 import { useProducts, useDeleteProduct, type Product } from '@/hooks/useProducts';
 import { useBranches } from '@/hooks/useBranches';
+import { useSales } from '@/hooks/useSales';
+import { useExpenses } from '@/hooks/useExpenses';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { exportProductsToCSV, downloadCSV } from '@/lib/csv-utils';
@@ -36,6 +38,8 @@ export default function Dashboard() {
   const { user, loading: authLoading, isAdmin, isSuperAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: branches = [] } = useBranches();
+  const { data: sales = [] } = useSales();
+  const { data: expenses = [] } = useExpenses();
   const deleteProduct = useDeleteProduct();
   const navigate = useNavigate();
 
@@ -178,7 +182,7 @@ export default function Dashboard() {
         )}
 
         {/* Stats Cards */}
-        <StatsCards products={filteredProducts} />
+        <StatsCards products={filteredProducts} sales={sales} expenses={expenses} />
 
         {/* Tabs for different views */}
         <Tabs defaultValue="overview" className="space-y-6">
