@@ -4,7 +4,7 @@ import { Plus, Ruler, Download, Upload, MapPin, Users, History, TrendingUp, Pack
 import { Button } from '@/components/ui/button';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatsCards } from '@/components/dashboard/StatsCards';
-import { StockCharts } from '@/components/dashboard/StockCharts';
+
 import { StockHistoryTable } from '@/components/dashboard/StockHistoryTable';
 import { StockForecastChart } from '@/components/dashboard/StockForecastChart';
 import { ProductTable } from '@/components/products/ProductTable';
@@ -18,6 +18,8 @@ import { SuppliersDialog } from '@/components/suppliers/SuppliersDialog';
 import { BrandsDialog } from '@/components/brands/BrandsDialog';
 import { useProducts, useDeleteProduct, type Product } from '@/hooks/useProducts';
 import { useBranches } from '@/hooks/useBranches';
+import { useSuppliers } from '@/hooks/useSuppliers';
+import { useBrands } from '@/hooks/useBrands';
 import { useSales } from '@/hooks/useSales';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useAuth } from '@/lib/auth';
@@ -41,6 +43,8 @@ export default function Dashboard() {
   const { user, loading: authLoading, isAdmin, isSuperAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: branches = [] } = useBranches();
+  const { data: suppliers = [] } = useSuppliers();
+  const { data: brands = [] } = useBrands();
   const { data: sales = [] } = useSales();
   const { data: expenses = [] } = useExpenses();
   const deleteProduct = useDeleteProduct();
@@ -101,7 +105,7 @@ export default function Dashboard() {
   };
 
   const handleExportCSV = () => {
-    const csv = exportProductsToCSV(filteredProducts, branches);
+    const csv = exportProductsToCSV(filteredProducts, branches, suppliers, brands);
     const date = new Date().toISOString().split('T')[0];
     downloadCSV(csv, `products_export_${date}.csv`);
   };
@@ -208,9 +212,6 @@ export default function Dashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* Charts */}
-            <StockCharts products={filteredProducts} />
-
             {/* Products Table */}
             <ProductTable
               products={filteredProducts}

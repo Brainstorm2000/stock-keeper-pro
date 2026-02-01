@@ -15,13 +15,19 @@ export interface CSVRow {
 export interface ParsedCSVProduct {
   name: string;
   unit_name: string;
+  item_type: 'product' | 'service';
+  category: 'sellable' | 'consumable';
   opening_stock: number;
   current_stock: number;
   low_stock_threshold: number;
   out_of_stock_threshold: number;
+  cost_price: number;
+  selling_price: number;
   sku?: string;
   description?: string;
   branch_name?: string;
+  supplier_name?: string;
+  brand_name?: string;
 }
 
 // Generic CSV row for simple imports
@@ -32,33 +38,49 @@ export interface GenericCSVRow {
 // Export products to CSV
 export function exportProductsToCSV(
   products: Product[],
-  branches?: { id: string; name: string }[]
+  branches?: { id: string; name: string }[],
+  suppliers?: { id: string; name: string }[],
+  brands?: { id: string; name: string }[]
 ): string {
   const headers = [
     'Product Name',
+    'Item Type',
+    'Category',
     'Unit',
     'Opening Stock',
     'Current Stock',
     'Low Stock Threshold',
     'Out of Stock Threshold',
+    'Cost Price',
+    'Selling Price',
     'SKU',
     'Description',
     'Branch',
+    'Supplier',
+    'Brand',
     'Last Updated',
   ];
 
   const rows = products.map((product) => {
     const branchName = branches?.find((b) => b.id === product.branch_id)?.name || '';
+    const supplierName = suppliers?.find((s) => s.id === product.supplier_id)?.name || '';
+    const brandName = brands?.find((b) => b.id === product.brand_id)?.name || '';
     return [
       escapeCSV(product.name),
+      product.item_type || 'product',
+      product.category || 'sellable',
       escapeCSV(product.units?.name || ''),
       product.opening_stock.toString(),
       product.current_stock.toString(),
       product.low_stock_threshold.toString(),
       product.out_of_stock_threshold.toString(),
+      (product.cost_price || 0).toString(),
+      (product.selling_price || 0).toString(),
       escapeCSV(product.sku || ''),
       escapeCSV(product.description || ''),
       escapeCSV(branchName),
+      escapeCSV(supplierName),
+      escapeCSV(brandName),
       new Date(product.updated_at).toLocaleString(),
     ];
   });
@@ -86,14 +108,20 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
   // Map headers to expected fields
   const headerMap = {
     name: findHeader(headers, ['product name', 'name', 'product']),
+    item_type: findHeader(headers, ['item type', 'type', 'item_type']),
+    category: findHeader(headers, ['category', 'product category']),
     unit: findHeader(headers, ['unit', 'unit of measurement', 'uom']),
     opening_stock: findHeader(headers, ['opening stock', 'opening', 'initial stock']),
     current_stock: findHeader(headers, ['current stock', 'current', 'stock', 'quantity']),
     low_stock_threshold: findHeader(headers, ['low stock threshold', 'low stock', 'low threshold', 'reorder level']),
     out_of_stock_threshold: findHeader(headers, ['out of stock threshold', 'out of stock', 'oos threshold']),
+    cost_price: findHeader(headers, ['cost price', 'cost', 'purchase price', 'buying price']),
+    selling_price: findHeader(headers, ['selling price', 'price', 'sale price', 'retail price']),
     sku: findHeader(headers, ['sku', 'product code', 'code', 'barcode']),
     description: findHeader(headers, ['description', 'desc', 'notes']),
     branch: findHeader(headers, ['branch', 'location', 'store']),
+    supplier: findHeader(headers, ['supplier', 'vendor']),
+    brand: findHeader(headers, ['brand', 'manufacturer']),
   };
 
   if (headerMap.name === -1) {
@@ -118,13 +146,35 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
       throw new Error(`Row ${i + 1}: Product name and unit are required`);
     }
 
+    // Parse item_type with default 'product'
+    let item_type: 'product' | 'service' = 'product';
+    if (headerMap.item_type !== -1 && values[headerMap.item_type]) {
+      const typeValue = values[headerMap.item_type].trim().toLowerCase();
+      if (typeValue === 'service') {
+        item_type = 'service';
+      }
+    }
+
+    // Parse category with default 'sellable'
+    let category: 'sellable' | 'consumable' = 'sellable';
+    if (headerMap.category !== -1 && values[headerMap.category]) {
+      const categoryValue = values[headerMap.category].trim().toLowerCase();
+      if (categoryValue === 'consumable') {
+        category = 'consumable';
+      }
+    }
+
     const product: ParsedCSVProduct = {
       name,
       unit_name,
+      item_type,
+      category,
       opening_stock: parseNumber(values[headerMap.opening_stock], 0),
       current_stock: parseNumber(values[headerMap.current_stock], 0),
       low_stock_threshold: parseNumber(values[headerMap.low_stock_threshold], 10),
       out_of_stock_threshold: parseNumber(values[headerMap.out_of_stock_threshold], 0),
+      cost_price: parseNumber(values[headerMap.cost_price], 0),
+      selling_price: parseNumber(values[headerMap.selling_price], 0),
     };
 
     if (headerMap.sku !== -1 && values[headerMap.sku]) {
@@ -135,6 +185,12 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
     }
     if (headerMap.branch !== -1 && values[headerMap.branch]) {
       product.branch_name = values[headerMap.branch].trim();
+    }
+    if (headerMap.supplier !== -1 && values[headerMap.supplier]) {
+      product.supplier_name = values[headerMap.supplier].trim();
+    }
+    if (headerMap.brand !== -1 && values[headerMap.brand]) {
+      product.brand_name = values[headerMap.brand].trim();
     }
 
     products.push(product);
@@ -209,26 +265,38 @@ export function downloadCSV(content: string, filename: string): void {
 export function generateCSVTemplate(): string {
   const headers = [
     'Product Name',
+    'Item Type',
+    'Category',
     'Unit',
     'Opening Stock',
     'Current Stock',
     'Low Stock Threshold',
     'Out of Stock Threshold',
+    'Cost Price',
+    'Selling Price',
     'SKU',
     'Description',
     'Branch',
+    'Supplier',
+    'Brand',
   ];
 
   const sampleRow = [
     'Sample Product',
+    'product',
+    'sellable',
     'Pieces',
     '100',
     '50',
     '10',
     '0',
+    '5000',
+    '7500',
     'SKU-001',
     'Sample description',
     'Main Store',
+    'Sample Supplier',
+    'Sample Brand',
   ];
 
   return [headers.join(','), sampleRow.join(',')].join('\n');
