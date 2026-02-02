@@ -59,6 +59,27 @@ export function useUserBranchAssignments(userId?: string) {
   });
 }
 
+// Hook to check if the current user has any branch assignments
+export function useMyBranchAssignments() {
+  const { user } = useAuth();
+  
+  return useQuery({
+    queryKey: ['my-branch-assignments', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('user_branch_assignments')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      return data as UserBranchAssignment[];
+    },
+    enabled: !!user?.id,
+  });
+}
+
 export function useCreateBranch() {
   const queryClient = useQueryClient();
   const { user, organizationId } = useAuth();
