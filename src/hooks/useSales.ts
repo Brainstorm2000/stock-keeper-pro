@@ -74,11 +74,17 @@ export function useSales() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sales')
-        .select('*')
+        .select(`
+          *,
+          sale_items (
+            quantity,
+            cost_price
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as Sale[];
+      return data as (Sale & { sale_items: { quantity: number; cost_price: number }[] })[];
     },
   });
 }
