@@ -8,6 +8,7 @@ interface StatsCardsProps {
   products: Product[];
   sales?: Sale[];
   expenses?: Expense[];
+  hasBranchAccess?: boolean;
 }
 
 function getStockStatus(product: Product) {
@@ -28,7 +29,7 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-export function StatsCards({ products, sales = [], expenses = [] }: StatsCardsProps) {
+export function StatsCards({ products, sales = [], expenses = [], hasBranchAccess = true }: StatsCardsProps) {
   // Separate sellables and consumables
   const sellableProducts = products.filter(p => p.category === 'sellable');
   const consumableProducts = products.filter(p => p.category === 'consumable');
@@ -55,79 +56,81 @@ export function StatsCards({ products, sales = [], expenses = [] }: StatsCardsPr
 
   return (
     <div className="space-y-6">
-      {/* Financial Overview */}
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">Financial Overview</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="glass-card animate-fade-in">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Sales</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{formatCurrency(totalRevenue)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{completedSales.length} transactions</p>
+      {/* Financial Overview - Only show if user has branch access */}
+      {hasBranchAccess && (
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-3">Financial Overview</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="glass-card animate-fade-in">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Sales</p>
+                    <p className="text-2xl font-bold text-foreground mt-1">{formatCurrency(totalRevenue)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{completedSales.length} transactions</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <ShoppingCart className="h-6 w-6 text-primary" />
+                  </div>
                 </div>
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <ShoppingCart className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="glass-card animate-fade-in" style={{ animationDelay: '100ms' }}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{formatCurrency(totalExpenses)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{expenses.length} records</p>
+            <Card className="glass-card animate-fade-in" style={{ animationDelay: '100ms' }}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
+                    <p className="text-2xl font-bold text-foreground mt-1">{formatCurrency(totalExpenses)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{expenses.length} records</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-xl bg-destructive/10 flex items-center justify-center">
+                    <Receipt className="h-6 w-6 text-destructive" />
+                  </div>
                 </div>
-                <div className="h-12 w-12 rounded-xl bg-destructive/10 flex items-center justify-center">
-                  <Receipt className="h-6 w-6 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="glass-card animate-fade-in" style={{ animationDelay: '200ms' }}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{isProfit ? 'Net Profit' : 'Net Loss'}</p>
-                  <p className={`text-2xl font-bold mt-1 ${isProfit ? 'text-stock-normal' : 'text-destructive'}`}>
-                    {formatCurrency(Math.abs(grossProfit))}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">Sales - Expenses</p>
+            <Card className="glass-card animate-fade-in" style={{ animationDelay: '200ms' }}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{isProfit ? 'Net Profit' : 'Net Loss'}</p>
+                    <p className={`text-2xl font-bold mt-1 ${isProfit ? 'text-stock-normal' : 'text-destructive'}`}>
+                      {formatCurrency(Math.abs(grossProfit))}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Sales - Expenses</p>
+                  </div>
+                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isProfit ? 'bg-stock-normal/10' : 'bg-destructive/10'}`}>
+                    {isProfit ? (
+                      <TrendingUp className="h-6 w-6 text-stock-normal" />
+                    ) : (
+                      <TrendingDown className="h-6 w-6 text-destructive" />
+                    )}
+                  </div>
                 </div>
-                <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isProfit ? 'bg-stock-normal/10' : 'bg-destructive/10'}`}>
-                  {isProfit ? (
-                    <TrendingUp className="h-6 w-6 text-stock-normal" />
-                  ) : (
-                    <TrendingDown className="h-6 w-6 text-destructive" />
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="glass-card animate-fade-in" style={{ animationDelay: '300ms' }}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Items</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{products.length}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {sellableProducts.length} sellable, {consumableProducts.length} consumable
-                  </p>
+            <Card className="glass-card animate-fade-in" style={{ animationDelay: '300ms' }}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Items</p>
+                    <p className="text-2xl font-bold text-foreground mt-1">{products.length}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {sellableProducts.length} sellable, {consumableProducts.length} consumable
+                    </p>
+                  </div>
+                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Package className="h-6 w-6 text-primary" />
+                  </div>
                 </div>
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Package className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Sellable Products Stats */}
       <div>

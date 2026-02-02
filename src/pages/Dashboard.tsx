@@ -16,7 +16,7 @@ import { CustomersDialog } from '@/components/customers/CustomersDialog';
 import { SuppliersDialog } from '@/components/suppliers/SuppliersDialog';
 import { BrandsDialog } from '@/components/brands/BrandsDialog';
 import { useProducts, useDeleteProduct, type Product } from '@/hooks/useProducts';
-import { useBranches } from '@/hooks/useBranches';
+import { useBranches, useMyBranchAssignments } from '@/hooks/useBranches';
 import { useSales } from '@/hooks/useSales';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useAuth } from '@/lib/auth';
@@ -38,6 +38,7 @@ export default function Dashboard() {
   const { user, loading: authLoading, isAdmin, isSuperAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: branches = [] } = useBranches();
+  const { data: myBranchAssignments = [] } = useMyBranchAssignments();
   const { data: sales = [] } = useSales();
   const { data: expenses = [] } = useExpenses();
   const deleteProduct = useDeleteProduct();
@@ -181,7 +182,12 @@ export default function Dashboard() {
         )}
 
         {/* Stats Cards */}
-        <StatsCards products={filteredProducts} sales={filteredSales} expenses={filteredExpenses} />
+        <StatsCards 
+          products={filteredProducts} 
+          sales={filteredSales} 
+          expenses={filteredExpenses} 
+          hasBranchAccess={isSuperAdmin || myBranchAssignments.length > 0}
+        />
 
         {/* Tabs for different views */}
         <Tabs defaultValue="overview" className="space-y-6">
