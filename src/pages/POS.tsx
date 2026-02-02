@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useBranches } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -299,6 +300,7 @@ export default function POS() {
 
   return (
     <DashboardLayout>
+      <ModuleAccessGuard module="pos" minLevel="create">
       <div className="h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-4">
         {/* Products Section */}
         <div className="flex-1 flex flex-col">
@@ -660,6 +662,7 @@ export default function POS() {
         showSuccessMessage={true}
         onNewSale={handleNewSale}
       />
+      </ModuleAccessGuard>
     </DashboardLayout>
   );
 }

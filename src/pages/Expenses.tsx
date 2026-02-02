@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { ModuleAccessGuard, useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { useBranches } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
@@ -55,6 +56,7 @@ export default function Expenses() {
   const [newCategoryDescription, setNewCategoryDescription] = useState('');
 
   const { user, loading: authLoading, isAdmin, hasCompletedOnboarding } = useAuth();
+  const { canCreate, canEdit, canDelete } = useModuleAccess('expenses');
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses();
   const { data: categories = [] } = useExpenseCategories();
   const { data: branches = [] } = useBranches();
@@ -205,6 +207,7 @@ export default function Expenses() {
 
   return (
     <DashboardLayout>
+      <ModuleAccessGuard module="expenses">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -564,6 +567,7 @@ export default function Expenses() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </ModuleAccessGuard>
     </DashboardLayout>
   );
 }

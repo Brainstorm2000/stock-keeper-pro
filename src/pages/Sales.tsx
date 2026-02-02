@@ -21,6 +21,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { ModuleAccessGuard, useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { useBranches } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
@@ -69,6 +70,7 @@ export default function Sales() {
   const [deleteConfirmSale, setDeleteConfirmSale] = useState<Sale | null>(null);
 
   const { user, loading: authLoading, hasCompletedOnboarding } = useAuth();
+  const { canEdit, canDelete } = useModuleAccess('sales');
   const { data: sales = [], isLoading: salesLoading } = useSales();
   const { data: branches = [] } = useBranches();
   const { data: organization } = useOrganization();
@@ -155,6 +157,7 @@ export default function Sales() {
 
   return (
     <DashboardLayout>
+      <ModuleAccessGuard module="sales">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -323,23 +326,27 @@ export default function Sales() {
                         >
                           <Printer className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Edit Sale"
-                          onClick={() => handleOpenEdit(sale)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Delete Sale"
-                          onClick={() => setDeleteConfirmSale(sale)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit Sale"
+                            onClick={() => handleOpenEdit(sale)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Delete Sale"
+                            onClick={() => setDeleteConfirmSale(sale)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -574,6 +581,7 @@ export default function Sales() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </ModuleAccessGuard>
     </DashboardLayout>
   );
 }

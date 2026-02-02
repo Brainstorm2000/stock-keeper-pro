@@ -587,6 +587,44 @@ export type Database = {
           },
         ]
       }
+      role_module_permissions: {
+        Row: {
+          access_level: Database["public"]["Enums"]["module_access_level"]
+          created_at: string
+          id: string
+          module: Database["public"]["Enums"]["app_module"]
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          access_level?: Database["public"]["Enums"]["module_access_level"]
+          created_at?: string
+          id?: string
+          module: Database["public"]["Enums"]["app_module"]
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          access_level?: Database["public"]["Enums"]["module_access_level"]
+          created_at?: string
+          id?: string
+          module?: Database["public"]["Enums"]["app_module"]
+          organization_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_module_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_items: {
         Row: {
           cost_price: number
@@ -881,6 +919,33 @@ export type Database = {
           },
         ]
       }
+      user_module_permissions: {
+        Row: {
+          access_level: Database["public"]["Enums"]["module_access_level"]
+          created_at: string
+          id: string
+          module: Database["public"]["Enums"]["app_module"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_level: Database["public"]["Enums"]["module_access_level"]
+          created_at?: string
+          id?: string
+          module: Database["public"]["Enums"]["app_module"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_level?: Database["public"]["Enums"]["module_access_level"]
+          created_at?: string
+          id?: string
+          module?: Database["public"]["Enums"]["app_module"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -920,6 +985,13 @@ export type Database = {
     Functions: {
       generate_purchase_number: { Args: { org_id: string }; Returns: string }
       generate_sale_number: { Args: { org_id: string }; Returns: string }
+      get_module_access: {
+        Args: {
+          _module: Database["public"]["Enums"]["app_module"]
+          _user_id: string
+        }
+        Returns: Database["public"]["Enums"]["module_access_level"]
+      }
       get_user_organization: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -927,6 +999,14 @@ export type Database = {
       }
       has_branch_access: {
         Args: { _branch_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_module_access: {
+        Args: {
+          _min_level: Database["public"]["Enums"]["module_access_level"]
+          _module: Database["public"]["Enums"]["app_module"]
+          _user_id: string
+        }
         Returns: boolean
       }
       has_role: {
@@ -943,8 +1023,10 @@ export type Database = {
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
+      app_module: "pos" | "sales" | "purchases" | "expenses"
       app_role: "admin" | "user" | "super_admin"
       item_type: "product" | "service"
+      module_access_level: "none" | "view" | "create" | "full"
       payment_method:
         | "cash"
         | "card"
@@ -1082,8 +1164,10 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_module: ["pos", "sales", "purchases", "expenses"],
       app_role: ["admin", "user", "super_admin"],
       item_type: ["product", "service"],
+      module_access_level: ["none", "view", "create", "full"],
       payment_method: [
         "cash",
         "card",

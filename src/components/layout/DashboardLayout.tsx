@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus } from 'lucide-react';
+import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useOrganization } from '@/hooks/useOrganization';
 import { ProfileSettingsDialog } from '@/components/profile/ProfileSettingsDialog';
+import { ModulePermissionsDialog } from '@/components/permissions/ModulePermissionsDialog';
+import { useMyModuleAccess, hasAccess, AppModule } from '@/hooks/useModulePermissions';
 import { cn } from '@/lib/utils';
 import faviconIcon from '/favicon.png';
 
@@ -16,20 +18,39 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+interface NavLink {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  module?: AppModule;
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, role, isAdmin, isSuperAdmin, signOut } = useAuth();
   const { data: organization } = useOrganization();
+  const { data: moduleAccess, isLoading: accessLoading } = useMyModuleAccess();
   const navigate = useNavigate();
   const location = useLocation();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
 
-  const navLinks = [
+  const navLinks: NavLink[] = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/pos', label: 'POS', icon: ShoppingCart, adminOnly: true },
-    { href: '/sales', label: 'Sales', icon: Receipt },
-    { href: '/purchases', label: 'Purchases', icon: PackagePlus, adminOnly: true },
-    { href: '/expenses', label: 'Expenses', icon: Wallet },
+    { href: '/pos', label: 'POS', icon: ShoppingCart, module: 'pos' },
+    { href: '/sales', label: 'Sales', icon: Receipt, module: 'sales' },
+    { href: '/purchases', label: 'Purchases', icon: PackagePlus, module: 'purchases' },
+    { href: '/expenses', label: 'Expenses', icon: Wallet, module: 'expenses' },
   ];
+
+  // Filter links based on module access
+  const visibleLinks = navLinks.filter((link) => {
+    // Dashboard is always visible
+    if (!link.module) return true;
+    // If still loading or super admin, show all
+    if (accessLoading || isSuperAdmin) return true;
+    // Check if user has at least view access
+    return hasAccess(moduleAccess, link.module, 'view');
+  });
 
   const handleSignOut = async () => {
     await signOut();
@@ -74,21 +95,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
             {/* Navigation Links */}
             <nav className="hidden md:flex items-center gap-1 ml-6">
-              {navLinks.filter(link => !link.adminOnly || isAdmin).map((link) => (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    location.pathname === link.href
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  )}
-                >
-                  <link.icon className="h-4 w-4" />
-                  {link.label}
-                </Link>
-              ))}
+              {accessLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                visibleLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                      location.pathname === link.href
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                  >
+                    <link.icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                ))
+              )}
             </nav>
           </div>
 
@@ -126,6 +151,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <Settings className="mr-2 h-4 w-4" />
                   Profile Settings
                 </DropdownMenuItem>
+                {isSuperAdmin && (
+                  <DropdownMenuItem onClick={() => setPermissionsDialogOpen(true)}>
+                    <Lock className="mr-2 h-4 w-4" />
+                    Module Permissions
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
@@ -140,21 +171,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Mobile Navigation */}
       <nav className="md:hidden border-b bg-card sticky top-16 z-40">
         <div className="container mx-auto px-4 flex overflow-x-auto gap-1 py-2">
-          {navLinks.filter(link => !link.adminOnly || isAdmin).map((link) => (
-            <Link
-              key={link.href}
-              to={link.href}
-              className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
-                location.pathname === link.href
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              )}
-            >
-              <link.icon className="h-4 w-4" />
-              {link.label}
-            </Link>
-          ))}
+          {accessLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mx-auto" />
+          ) : (
+            visibleLinks.map((link) => (
+              <Link
+                key={link.href}
+                to={link.href}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
+                  location.pathname === link.href
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+              >
+                <link.icon className="h-4 w-4" />
+                {link.label}
+              </Link>
+            ))
+          )}
         </div>
       </nav>
 
@@ -164,6 +199,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </main>
 
       <ProfileSettingsDialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen} />
+      <ModulePermissionsDialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen} />
     </div>
   );
 }
