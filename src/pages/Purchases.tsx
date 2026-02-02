@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { Plus, Trash2, Eye, Package, Filter, DollarSign, CheckCircle2, Clock, AlertCircle, Pencil } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { ModuleAccessGuard, useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,6 +18,7 @@ import { EditPurchaseDialog } from '@/components/purchases/EditPurchaseDialog';
 
 export default function Purchases() {
   const { isAdmin } = useAuth();
+  const { canCreate, canEdit, canDelete } = useModuleAccess('purchases');
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -58,6 +60,7 @@ export default function Purchases() {
 
   return (
     <DashboardLayout>
+      <ModuleAccessGuard module="purchases">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -65,7 +68,7 @@ export default function Purchases() {
             <h1 className="text-2xl font-bold">Purchases</h1>
             <p className="text-muted-foreground">Manage inventory purchases from suppliers</p>
           </div>
-          {isAdmin && (
+          {canCreate && (
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Purchase
@@ -161,8 +164,8 @@ export default function Purchases() {
                     <TableHead>Items</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead>Payment</TableHead>
-                    {isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
-                  </TableRow>
+                        {isAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
+                      </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
@@ -206,37 +209,41 @@ export default function Purchases() {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setEditDialogPurchase(purchase)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Purchase?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This will delete {purchase.purchase_number} and reverse the stock additions. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => deletePurchase.mutate(purchase)}
-                                      className="bg-destructive text-destructive-foreground"
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              {canEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setEditDialogPurchase(purchase)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Purchase?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will delete {purchase.purchase_number} and reverse the stock additions. This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deletePurchase.mutate(purchase)}
+                                        className="bg-destructive text-destructive-foreground"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                             </div>
                           </TableCell>
                         )}
@@ -267,6 +274,7 @@ export default function Purchases() {
           onOpenChange={(open) => !open && setEditDialogPurchase(null)}
         />
       )}
+      </ModuleAccessGuard>
     </DashboardLayout>
   );
 }
