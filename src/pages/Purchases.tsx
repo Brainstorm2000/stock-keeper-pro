@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Plus, Trash2, Eye, Package, Filter, DollarSign, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Eye, Package, Filter, DollarSign, CheckCircle2, Clock, AlertCircle, Pencil } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/lib/auth';
 import { PurchaseDialog } from '@/components/purchases/PurchaseDialog';
 import { PurchaseDetailsDialog } from '@/components/purchases/PurchaseDetailsDialog';
+import { EditPurchaseDialog } from '@/components/purchases/EditPurchaseDialog';
 
 export default function Purchases() {
   const { isAdmin } = useAuth();
@@ -20,6 +21,7 @@ export default function Purchases() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsDialogPurchase, setDetailsDialogPurchase] = useState<Purchase | null>(null);
+  const [editDialogPurchase, setEditDialogPurchase] = useState<Purchase | null>(null);
 
   const { data: branches = [] } = useBranches();
   const { data: purchases = [], isLoading } = usePurchases(selectedBranch || undefined);
@@ -204,6 +206,13 @@ export default function Purchases() {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditDialogPurchase(purchase)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="ghost" size="icon" className="text-destructive">
@@ -248,6 +257,14 @@ export default function Purchases() {
           purchase={detailsDialogPurchase}
           open={!!detailsDialogPurchase}
           onOpenChange={(open) => !open && setDetailsDialogPurchase(null)}
+        />
+      )}
+
+      {editDialogPurchase && (
+        <EditPurchaseDialog
+          purchase={editDialogPurchase}
+          open={!!editDialogPurchase}
+          onOpenChange={(open) => !open && setEditDialogPurchase(null)}
         />
       )}
     </DashboardLayout>
