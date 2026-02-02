@@ -43,7 +43,8 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
     const status = getStockStatus(
       Number(product.current_stock),
       Number(product.low_stock_threshold),
-      Number(product.out_of_stock_threshold)
+      Number(product.out_of_stock_threshold),
+      product.item_type
     );
     
     return status === statusFilter;
@@ -101,7 +102,8 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
       const status = getStockStatus(
         Number(product.current_stock),
         Number(product.low_stock_threshold),
-        Number(product.out_of_stock_threshold)
+        Number(product.out_of_stock_threshold),
+        product.item_type
       );
       const stockValue = calculateStockValue(product);
 
