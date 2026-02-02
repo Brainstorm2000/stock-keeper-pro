@@ -466,6 +466,127 @@ export type Database = {
           },
         ]
       }
+      purchase_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          purchase_id: string
+          quantity: number
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          purchase_id: string
+          quantity: number
+          total_cost: number
+          unit_cost: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          purchase_id?: string
+          quantity?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchases: {
+        Row: {
+          amount_paid: number
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          payment_status: Database["public"]["Enums"]["purchase_payment_status"]
+          purchase_date: string
+          purchase_number: string
+          reference_number: string | null
+          subtotal: number
+          supplier_id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          payment_status?: Database["public"]["Enums"]["purchase_payment_status"]
+          purchase_date?: string
+          purchase_number: string
+          reference_number?: string | null
+          subtotal?: number
+          supplier_id: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          payment_status?: Database["public"]["Enums"]["purchase_payment_status"]
+          purchase_date?: string
+          purchase_number?: string
+          reference_number?: string | null
+          subtotal?: number
+          supplier_id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_items: {
         Row: {
           cost_price: number
@@ -797,6 +918,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_purchase_number: { Args: { org_id: string }; Returns: string }
       generate_sale_number: { Args: { org_id: string }; Returns: string }
       get_user_organization: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
@@ -830,6 +952,7 @@ export type Database = {
         | "bank_transfer"
         | "credit"
       product_category: "sellable" | "consumable"
+      purchase_payment_status: "pending" | "partial" | "paid"
       sale_status: "pending" | "completed" | "cancelled" | "on_hold"
       stock_status: "normal" | "low" | "out_of_stock"
     }
@@ -969,6 +1092,7 @@ export const Constants = {
         "credit",
       ],
       product_category: ["sellable", "consumable"],
+      purchase_payment_status: ["pending", "partial", "paid"],
       sale_status: ["pending", "completed", "cancelled", "on_hold"],
       stock_status: ["normal", "low", "out_of_stock"],
     },

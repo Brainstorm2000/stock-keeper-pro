@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Pencil, Trash2, Plus, Minus, Search } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Minus, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,9 +49,9 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
     return status === statusFilter;
   });
 
-  const handleStockUpdate = (product: Product, type: 'increase' | 'decrease') => {
+  const handleRemoveStock = (product: Product) => {
     setStockUpdateProduct(product);
-    setStockUpdateType(type);
+    setStockUpdateType('decrease');
   };
 
   // Calculate stock value (current_stock * selling_price) for sellable items
@@ -159,14 +159,13 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleStockUpdate(product, 'increase')}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Stock
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleStockUpdate(product, 'decrease')}>
-                    <Minus className="mr-2 h-4 w-4" />
-                    Remove Stock
-                  </DropdownMenuItem>
+                  {/* Only show Remove Stock for consumable products */}
+                  {product.category === 'consumable' && (
+                    <DropdownMenuItem onClick={() => handleRemoveStock(product)}>
+                      <Minus className="mr-2 h-4 w-4" />
+                      Remove Stock
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => onEdit(product)}>
                     <Pencil className="mr-2 h-4 w-4" />
                     Edit
