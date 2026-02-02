@@ -7,6 +7,9 @@ interface StockChartsProps {
 }
 
 function getStockStatus(product: Product) {
+  // Services don't have stock constraints - always available
+  if (product.item_type === 'service') return 'normal';
+  
   if (product.current_stock <= product.out_of_stock_threshold) return 'out';
   if (product.current_stock <= product.low_stock_threshold) return 'low';
   return 'normal';

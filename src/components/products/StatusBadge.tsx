@@ -33,7 +33,15 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   );
 }
 
-export function getStockStatus(currentStock: number, lowThreshold: number, outThreshold: number): StockStatus {
+export function getStockStatus(
+  currentStock: number, 
+  lowThreshold: number, 
+  outThreshold: number,
+  itemType?: 'product' | 'service'
+): StockStatus {
+  // Services don't have stock constraints - always available
+  if (itemType === 'service') return 'normal';
+  
   if (currentStock <= outThreshold) return 'out';
   if (currentStock <= lowThreshold) return 'low';
   return 'normal';
