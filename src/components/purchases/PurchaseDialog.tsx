@@ -141,7 +141,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                   <SelectValue placeholder="Select branch" />
                 </SelectTrigger>
                 <SelectContent>
-                  {branches.map(branch => (
+                  {branches.filter(branch => branch.id).map(branch => (
                     <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -155,7 +155,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                   <SelectValue placeholder="Select supplier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {suppliers.map(supplier => (
+                  {suppliers.filter(supplier => supplier.id).map(supplier => (
                     <SelectItem key={supplier.id} value={supplier.id}>{supplier.name}</SelectItem>
                   ))}
                 </SelectContent>
