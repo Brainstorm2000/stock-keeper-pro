@@ -116,14 +116,14 @@ export default function Purchases() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4">
-          <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+          <Select value={selectedBranch || "all"} onValueChange={(v) => setSelectedBranch(v === "all" ? "" : v)}>
             <SelectTrigger className="w-[200px]">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="All Branches" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Branches</SelectItem>
-              {branches.map(branch => (
+              <SelectItem value="all">All Branches</SelectItem>
+              {branches.filter(branch => branch.id).map(branch => (
                 <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
               ))}
             </SelectContent>
