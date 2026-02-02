@@ -18,6 +18,11 @@ export interface SaleItem {
   total_price: number;
 }
 
+export interface PaymentDetail {
+  method: PaymentMethod;
+  amount: number;
+}
+
 export interface Sale {
   id: string;
   organization_id: string;
@@ -32,6 +37,7 @@ export interface Sale {
   tax_amount: number;
   total_amount: number;
   payment_method: PaymentMethod;
+  payment_details?: PaymentDetail[];
   status: SaleStatus;
   notes: string | null;
   created_by: string | null;
@@ -52,6 +58,7 @@ export interface CreateSaleInput {
   tax_amount: number;
   total_amount: number;
   payment_method: PaymentMethod;
+  payment_details?: PaymentDetail[];
   status?: SaleStatus;
   notes?: string;
   items: SaleItem[];
@@ -84,7 +91,7 @@ export function useSales() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as (Sale & { sale_items: { quantity: number; cost_price: number }[] })[];
+      return data as unknown as (Sale & { sale_items: { quantity: number; cost_price: number }[] })[];
     },
   });
 }
@@ -115,6 +122,7 @@ export function useSaleWithItems(saleId: string | null) {
 
       return {
         ...sale,
+        payment_details: (sale.payment_details as unknown) as PaymentDetail[] | undefined,
         sale_items: items.map((item: any) => ({
           ...item,
           product_name: item.products?.name,
@@ -154,6 +162,7 @@ export function useCreateSale() {
           tax_amount: input.tax_amount,
           total_amount: input.total_amount,
           payment_method: input.payment_method,
+          payment_details: input.payment_details ? JSON.parse(JSON.stringify(input.payment_details)) : null,
           status: input.status || 'completed',
           notes: input.notes || null,
           created_by: user?.id,

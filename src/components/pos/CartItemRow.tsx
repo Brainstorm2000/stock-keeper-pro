@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 interface CartItem {
   product_id: string;
@@ -39,13 +40,11 @@ export function CartItemRow({ item, index, onQuantityChange, onRemove }: CartIte
       return;
     }
 
-    const maxQty = item.item_type === 'service' ? Infinity : (item.max_quantity || Infinity);
-    const validQty = Math.min(newQty, maxQty);
-    
-    if (validQty !== item.quantity) {
-      onQuantityChange(index, validQty);
+    // Allow exceeding stock - just update the quantity without capping
+    if (newQty !== item.quantity) {
+      onQuantityChange(index, newQty);
     }
-    setInputValue(String(validQty));
+    setInputValue(String(newQty));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -54,24 +53,39 @@ export function CartItemRow({ item, index, onQuantityChange, onRemove }: CartIte
     }
   };
 
+  const isOverStock = item.item_type === 'product' && 
+    item.max_quantity !== undefined && 
+    item.quantity > item.max_quantity;
+
   return (
-    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+    <div className={cn(
+      "flex items-center gap-2 p-2 rounded-lg",
+      isOverStock ? "bg-destructive/10 border border-destructive/30" : "bg-muted/50"
+    )}>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm truncate">{item.product_name}</p>
         <p className="text-xs text-muted-foreground">
           {item.unit_price.toLocaleString()} × {item.quantity}
         </p>
+        {isOverStock && (
+          <div className="flex items-center gap-1 text-destructive text-xs mt-1">
+            <AlertTriangle className="h-3 w-3" />
+            <span>Exceeds stock ({item.max_quantity} available)</span>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-1">
         <Input
           type="number"
           min="1"
-          max={item.item_type === 'service' ? undefined : item.max_quantity}
           value={inputValue}
           onChange={handleInputChange}
           onBlur={handleInputBlur}
           onKeyDown={handleKeyDown}
-          className="w-16 h-8 text-center text-sm px-1"
+          className={cn(
+            "w-16 h-8 text-center text-sm px-1",
+            isOverStock && "border-destructive"
+          )}
         />
       </div>
       <div className="text-right w-20">

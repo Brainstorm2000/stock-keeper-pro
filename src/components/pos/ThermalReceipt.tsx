@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import { format } from 'date-fns';
-import type { Sale, SaleItem } from '@/hooks/useSales';
+import type { Sale, SaleItem, PaymentDetail } from '@/hooks/useSales';
 
 interface ThermalReceiptProps {
   sale: Sale;
@@ -19,6 +19,9 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
       bank_transfer: 'Bank Transfer',
       credit: 'Credit',
     };
+
+    const paymentDetails = sale.payment_details as PaymentDetail[] | undefined;
+    const hasSplitPayment = paymentDetails && paymentDetails.length > 1;
 
     return (
       <div
@@ -104,10 +107,22 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         <div className="border-t border-dashed border-black my-1" />
 
         {/* Payment Info */}
-        <div className="flex justify-between">
-          <span>Payment:</span>
-          <span>{paymentMethodLabels[sale.payment_method] || sale.payment_method}</span>
-        </div>
+        {hasSplitPayment ? (
+          <div className="space-y-0.5">
+            <div className="font-bold text-[9px]">Split Payment:</div>
+            {paymentDetails.map((payment, idx) => (
+              <div key={idx} className="flex justify-between pl-2">
+                <span>{paymentMethodLabels[payment.method] || payment.method}:</span>
+                <span>{Number(payment.amount).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex justify-between">
+            <span>Payment:</span>
+            <span>{paymentMethodLabels[sale.payment_method] || sale.payment_method}</span>
+          </div>
+        )}
 
         {sale.notes && (
           <>
