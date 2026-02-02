@@ -19,17 +19,23 @@ export interface UnitInput {
 }
 
 export function useUnits() {
+  const { organizationId } = useAuth();
+  
   return useQuery({
-    queryKey: ['units'],
+    queryKey: ['units', organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
+      
       const { data, error } = await supabase
         .from('units')
         .select('*')
+        .eq('organization_id', organizationId)
         .order('name');
 
       if (error) throw error;
       return data as Unit[];
     },
+    enabled: !!organizationId,
   });
 }
 
