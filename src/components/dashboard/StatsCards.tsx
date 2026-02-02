@@ -49,10 +49,18 @@ export function StatsCards({ products, sales = [], expenses = [], hasBranchAcces
   const totalRevenue = completedSales.reduce((sum, s) => sum + Number(s.total_amount), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
   
-  // Calculate gross profit from sale items (revenue - cost of goods sold)
-  // For now, estimate using the difference between selling and cost prices in products
-  const grossProfit = totalRevenue - totalExpenses;
-  const isProfit = grossProfit >= 0;
+  // Calculate Cost of Goods Sold (COGS) from sale items
+  const costOfGoodsSold = completedSales.reduce((sum, sale) => {
+    const saleItems = (sale as any).sale_items || [];
+    const saleCogs = saleItems.reduce((itemSum: number, item: { quantity: number; cost_price: number }) => {
+      return itemSum + (Number(item.quantity) * Number(item.cost_price));
+    }, 0);
+    return sum + saleCogs;
+  }, 0);
+  
+  // Net Profit = Revenue - COGS - Expenses
+  const netProfit = totalRevenue - costOfGoodsSold - totalExpenses;
+  const isProfit = netProfit >= 0;
 
   return (
     <div className="space-y-6">
@@ -97,9 +105,9 @@ export function StatsCards({ products, sales = [], expenses = [], hasBranchAcces
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">{isProfit ? 'Net Profit' : 'Net Loss'}</p>
                     <p className={`text-2xl font-bold mt-1 ${isProfit ? 'text-stock-normal' : 'text-destructive'}`}>
-                      {formatCurrency(Math.abs(grossProfit))}
+                      {formatCurrency(Math.abs(netProfit))}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">Sales - Expenses</p>
+                    <p className="text-xs text-muted-foreground mt-1">Revenue - COGS - Expenses</p>
                   </div>
                   <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isProfit ? 'bg-stock-normal/10' : 'bg-destructive/10'}`}>
                     {isProfit ? (
