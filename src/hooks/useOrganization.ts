@@ -203,10 +203,22 @@ export function useUpdateOrganization() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+    mutationFn: async ({
+      id,
+      name,
+      email,
+      address,
+      logo_url,
+    }: {
+      id: string;
+      name: string;
+      email?: string | null;
+      address?: string | null;
+      logo_url?: string | null;
+    }) => {
       const { data, error } = await supabase
         .from('organizations')
-        .update({ name })
+        .update({ name, email, address, logo_url })
         .eq('id', id)
         .select()
         .single();
