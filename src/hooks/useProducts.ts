@@ -11,7 +11,7 @@ export interface Product {
   id: string;
   name: string;
   unit_id: string;
-  branch_id: string | null;
+  branch_id: string;
   supplier_id: string | null;
   brand_id: string | null;
   opening_stock: number;
@@ -48,7 +48,7 @@ export interface Product {
 export interface ProductInput {
   name: string;
   unit_id: string;
-  branch_id?: string;
+  branch_id: string;
   supplier_id?: string;
   brand_id?: string;
   opening_stock: number;

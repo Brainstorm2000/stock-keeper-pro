@@ -23,7 +23,7 @@ import { CSVImportDialog } from '@/components/csv/CSVImportDialog';
 const productSchema = z.object({
   name: z.string().trim().min(1, 'Product name is required').max(200),
   unit_id: z.string().min(1, 'Unit is required'),
-  branch_id: z.string().optional(),
+  branch_id: z.string().min(1, 'Branch is required'),
   supplier_id: z.string().optional(),
   brand_id: z.string().optional(),
   item_type: z.enum(['product', 'service']),
@@ -160,7 +160,7 @@ export function ProductDialog({ product, open, onOpenChange, allProducts = [] }:
       const productData: ProductInput = {
         name: data.name,
         unit_id: data.unit_id,
-        branch_id: data.branch_id || undefined,
+        branch_id: data.branch_id,
         supplier_id: data.supplier_id || undefined,
         brand_id: data.brand_id || undefined,
         item_type: data.item_type,
@@ -296,27 +296,25 @@ export function ProductDialog({ product, open, onOpenChange, allProducts = [] }:
               {errors.unit_id && <p className="text-sm text-destructive">{errors.unit_id.message}</p>}
             </div>
 
-            {branches.length > 0 && (
-              <div className="space-y-2">
-                <Label htmlFor="branch_id">Branch (Optional)</Label>
-                <Select 
-                  value={selectedBranchId || 'none'} 
-                  onValueChange={(value) => setValue('branch_id', value === 'none' ? '' : value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No branch</SelectItem>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="branch_id">Branch *</Label>
+              <Select 
+                value={selectedBranchId} 
+                onValueChange={(value) => setValue('branch_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.branch_id && <p className="text-sm text-destructive">{errors.branch_id.message}</p>}
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="sku">SKU (Optional)</Label>
