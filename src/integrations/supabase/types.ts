@@ -325,7 +325,7 @@ export type Database = {
       }
       products: {
         Row: {
-          branch_id: string | null
+          branch_id: string
           brand_id: string | null
           category: Database["public"]["Enums"]["product_category"]
           cost_price: number
@@ -347,7 +347,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          branch_id?: string | null
+          branch_id: string
           brand_id?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           cost_price?: number
@@ -369,7 +369,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          branch_id?: string | null
+          branch_id?: string
           brand_id?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           cost_price?: number
