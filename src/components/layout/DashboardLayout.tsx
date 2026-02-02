@@ -10,10 +10,10 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useOrganization } from '@/hooks/useOrganization';
 import { ProfileSettingsDialog } from '@/components/profile/ProfileSettingsDialog';
 import { ModulePermissionsDialog } from '@/components/permissions/ModulePermissionsDialog';
+import { OrganizationSettingsDialog } from '@/components/organization/OrganizationSettingsDialog';
 import { useMyModuleAccess, hasAccess, AppModule } from '@/hooks/useModulePermissions';
 import { cn } from '@/lib/utils';
 import faviconIcon from '/favicon.png';
-
 interface DashboardLayoutProps {
   children: ReactNode;
 }
@@ -33,6 +33,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const [orgSettingsDialogOpen, setOrgSettingsDialogOpen] = useState(false);
 
   const navLinks: NavLink[] = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -152,10 +153,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   Profile Settings
                 </DropdownMenuItem>
                 {isSuperAdmin && (
-                  <DropdownMenuItem onClick={() => setPermissionsDialogOpen(true)}>
-                    <Lock className="mr-2 h-4 w-4" />
-                    Module Permissions
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem onClick={() => setOrgSettingsDialogOpen(true)}>
+                      <Building2 className="mr-2 h-4 w-4" />
+                      Organization Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setPermissionsDialogOpen(true)}>
+                      <Lock className="mr-2 h-4 w-4" />
+                      Module Permissions
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
@@ -200,6 +207,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <ProfileSettingsDialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen} />
       <ModulePermissionsDialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen} />
+      <OrganizationSettingsDialog open={orgSettingsDialogOpen} onOpenChange={setOrgSettingsDialogOpen} />
     </div>
   );
 }
