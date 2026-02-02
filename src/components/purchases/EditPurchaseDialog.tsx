@@ -37,7 +37,6 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
   const [supplierId, setSupplierId] = useState(purchase.supplier_id);
   const [purchaseDate, setPurchaseDate] = useState(purchase.purchase_date);
   const [referenceNumber, setReferenceNumber] = useState(purchase.reference_number || '');
-  const [paymentStatus, setPaymentStatus] = useState<PurchasePaymentStatus>(purchase.payment_status);
   const [amountPaid, setAmountPaid] = useState(String(purchase.amount_paid));
   const [notes, setNotes] = useState(purchase.notes || '');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -78,6 +77,12 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
   }, [availableProducts, searchQuery]);
 
   const totalAmount = cart.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
+
+  // Auto-calculate payment status based on amount paid
+  const numericAmountPaid = Number(amountPaid) || 0;
+  const paymentStatus: PurchasePaymentStatus = 
+    numericAmountPaid <= 0 ? 'pending' :
+    numericAmountPaid >= totalAmount ? 'paid' : 'partial';
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-NG', {
@@ -198,26 +203,23 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
 
             <div className="space-y-2">
               <Label>Payment Status</Label>
-              <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PurchasePaymentStatus)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-muted-foreground capitalize">
+                {paymentStatus}
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Amount Paid</Label>
+              <Label>Amount Paid {totalAmount > 0 && `(max: ${formatCurrency(totalAmount)})`}</Label>
               <Input
                 type="number"
                 min="0"
+                max={totalAmount}
                 placeholder="0"
                 value={amountPaid}
-                onChange={(e) => setAmountPaid(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? '' : Math.min(Number(e.target.value), totalAmount).toString();
+                  setAmountPaid(value);
+                }}
               />
             </div>
           </div>
