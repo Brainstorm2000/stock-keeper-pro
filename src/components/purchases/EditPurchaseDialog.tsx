@@ -37,6 +37,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
   const [supplierId, setSupplierId] = useState(purchase.supplier_id);
   const [purchaseDate, setPurchaseDate] = useState(purchase.purchase_date);
   const [referenceNumber, setReferenceNumber] = useState(purchase.reference_number || '');
+  const [taxRate, setTaxRate] = useState(String(purchase.tax_rate || 0));
   const [amountPaid, setAmountPaid] = useState(String(purchase.amount_paid));
   const [notes, setNotes] = useState(purchase.notes || '');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -76,7 +77,10 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
     );
   }, [availableProducts, searchQuery]);
 
-  const totalAmount = cart.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
+  const subtotalAmount = cart.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
+  const numericTaxRate = Number(taxRate) || 0;
+  const taxAmount = (subtotalAmount * numericTaxRate) / 100;
+  const totalAmount = subtotalAmount + taxAmount;
 
   // Auto-calculate payment status based on amount paid
   const numericAmountPaid = Number(amountPaid) || 0;
@@ -135,6 +139,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
         supplier_id: supplierId,
         purchase_date: purchaseDate,
         reference_number: referenceNumber || undefined,
+        tax_rate: numericTaxRate,
         payment_status: paymentStatus,
         amount_paid: Number(amountPaid) || 0,
         notes: notes || undefined,
@@ -198,6 +203,19 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
                 placeholder="e.g., INV-12345"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tax Rate (%)</Label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                placeholder="0"
+                value={taxRate}
+                onChange={(e) => setTaxRate(e.target.value)}
               />
             </div>
 
@@ -349,8 +367,14 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
         {/* Footer */}
         <DialogFooter className="flex-shrink-0 border-t pt-4">
           <div className="flex items-center justify-between w-full">
-            <div className="text-lg font-bold">
-              Total: {formatCurrency(totalAmount)}
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">
+                Subtotal: {formatCurrency(subtotalAmount)}
+                {numericTaxRate > 0 && ` + Tax (${numericTaxRate}%): ${formatCurrency(taxAmount)}`}
+              </div>
+              <div className="text-lg font-bold">
+                Total: {formatCurrency(totalAmount)}
+              </div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>

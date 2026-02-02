@@ -34,6 +34,8 @@ export interface Purchase {
   purchase_date: string;
   reference_number: string | null;
   subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
   total_amount: number;
   payment_status: PurchasePaymentStatus;
   amount_paid: number;
@@ -63,6 +65,7 @@ export interface PurchaseInput {
   supplier_id: string;
   purchase_date?: string;
   reference_number?: string;
+  tax_rate?: number;
   payment_status?: PurchasePaymentStatus;
   amount_paid?: number;
   notes?: string;
@@ -116,7 +119,9 @@ export function useCreatePurchase() {
 
       // Calculate totals
       const subtotal = input.items.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
-      const totalAmount = subtotal;
+      const taxRate = input.tax_rate || 0;
+      const taxAmount = (subtotal * taxRate) / 100;
+      const totalAmount = subtotal + taxAmount;
 
       // Create purchase record
       const { data: purchase, error: purchaseError } = await supabase
@@ -129,6 +134,8 @@ export function useCreatePurchase() {
           purchase_date: input.purchase_date || new Date().toISOString().split('T')[0],
           reference_number: input.reference_number,
           subtotal,
+          tax_rate: taxRate,
+          tax_amount: taxAmount,
           total_amount: totalAmount,
           payment_status: input.payment_status || 'pending',
           amount_paid: input.amount_paid || 0,
@@ -295,7 +302,9 @@ export function useUpdatePurchase() {
 
       // Calculate new totals
       const subtotal = input.items.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
-      const totalAmount = subtotal;
+      const taxRate = input.tax_rate || 0;
+      const taxAmount = (subtotal * taxRate) / 100;
+      const totalAmount = subtotal + taxAmount;
 
       // Update purchase record
       const { data: purchase, error: purchaseError } = await supabase
@@ -306,6 +315,8 @@ export function useUpdatePurchase() {
           purchase_date: input.purchase_date || new Date().toISOString().split('T')[0],
           reference_number: input.reference_number,
           subtotal,
+          tax_rate: taxRate,
+          tax_amount: taxAmount,
           total_amount: totalAmount,
           payment_status: input.payment_status || 'pending',
           amount_paid: input.amount_paid || 0,
