@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, Trash2, Pause, CreditCard, Banknote, Smartphone, Building, Clock, Loader2, X, UserPlus } from 'lucide-react';
+import { ShoppingCart, Search, Trash2, Pause, CreditCard, Banknote, Smartphone, Building, Clock, Loader2, X, UserPlus, Split, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
 import { useProducts, type Product } from '@/hooks/useProducts';
@@ -18,12 +19,13 @@ import { useBranches } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCustomers, type Customer } from '@/hooks/useCustomers';
 import { useAuth } from '@/lib/auth';
-import { useCreateSale, useSaleWithItems, useHeldOrders, useCreateHeldOrder, useDeleteHeldOrder, type SaleItem, type PaymentMethod, type Sale } from '@/hooks/useSales';
+import { useCreateSale, useSaleWithItems, useHeldOrders, useCreateHeldOrder, useDeleteHeldOrder, type SaleItem, type PaymentMethod, type Sale, type PaymentDetail } from '@/hooks/useSales';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { CartItemRow } from '@/components/pos/CartItemRow';
 import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
 import { CustomersDialog } from '@/components/customers/CustomersDialog';
+import { SplitPaymentDialog, type PaymentSplit } from '@/components/pos/SplitPaymentDialog';
 
 interface CartItem extends SaleItem {
   product_name: string;
@@ -45,8 +47,11 @@ export default function POS() {
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [heldOrdersDialogOpen, setHeldOrdersDialogOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [splitPaymentDialogOpen, setSplitPaymentDialogOpen] = useState(false);
   const [lastSaleId, setLastSaleId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [useSplitPayment, setUseSplitPayment] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([]);
 
   const { user, loading: authLoading, isAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
@@ -131,6 +136,15 @@ export default function POS() {
   const taxAmount = ((subtotal - discountValue) * taxRate) / 100;
   const total = subtotal - discountValue + taxAmount;
 
+  // Check for stock warnings in cart
+  const hasStockWarning = useMemo(() => {
+    return cart.some(item => 
+      item.item_type === 'product' && 
+      item.max_quantity !== undefined && 
+      item.quantity > item.max_quantity
+    );
+  }, [cart]);
+
   const addToCart = (product: Product) => {
     const existingIndex = cart.findIndex(item => item.product_id === product.id);
     const productType = (product as any).item_type || 'product';
@@ -138,14 +152,19 @@ export default function POS() {
     
     if (existingIndex > -1) {
       const newCart = [...cart];
-      const currentQty = newCart[existingIndex].quantity;
-      if (currentQty < maxQty) {
-        newCart[existingIndex].quantity += 1;
-        newCart[existingIndex].total_price = 
-          (newCart[existingIndex].quantity * newCart[existingIndex].unit_price) - newCart[existingIndex].discount_amount;
-        setCart(newCart);
-      } else {
-        toast({ title: 'Not enough stock', variant: 'destructive' });
+      // Allow exceeding stock with warning - don't block
+      newCart[existingIndex].quantity += 1;
+      newCart[existingIndex].total_price = 
+        (newCart[existingIndex].quantity * newCart[existingIndex].unit_price) - newCart[existingIndex].discount_amount;
+      setCart(newCart);
+      
+      // Show warning if exceeding stock
+      if (productType === 'product' && newCart[existingIndex].quantity > maxQty) {
+        toast({ 
+          title: 'Stock warning', 
+          description: `${product.name} exceeds available stock (${maxQty} available)`,
+          variant: 'destructive' 
+        });
       }
     } else {
       const sellingPrice = Number((product as any).selling_price) || 0;
@@ -170,12 +189,21 @@ export default function POS() {
     
     if (newQty <= 0) {
       newCart.splice(index, 1);
-    } else if (newCart[index].item_type === 'service' || newQty <= (newCart[index].max_quantity || Infinity)) {
+    } else {
+      // Allow any quantity - just update without blocking
       newCart[index].quantity = newQty;
       newCart[index].total_price = (newQty * newCart[index].unit_price) - newCart[index].discount_amount;
-    } else {
-      toast({ title: 'Not enough stock', variant: 'destructive' });
-      return;
+      
+      // Show warning if exceeding stock
+      if (newCart[index].item_type === 'product' && 
+          newCart[index].max_quantity !== undefined && 
+          newQty > newCart[index].max_quantity) {
+        toast({ 
+          title: 'Stock warning', 
+          description: `${newCart[index].product_name} exceeds available stock (${newCart[index].max_quantity} available)`,
+          variant: 'destructive' 
+        });
+      }
     }
     
     setCart(newCart);
@@ -194,6 +222,8 @@ export default function POS() {
     setCustomerName('');
     setCustomerPhone('');
     setNotes('');
+    setUseSplitPayment(false);
+    setPaymentSplits([]);
   };
 
   const handleCustomerSelect = (customerId: string) => {
@@ -258,6 +288,15 @@ export default function POS() {
       return;
     }
 
+    // Determine payment method and details
+    const primaryPaymentMethod = useSplitPayment && paymentSplits.length > 0 
+      ? paymentSplits[0].method 
+      : paymentMethod;
+    
+    const paymentDetails = useSplitPayment && paymentSplits.length > 0 
+      ? paymentSplits 
+      : undefined;
+
     const result = await createSale.mutateAsync({
       organization_id: organization.id,
       branch_id: branchResult.branchId,
@@ -269,15 +308,21 @@ export default function POS() {
       discount_percent: discountPercent,
       tax_amount: taxAmount,
       total_amount: total,
-      payment_method: paymentMethod,
+      payment_method: primaryPaymentMethod,
+      payment_details: paymentDetails,
       notes: notes || undefined,
       items: cart.map(({ max_quantity, item_type, product_name, ...item }) => item),
     });
 
     setLastSaleId(result.id);
     setCheckoutDialogOpen(false);
+    setSplitPaymentDialogOpen(false);
     setReceiptDialogOpen(true);
     clearCart();
+  };
+
+  const handleSplitPaymentConfirm = () => {
+    handleCheckout();
   };
 
   const handleNewSale = () => {
@@ -573,23 +618,70 @@ export default function POS() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Payment Method</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {paymentMethods.map((method) => (
-                  <Button
-                    key={method.value}
-                    type="button"
-                    variant={paymentMethod === method.value ? 'default' : 'outline'}
-                    className="flex flex-col h-auto py-3 gap-1"
-                    onClick={() => setPaymentMethod(method.value)}
-                  >
-                    {method.icon}
-                    <span className="text-xs">{method.label}</span>
-                  </Button>
-                ))}
-              </div>
+            {/* Split Payment Toggle */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="split-payment"
+                checked={useSplitPayment}
+                onCheckedChange={(checked) => {
+                  setUseSplitPayment(checked === true);
+                  if (checked) {
+                    setPaymentSplits([{ method: 'cash', amount: total }]);
+                  } else {
+                    setPaymentSplits([]);
+                  }
+                }}
+              />
+              <Label htmlFor="split-payment" className="text-sm font-normal cursor-pointer">
+                Split payment across multiple methods
+              </Label>
             </div>
+
+            {!useSplitPayment && (
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {paymentMethods.map((method) => (
+                    <Button
+                      key={method.value}
+                      type="button"
+                      variant={paymentMethod === method.value ? 'default' : 'outline'}
+                      className="flex flex-col h-auto py-3 gap-1"
+                      onClick={() => setPaymentMethod(method.value)}
+                    >
+                      {method.icon}
+                      <span className="text-xs">{method.label}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {useSplitPayment && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Payment Split</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSplitPaymentDialogOpen(true)}
+                  >
+                    <Split className="h-4 w-4 mr-1" />
+                    Configure Split
+                  </Button>
+                </div>
+                {paymentSplits.length > 0 && (
+                  <div className="bg-muted/50 p-3 rounded-lg text-sm space-y-1">
+                    {paymentSplits.map((split, index) => (
+                      <div key={index} className="flex justify-between">
+                        <span className="capitalize">{split.method.replace('_', ' ')}</span>
+                        <span>{split.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Notes</Label>
@@ -600,6 +692,14 @@ export default function POS() {
                 rows={2}
               />
             </div>
+
+            {/* Stock Warning */}
+            {hasStockWarning && (
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>Some items exceed available stock. Proceeding may result in negative inventory.</span>
+              </div>
+            )}
 
             <div className="bg-muted p-4 rounded-lg">
               <div className="flex justify-between text-lg font-bold">
@@ -626,6 +726,16 @@ export default function POS() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Split Payment Dialog */}
+      <SplitPaymentDialog
+        open={splitPaymentDialogOpen}
+        onOpenChange={setSplitPaymentDialogOpen}
+        totalAmount={total}
+        payments={paymentSplits}
+        onPaymentsChange={setPaymentSplits}
+        onConfirm={handleSplitPaymentConfirm}
+      />
 
       {/* Held Orders Dialog */}
       <Dialog open={heldOrdersDialogOpen} onOpenChange={setHeldOrdersDialogOpen}>
