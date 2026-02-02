@@ -36,6 +36,7 @@ export default function POS() {
   const [searchQuery, setSearchQuery] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [taxRate, setTaxRate] = useState(0);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -127,7 +128,8 @@ export default function POS() {
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.total_price, 0);
   const discountValue = discountPercent > 0 ? (subtotal * discountPercent) / 100 : discountAmount;
-  const total = subtotal - discountValue;
+  const taxAmount = ((subtotal - discountValue) * taxRate) / 100;
+  const total = subtotal - discountValue + taxAmount;
 
   const addToCart = (product: Product) => {
     const existingIndex = cart.findIndex(item => item.product_id === product.id);
@@ -187,6 +189,7 @@ export default function POS() {
     setCart([]);
     setDiscountPercent(0);
     setDiscountAmount(0);
+    setTaxRate(0);
     setSelectedCustomerId('');
     setCustomerName('');
     setCustomerPhone('');
@@ -264,7 +267,7 @@ export default function POS() {
       subtotal,
       discount_amount: discountValue,
       discount_percent: discountPercent,
-      tax_amount: 0,
+      tax_amount: taxAmount,
       total_amount: total,
       payment_method: paymentMethod,
       notes: notes || undefined,
@@ -454,6 +457,22 @@ export default function POS() {
                 </div>
               </div>
 
+              {/* Tax Rate */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs">Tax Rate (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(Number(e.target.value))}
+                    className="h-8"
+                  />
+                </div>
+              </div>
+
               {/* Totals */}
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
@@ -464,6 +483,12 @@ export default function POS() {
                   <div className="flex justify-between text-destructive">
                     <span>Discount</span>
                     <span>-{discountValue.toLocaleString()}</span>
+                  </div>
+                )}
+                {taxAmount > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Tax ({taxRate}%)</span>
+                    <span>+{taxAmount.toLocaleString()}</span>
                   </div>
                 )}
                 <Separator />

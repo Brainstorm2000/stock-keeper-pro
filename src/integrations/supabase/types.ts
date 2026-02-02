@@ -526,6 +526,8 @@ export type Database = {
           reference_number: string | null
           subtotal: number
           supplier_id: string
+          tax_amount: number
+          tax_rate: number
           total_amount: number
           updated_at: string
         }
@@ -543,6 +545,8 @@ export type Database = {
           reference_number?: string | null
           subtotal?: number
           supplier_id: string
+          tax_amount?: number
+          tax_rate?: number
           total_amount?: number
           updated_at?: string
         }
@@ -560,6 +564,8 @@ export type Database = {
           reference_number?: string | null
           subtotal?: number
           supplier_id?: string
+          tax_amount?: number
+          tax_rate?: number
           total_amount?: number
           updated_at?: string
         }
