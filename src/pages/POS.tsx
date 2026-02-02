@@ -319,6 +319,44 @@ export default function POS() {
     setSplitPaymentDialogOpen(false);
     setReceiptDialogOpen(true);
     clearCart();
+    
+    // Play loud notification sound on sale completion
+    playSaleCompletedSound();
+  };
+
+  const playSaleCompletedSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Create a loud, attention-grabbing sound sequence
+      const playTone = (frequency: number, startTime: number, duration: number, volume: number = 0.8) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(volume, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+      
+      const now = audioContext.currentTime;
+      
+      // Play a cheerful "cha-ching" style sequence - loud and unmistakable
+      playTone(880, now, 0.15, 0.9);           // A5
+      playTone(1108.73, now + 0.1, 0.15, 0.9); // C#6
+      playTone(1318.51, now + 0.2, 0.3, 1.0);  // E6 (louder, longer)
+      playTone(1760, now + 0.35, 0.4, 1.0);    // A6 (highest, loudest)
+      
+    } catch (error) {
+      console.log('Audio playback not supported');
+    }
   };
 
   const handleSplitPaymentConfirm = () => {

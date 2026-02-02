@@ -81,7 +81,7 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell colSpan={isAdmin ? (showBranch ? 10 : 9) : (showBranch ? 9 : 8)} className="text-center py-8">
+          <TableCell colSpan={isAdmin ? (showBranch ? 9 : 8) : (showBranch ? 8 : 7)} className="text-center py-8">
             <div className="animate-pulse-soft text-muted-foreground">Loading products...</div>
           </TableCell>
         </TableRow>
@@ -91,7 +91,7 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
     if (productsToRender.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={isAdmin ? (showBranch ? 10 : 9) : (showBranch ? 9 : 8)} className="text-center py-8 text-muted-foreground">
+          <TableCell colSpan={isAdmin ? (showBranch ? 9 : 8) : (showBranch ? 8 : 7)} className="text-center py-8 text-muted-foreground">
             {products.length === 0 ? 'No products yet. Add your first product!' : 'No products match your filters.'}
           </TableCell>
         </TableRow>
@@ -137,7 +137,6 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
               {product.branches?.name || '—'}
             </TableCell>
           )}
-          <TableCell className="text-right">{Number(product.opening_stock).toLocaleString()}</TableCell>
           <TableCell className="text-right font-semibold">{Number(product.current_stock).toLocaleString()}</TableCell>
           <TableCell className="text-right">
             {product.category === 'sellable' ? (
@@ -247,8 +246,7 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
                   <TableHead>Category</TableHead>
                   <TableHead>Unit</TableHead>
                   {showBranch && <TableHead>Branch</TableHead>}
-                  <TableHead className="text-right">Opening</TableHead>
-                  <TableHead className="text-right">Current</TableHead>
+                  <TableHead className="text-right">Current Stock</TableHead>
                   <TableHead className="text-right">Stock Value</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Updated</TableHead>
