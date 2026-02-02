@@ -36,7 +36,6 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
   const [supplierId, setSupplierId] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [referenceNumber, setReferenceNumber] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState<PurchasePaymentStatus>('pending');
   const [amountPaid, setAmountPaid] = useState('');
   const [notes, setNotes] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -57,6 +56,12 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
   }, [availableProducts, searchQuery]);
 
   const totalAmount = cart.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
+
+  // Auto-calculate payment status based on amount paid
+  const numericAmountPaid = Number(amountPaid) || 0;
+  const paymentStatus: PurchasePaymentStatus = 
+    numericAmountPaid <= 0 ? 'pending' :
+    numericAmountPaid >= totalAmount ? 'paid' : 'partial';
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-NG', {
@@ -117,7 +122,6 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
     setSupplierId('');
     setPurchaseDate(format(new Date(), 'yyyy-MM-dd'));
     setReferenceNumber('');
-    setPaymentStatus('pending');
     setAmountPaid('');
     setNotes('');
     setCart([]);
@@ -182,26 +186,23 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
 
             <div className="space-y-2">
               <Label>Payment Status</Label>
-              <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PurchasePaymentStatus)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-muted-foreground capitalize">
+                {paymentStatus}
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Amount Paid</Label>
+              <Label>Amount Paid {totalAmount > 0 && `(max: ${formatCurrency(totalAmount)})`}</Label>
               <Input
                 type="number"
                 min="0"
+                max={totalAmount}
                 placeholder="0"
                 value={amountPaid}
-                onChange={(e) => setAmountPaid(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? '' : Math.min(Number(e.target.value), totalAmount).toString();
+                  setAmountPaid(value);
+                }}
               />
             </div>
           </div>
