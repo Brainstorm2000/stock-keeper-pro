@@ -243,6 +243,153 @@ export function useUpdatePurchasePayment() {
   });
 }
 
+export function useUpdatePurchase() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      purchaseId,
+      originalItems,
+      input,
+    }: {
+      purchaseId: string;
+      originalItems: PurchaseItem[];
+      input: PurchaseInput & { organization_id: string };
+    }) => {
+      // First, reverse stock for all original items
+      for (const item of originalItems) {
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('current_stock')
+          .eq('id', item.product_id)
+          .single();
+
+        if (productError) throw productError;
+
+        const previousStock = Number(product.current_stock);
+        const newStock = Math.max(0, previousStock - item.quantity);
+
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({ current_stock: newStock })
+          .eq('id', item.product_id);
+
+        if (updateError) throw updateError;
+
+        const { error: historyError } = await supabase
+          .from('stock_history')
+          .insert({
+            product_id: item.product_id,
+            previous_stock: previousStock,
+            new_stock: newStock,
+            change_amount: -item.quantity,
+            change_type: 'purchase_reversal',
+            notes: `Edit purchase - reversal`,
+            changed_by: user?.id,
+          });
+
+        if (historyError) throw historyError;
+      }
+
+      // Calculate new totals
+      const subtotal = input.items.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
+      const totalAmount = subtotal;
+
+      // Update purchase record
+      const { data: purchase, error: purchaseError } = await supabase
+        .from('purchases')
+        .update({
+          branch_id: input.branch_id,
+          supplier_id: input.supplier_id,
+          purchase_date: input.purchase_date || new Date().toISOString().split('T')[0],
+          reference_number: input.reference_number,
+          subtotal,
+          total_amount: totalAmount,
+          payment_status: input.payment_status || 'pending',
+          amount_paid: input.amount_paid || 0,
+          notes: input.notes,
+        })
+        .eq('id', purchaseId)
+        .select()
+        .single();
+
+      if (purchaseError) throw purchaseError;
+
+      // Delete old purchase items
+      const { error: deleteItemsError } = await supabase
+        .from('purchase_items')
+        .delete()
+        .eq('purchase_id', purchaseId);
+
+      if (deleteItemsError) throw deleteItemsError;
+
+      // Create new purchase items
+      const purchaseItems = input.items.map(item => ({
+        purchase_id: purchaseId,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        unit_cost: item.unit_cost,
+        total_cost: item.quantity * item.unit_cost,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('purchase_items')
+        .insert(purchaseItems);
+
+      if (itemsError) throw itemsError;
+
+      // Add new stock for new items
+      for (const item of input.items) {
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('current_stock')
+          .eq('id', item.product_id)
+          .single();
+
+        if (productError) throw productError;
+
+        const previousStock = Number(product.current_stock);
+        const newStock = previousStock + item.quantity;
+
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({ current_stock: newStock })
+          .eq('id', item.product_id);
+
+        if (updateError) throw updateError;
+
+        const { error: historyError } = await supabase
+          .from('stock_history')
+          .insert({
+            product_id: item.product_id,
+            previous_stock: previousStock,
+            new_stock: newStock,
+            change_amount: item.quantity,
+            change_type: 'purchase',
+            notes: `Edit purchase ${purchase.purchase_number}`,
+            changed_by: user?.id,
+          });
+
+        if (historyError) throw historyError;
+      }
+
+      return purchase;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      toast({ title: 'Purchase updated successfully' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'update purchase');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
 export function useDeletePurchase() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
