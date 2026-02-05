@@ -22,6 +22,7 @@ import { useAuth } from '@/lib/auth';
 import { useCreateSale, useSaleWithItems, useHeldOrders, useCreateHeldOrder, useDeleteHeldOrder, type SaleItem, type PaymentMethod, type Sale, type PaymentDetail } from '@/hooks/useSales';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+ import { formatCurrency } from '@/lib/currency';
 import { CartItemRow } from '@/components/pos/CartItemRow';
 import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
 import { CustomersDialog } from '@/components/customers/CustomersDialog';
@@ -441,7 +442,7 @@ export default function POS() {
                             </Badge>
                           </div>
                           <span className="text-lg font-bold text-primary">
-                            {sellingPrice.toLocaleString()}
+                             {formatCurrency(sellingPrice)}
                           </span>
                           {productType === 'product' && (
                             <span className="text-xs text-muted-foreground">
@@ -560,24 +561,24 @@ export default function POS() {
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>{subtotal.toLocaleString()}</span>
+                   <span>{formatCurrency(subtotal)}</span>
                 </div>
                 {discountValue > 0 && (
                   <div className="flex justify-between text-destructive">
                     <span>Discount</span>
-                    <span>-{discountValue.toLocaleString()}</span>
+                     <span>-{formatCurrency(discountValue)}</span>
                   </div>
                 )}
                 {taxAmount > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Tax ({taxRate}%)</span>
-                    <span>+{taxAmount.toLocaleString()}</span>
+                     <span>+{formatCurrency(taxAmount)}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
-                  <span>{total.toLocaleString()}</span>
+                   <span>{formatCurrency(total)}</span>
                 </div>
               </div>
 
@@ -713,7 +714,7 @@ export default function POS() {
                     {paymentSplits.map((split, index) => (
                       <div key={index} className="flex justify-between">
                         <span className="capitalize">{split.method.replace('_', ' ')}</span>
-                        <span>{split.amount.toLocaleString()}</span>
+                         <span>{formatCurrency(split.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -742,7 +743,7 @@ export default function POS() {
             <div className="bg-muted p-4 rounded-lg">
               <div className="flex justify-between text-lg font-bold">
                 <span>Total Amount</span>
-                <span>{total.toLocaleString()}</span>
+                 <span>{formatCurrency(total)}</span>
               </div>
             </div>
           </div>

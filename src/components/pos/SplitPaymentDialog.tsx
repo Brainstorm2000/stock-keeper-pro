@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+ import { formatCurrency } from '@/lib/currency';
 import type { PaymentMethod } from '@/hooks/useSales';
 
 export interface PaymentSplit {
@@ -74,11 +75,11 @@ export function SplitPaymentDialog({
           <div className="bg-muted p-3 rounded-lg space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Amount</span>
-              <span className="font-semibold">{totalAmount.toLocaleString()}</span>
+               <span className="font-semibold">{formatCurrency(totalAmount)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Amount Paid</span>
-              <span className="font-medium">{totalPaid.toLocaleString()}</span>
+               <span className="font-medium">{formatCurrency(totalPaid)}</span>
             </div>
             <Separator />
             <div className="flex justify-between">
@@ -87,7 +88,7 @@ export function SplitPaymentDialog({
                 "font-semibold",
                 remaining > 0 ? "text-destructive" : remaining < 0 ? "text-warning" : "text-accent-foreground"
               )}>
-                {remaining > 0 ? remaining.toLocaleString() : remaining < 0 ? `Over by ${Math.abs(remaining).toLocaleString()}` : 'Balanced'}
+                 {remaining > 0 ? formatCurrency(remaining) : remaining < 0 ? `Over by ${formatCurrency(Math.abs(remaining))}` : 'Balanced'}
               </span>
             </div>
           </div>

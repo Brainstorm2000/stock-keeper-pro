@@ -28,6 +28,7 @@ import { useAuth } from '@/lib/auth';
 import { useSales, useSaleWithItems, useUpdateSale, useDeleteSale, type Sale, type PaymentMethod, type SaleStatus } from '@/hooks/useSales';
 import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
 import { format } from 'date-fns';
+ import { formatCurrency } from '@/lib/currency';
 
 const statusColors: Record<SaleStatus, string> = {
   completed: 'bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20',
@@ -186,7 +187,7 @@ export default function Sales() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Value</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalSales.toLocaleString()}</div>
+               <div className="text-2xl font-bold">{formatCurrency(totalSales)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -194,7 +195,7 @@ export default function Sales() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Revenue (Completed)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">{totalRevenue.toLocaleString()}</div>
+               <div className="text-2xl font-bold text-primary">{formatCurrency(totalRevenue)}</div>
             </CardContent>
           </Card>
         </div>
@@ -306,7 +307,7 @@ export default function Sales() {
                       <Badge className={statusColors[sale.status]}>{sale.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {Number(sale.total_amount).toLocaleString()}
+                       {formatCurrency(Number(sale.total_amount))}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -400,8 +401,8 @@ export default function Sales() {
                       <TableRow key={item.id}>
                         <TableCell>{item.product_name}</TableCell>
                         <TableCell className="text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-right">{Number(item.unit_price).toLocaleString()}</TableCell>
-                        <TableCell className="text-right">{Number(item.total_price).toLocaleString()}</TableCell>
+                         <TableCell className="text-right">{formatCurrency(Number(item.unit_price))}</TableCell>
+                         <TableCell className="text-right">{formatCurrency(Number(item.total_price))}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -411,17 +412,17 @@ export default function Sales() {
               <div className="space-y-2 text-sm border-t pt-4">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>{Number(selectedSale.subtotal).toLocaleString()}</span>
+                   <span>{formatCurrency(Number(selectedSale.subtotal))}</span>
                 </div>
                 {Number(selectedSale.discount_amount) > 0 && (
                   <div className="flex justify-between text-destructive">
                     <span>Discount</span>
-                    <span>-{Number(selectedSale.discount_amount).toLocaleString()}</span>
+                     <span>-{formatCurrency(Number(selectedSale.discount_amount))}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-lg font-bold pt-2 border-t">
                   <span>Total</span>
-                  <span>{Number(selectedSale.total_amount).toLocaleString()}</span>
+                   <span>{formatCurrency(Number(selectedSale.total_amount))}</span>
                 </div>
               </div>
 

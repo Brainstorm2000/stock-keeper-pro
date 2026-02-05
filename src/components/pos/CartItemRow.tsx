@@ -3,6 +3,7 @@ import { Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+ import { formatCurrency } from '@/lib/currency';
 
 interface CartItem {
   product_id: string;
@@ -65,7 +66,7 @@ export function CartItemRow({ item, index, onQuantityChange, onRemove }: CartIte
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm truncate">{item.product_name}</p>
         <p className="text-xs text-muted-foreground">
-          {item.unit_price.toLocaleString()} × {item.quantity}
+           {formatCurrency(item.unit_price)} × {item.quantity}
         </p>
         {isOverStock && (
           <div className="flex items-center gap-1 text-destructive text-xs mt-1">
@@ -89,7 +90,7 @@ export function CartItemRow({ item, index, onQuantityChange, onRemove }: CartIte
         />
       </div>
       <div className="text-right w-20">
-        <p className="font-medium text-sm">{item.total_price.toLocaleString()}</p>
+         <p className="font-medium text-sm">{formatCurrency(item.total_price)}</p>
       </div>
       <Button
         variant="ghost"
