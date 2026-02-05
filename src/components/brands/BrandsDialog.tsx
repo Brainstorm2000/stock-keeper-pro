@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Upload, Download, Pencil, Trash2, Search, FileDown } from 'lucide-react';
+ import { Plus, ArrowDown, ArrowUp, Pencil, Trash2, Search, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -187,10 +187,10 @@ export function BrandsDialog() {
             <FileDown className="h-4 w-4 mr-1" /> Template
           </Button>
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-            <Upload className="h-4 w-4 mr-1" /> Import
+            <ArrowDown className="h-4 w-4 mr-1" /> Import
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport} disabled={brands.length === 0}>
-            <Download className="h-4 w-4 mr-1" /> Export
+            <ArrowUp className="h-4 w-4 mr-1" /> Export
           </Button>
           <Dialog open={formOpen} onOpenChange={(o) => { setFormOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild>

@@ -9,7 +9,7 @@ import { useBrands, useCreateBrand } from '@/hooks/useBrands';
 import { useCreateProduct, checkProductDuplicate } from '@/hooks/useProducts';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
+ import { ArrowDown, FileText, AlertCircle, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -232,7 +232,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
       <DialogContent className="sm:max-w-lg max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
+            <ArrowDown className="h-5 w-5" />
             Import Products from CSV
           </DialogTitle>
         </DialogHeader>
