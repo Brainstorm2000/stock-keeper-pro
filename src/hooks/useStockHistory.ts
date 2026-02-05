@@ -18,10 +18,10 @@ export interface StockHistoryEntry {
       abbreviation: string | null;
     };
   };
-  profiles?: {
+  changed_by_user?: {
     full_name: string | null;
     email: string | null;
-  };
+  } | null;
 }
 
 export interface StockTrend {
@@ -38,8 +38,7 @@ export function useStockHistory(productId?: string, limit = 50, category?: 'sell
         .from('stock_history')
         .select(`
           *,
-          products (id, name, category, units (abbreviation)),
-          profiles!stock_history_changed_by_fkey (full_name, email)
+          products (id, name, category, units (abbreviation))
         `)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -51,13 +50,35 @@ export function useStockHistory(productId?: string, limit = 50, category?: 'sell
       const { data, error } = await query;
       if (error) throw error;
       
+      // Fetch user profiles for changed_by
+      const userIds = [...new Set(data?.map(d => d.changed_by).filter(Boolean))];
+      let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
+      
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, email')
+          .in('user_id', userIds);
+        
+        if (profiles) {
+          profilesMap = profiles.reduce((acc, p) => {
+            acc[p.user_id] = { full_name: p.full_name, email: p.email };
+            return acc;
+          }, {} as Record<string, { full_name: string | null; email: string | null }>);
+        }
+      }
+      
       // Filter by category if specified
-      let filtered = data as (StockHistoryEntry & { products?: { category?: string } })[];
+      let filtered = data as (Omit<StockHistoryEntry, 'changed_by_user'> & { products?: { category?: string } })[];
       if (category) {
         filtered = filtered.filter(entry => entry.products?.category === category);
       }
       
-      return filtered as StockHistoryEntry[];
+      // Add user profile info
+      return filtered.map(entry => ({
+        ...entry,
+        changed_by_user: entry.changed_by ? profilesMap[entry.changed_by] || null : null,
+      })) as StockHistoryEntry[];
     },
   });
 }
