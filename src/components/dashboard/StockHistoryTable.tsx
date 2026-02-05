@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { ArrowUp, ArrowDown, RefreshCw, Package, Search, CalendarIcon, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, RefreshCw, Package, Search, CalendarIcon, X, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -229,6 +229,7 @@ export function StockHistoryTable({ productId, limit = 100 }: StockHistoryTableP
                   <TableHead className="text-right">Previous</TableHead>
                   <TableHead className="text-right">Change</TableHead>
                   <TableHead className="text-right">New</TableHead>
+                  <TableHead>Changed By</TableHead>
                   <TableHead>Notes</TableHead>
                 </TableRow>
               </TableHeader>
@@ -259,6 +260,14 @@ export function StockHistoryTable({ productId, limit = 100 }: StockHistoryTableP
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-medium">
                       {Number(entry.new_stock).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {entry.profiles?.full_name || entry.profiles?.email || (
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          Unknown
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">
                       {entry.notes || '-'}
