@@ -18,6 +18,10 @@ export interface StockHistoryEntry {
       abbreviation: string | null;
     };
   };
+  profiles?: {
+    full_name: string | null;
+    email: string | null;
+  };
 }
 
 export interface StockTrend {
@@ -34,7 +38,8 @@ export function useStockHistory(productId?: string, limit = 50, category?: 'sell
         .from('stock_history')
         .select(`
           *,
-          products (id, name, category, units (abbreviation))
+          products (id, name, category, units (abbreviation)),
+          profiles!stock_history_changed_by_fkey (full_name, email)
         `)
         .order('created_at', { ascending: false })
         .limit(limit);
