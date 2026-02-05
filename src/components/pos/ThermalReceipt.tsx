@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { format } from 'date-fns';
 import type { Sale, SaleItem, PaymentDetail } from '@/hooks/useSales';
+ import { formatCurrency } from '@/lib/currency';
 
 interface ThermalReceiptProps {
   sale: Sale;
@@ -69,9 +70,9 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
               <div className="truncate font-medium">{item.product_name}</div>
               <div className="flex justify-between pl-2">
                 <span>
-                  {item.quantity} x {Number(item.unit_price).toLocaleString()}
+                   {item.quantity} x {formatCurrency(Number(item.unit_price))}
                 </span>
-                <span>{Number(item.total_price).toLocaleString()}</span>
+                 <span>{formatCurrency(Number(item.total_price))}</span>
               </div>
             </div>
           ))}
@@ -83,24 +84,24 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         <div className="space-y-0.5">
           <div className="flex justify-between">
             <span>Subtotal:</span>
-            <span>{Number(sale.subtotal).toLocaleString()}</span>
+             <span>{formatCurrency(Number(sale.subtotal))}</span>
           </div>
           {Number(sale.discount_amount) > 0 && (
             <div className="flex justify-between">
               <span>Discount:</span>
-              <span>-{Number(sale.discount_amount).toLocaleString()}</span>
+               <span>-{formatCurrency(Number(sale.discount_amount))}</span>
             </div>
           )}
           {Number(sale.tax_amount) > 0 && (
             <div className="flex justify-between">
               <span>Tax:</span>
-              <span>{Number(sale.tax_amount).toLocaleString()}</span>
+               <span>{formatCurrency(Number(sale.tax_amount))}</span>
             </div>
           )}
           <div className="border-t border-black my-0.5" />
           <div className="flex justify-between font-bold text-xs">
             <span>TOTAL:</span>
-            <span>{Number(sale.total_amount).toLocaleString()}</span>
+             <span>{formatCurrency(Number(sale.total_amount))}</span>
           </div>
         </div>
 
@@ -113,7 +114,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
             {paymentDetails.map((payment, idx) => (
               <div key={idx} className="flex justify-between pl-2">
                 <span>{paymentMethodLabels[payment.method] || payment.method}:</span>
-                <span>{Number(payment.amount).toLocaleString()}</span>
+                 <span>{formatCurrency(Number(payment.amount))}</span>
               </div>
             ))}
           </div>

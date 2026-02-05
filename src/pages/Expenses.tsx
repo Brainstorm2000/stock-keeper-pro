@@ -30,6 +30,7 @@ import {
 } from '@/hooks/useExpenses';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+ import { formatCurrency } from '@/lib/currency';
 
 export default function Expenses() {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -239,7 +240,7 @@ export default function Expenses() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Expenses</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{totalExpenses.toLocaleString()}</div>
+             <div className="text-3xl font-bold">{formatCurrency(totalExpenses)}</div>
             <p className="text-sm text-muted-foreground">{filteredExpenses.length} expense records</p>
           </CardContent>
         </Card>
@@ -331,7 +332,7 @@ export default function Expenses() {
                       <TableCell>{expense.branches?.name || '-'}</TableCell>
                     )}
                     <TableCell className="text-right font-medium">
-                      {Number(expense.amount).toLocaleString()}
+                       {formatCurrency(Number(expense.amount))}
                     </TableCell>
                     <TableCell>
                       {expense.receipt_url ? (
