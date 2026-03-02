@@ -41,6 +41,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/sales', label: 'Sales', icon: Receipt, module: 'sales' },
     { href: '/purchases', label: 'Purchases', icon: PackagePlus, module: 'purchases' },
     { href: '/expenses', label: 'Expenses', icon: Wallet, module: 'expenses' },
+    { href: '/production', label: 'Production', icon: Factory, module: 'production' },
   ];
 
   // Filter links based on module access
