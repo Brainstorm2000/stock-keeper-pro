@@ -81,6 +81,7 @@ export function useMyModuleAccess() {
         sales: 'none',
         purchases: 'none',
         expenses: 'none',
+        production: 'none',
       };
 
       // Apply role-based permissions first
