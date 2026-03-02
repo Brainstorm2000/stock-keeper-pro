@@ -29,6 +29,7 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   sales: 'Sales',
   purchases: 'Purchases',
   expenses: 'Expenses',
+  production: 'Production',
 };
 
 export const ACCESS_LEVEL_LABELS: Record<ModuleAccessLevel, string> = {
