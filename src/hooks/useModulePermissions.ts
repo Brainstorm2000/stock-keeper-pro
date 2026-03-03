@@ -50,11 +50,12 @@ export function useMyModuleAccess() {
 
       // Super admins have full access to everything
       if (isSuperAdmin) {
-        const access: Record<AppModule, ModuleAccessLevel> = {
+      const access: Record<AppModule, ModuleAccessLevel> = {
           pos: 'full',
           sales: 'full',
           purchases: 'full',
           expenses: 'full',
+          production: 'full',
         };
         return access;
       }
