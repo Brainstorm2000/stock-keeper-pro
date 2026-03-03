@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/hooks/use-toast';
 
-export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses';
+export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production';
 export type ModuleAccessLevel = 'none' | 'view' | 'create' | 'full';
 export type AppRole = 'admin' | 'user' | 'super_admin';
 
