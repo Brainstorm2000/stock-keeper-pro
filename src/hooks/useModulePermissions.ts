@@ -22,13 +22,14 @@ export interface UserModulePermission {
   access_level: ModuleAccessLevel;
 }
 
-export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses'];
+export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses', 'production'];
 
 export const MODULE_LABELS: Record<AppModule, string> = {
   pos: 'Point of Sale',
   sales: 'Sales',
   purchases: 'Purchases',
   expenses: 'Expenses',
+  production: 'Production',
 };
 
 export const ACCESS_LEVEL_LABELS: Record<ModuleAccessLevel, string> = {
