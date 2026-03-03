@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/hooks/use-toast';
 
-export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production';
+export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses';
 export type ModuleAccessLevel = 'none' | 'view' | 'create' | 'full';
 export type AppRole = 'admin' | 'user' | 'super_admin';
 
@@ -22,14 +22,13 @@ export interface UserModulePermission {
   access_level: ModuleAccessLevel;
 }
 
-export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses', 'production'];
+export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses'];
 
 export const MODULE_LABELS: Record<AppModule, string> = {
   pos: 'Point of Sale',
   sales: 'Sales',
   purchases: 'Purchases',
   expenses: 'Expenses',
-  production: 'Production',
 };
 
 export const ACCESS_LEVEL_LABELS: Record<ModuleAccessLevel, string> = {
@@ -50,12 +49,11 @@ export function useMyModuleAccess() {
 
       // Super admins have full access to everything
       if (isSuperAdmin) {
-      const access: Record<AppModule, ModuleAccessLevel> = {
+        const access: Record<AppModule, ModuleAccessLevel> = {
           pos: 'full',
           sales: 'full',
           purchases: 'full',
           expenses: 'full',
-          production: 'full',
         };
         return access;
       }
@@ -81,7 +79,6 @@ export function useMyModuleAccess() {
         sales: 'none',
         purchases: 'none',
         expenses: 'none',
-        production: 'none',
       };
 
       // Apply role-based permissions first

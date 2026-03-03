@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus, Lock, Loader2, Factory } from 'lucide-react';
+import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -41,7 +41,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/sales', label: 'Sales', icon: Receipt, module: 'sales' },
     { href: '/purchases', label: 'Purchases', icon: PackagePlus, module: 'purchases' },
     { href: '/expenses', label: 'Expenses', icon: Wallet, module: 'expenses' },
-    { href: '/production', label: 'Production', icon: Factory, module: 'production' },
   ];
 
   // Filter links based on module access

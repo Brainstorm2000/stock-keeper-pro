@@ -323,156 +323,6 @@ export type Database = {
         }
         Relationships: []
       }
-      production_fields: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          options: Json | null
-          required: boolean
-          sort_order: number
-          table_id: string
-          type: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          options?: Json | null
-          required?: boolean
-          sort_order?: number
-          table_id: string
-          type: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          options?: Json | null
-          required?: boolean
-          sort_order?: number
-          table_id?: string
-          type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "production_fields_table_id_fkey"
-            columns: ["table_id"]
-            isOneToOne: false
-            referencedRelation: "production_tables"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      production_record_values: {
-        Row: {
-          created_at: string
-          field_id: string
-          id: string
-          record_id: string
-          value: string | null
-        }
-        Insert: {
-          created_at?: string
-          field_id: string
-          id?: string
-          record_id: string
-          value?: string | null
-        }
-        Update: {
-          created_at?: string
-          field_id?: string
-          id?: string
-          record_id?: string
-          value?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "production_record_values_field_id_fkey"
-            columns: ["field_id"]
-            isOneToOne: false
-            referencedRelation: "production_fields"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "production_record_values_record_id_fkey"
-            columns: ["record_id"]
-            isOneToOne: false
-            referencedRelation: "production_records"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      production_records: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          table_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          table_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          table_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "production_records_table_id_fkey"
-            columns: ["table_id"]
-            isOneToOne: false
-            referencedRelation: "production_tables"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      production_tables: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string | null
-          id: string
-          name: string
-          organization_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          organization_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          organization_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "production_tables_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       products: {
         Row: {
           branch_id: string
@@ -1182,7 +1032,7 @@ export type Database = {
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_module: "pos" | "sales" | "purchases" | "expenses" | "production"
+      app_module: "pos" | "sales" | "purchases" | "expenses"
       app_role: "admin" | "user" | "super_admin"
       item_type: "product" | "service"
       module_access_level: "none" | "view" | "create" | "full"
@@ -1323,7 +1173,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_module: ["pos", "sales", "purchases", "expenses", "production"],
+      app_module: ["pos", "sales", "purchases", "expenses"],
       app_role: ["admin", "user", "super_admin"],
       item_type: ["product", "service"],
       module_access_level: ["none", "view", "create", "full"],
