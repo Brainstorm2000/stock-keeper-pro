@@ -38,16 +38,18 @@ export default function Production() {
           </div>
 
           <Tabs defaultValue="raw-materials" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
               <TabsTrigger value="raw-materials">Raw Materials</TabsTrigger>
               <TabsTrigger value="bom">BOM</TabsTrigger>
               <TabsTrigger value="work-orders">Work Orders</TabsTrigger>
+              <TabsTrigger value="damages">Damages & Waste</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
             <TabsContent value="raw-materials"><RawMaterialsTab /></TabsContent>
             <TabsContent value="bom"><BOMTab /></TabsContent>
             <TabsContent value="work-orders"><WorkOrdersTab /></TabsContent>
+            <TabsContent value="damages"><DamagesTab /></TabsContent>
             <TabsContent value="analytics"><ProductionAnalyticsTab /></TabsContent>
           </Tabs>
         </div>
