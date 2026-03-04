@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, CheckCircle2, Clock, XCircle, PlayCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Search, CheckCircle2, Clock, XCircle, PlayCircle, AlertTriangle, Pencil, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import {
-  useWorkOrders, useCreateWorkOrder, useApproveWorkOrder, useCompleteWorkOrder, useCancelWorkOrder,
+  useWorkOrders, useCreateWorkOrder, useUpdateWorkOrder, useApproveWorkOrder, useCompleteWorkOrder, useCancelWorkOrder,
   type WorkOrder,
 } from '@/hooks/useWorkOrders';
 import { useBOMs } from '@/hooks/useBOM';
@@ -31,14 +31,16 @@ export function WorkOrdersTab() {
   const { data: workOrders = [], isLoading } = useWorkOrders();
   const { data: boms = [] } = useBOMs();
   const createWO = useCreateWorkOrder();
+  const updateWO = useUpdateWorkOrder();
   const approveWO = useApproveWorkOrder();
   const completeWO = useCompleteWorkOrder();
   const cancelWO = useCancelWorkOrder();
-  const { canCreate } = useModuleAccess('production');
+  const { canCreate, canEdit } = useModuleAccess('production');
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingWO, setEditingWO] = useState<WorkOrder | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'complete' | 'cancel'; wo: WorkOrder } | null>(null);
 
   // Form
@@ -57,18 +59,33 @@ export function WorkOrdersTab() {
     return matchSearch && matchStatus;
   });
 
-  const resetForm = () => { setBomId(''); setQuantity(''); setLaborCost(''); setOverheadCost(''); setNotes(''); };
+  const resetForm = () => { setBomId(''); setQuantity(''); setLaborCost(''); setOverheadCost(''); setNotes(''); setEditingWO(null); };
 
-  const handleCreate = async () => {
+  const openEdit = (wo: WorkOrder) => {
+    setEditingWO(wo);
+    setBomId(wo.bom_id);
+    setQuantity(String(wo.quantity));
+    setLaborCost(String(wo.labor_cost));
+    setOverheadCost(String(wo.overhead_cost));
+    setNotes(wo.notes || '');
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = async () => {
     if (!bomId || !quantity || !selectedBom) return;
-    await createWO.mutateAsync({
+    const input = {
       product_id: selectedBom.product_id,
       bom_id: bomId,
       quantity: Number(quantity),
       labor_cost: laborCost ? Number(laborCost) : undefined,
       overhead_cost: overheadCost ? Number(overheadCost) : undefined,
       notes: notes || undefined,
-    });
+    };
+    if (editingWO) {
+      await updateWO.mutateAsync({ id: editingWO.id, input });
+    } else {
+      await createWO.mutateAsync(input);
+    }
     setDialogOpen(false);
     resetForm();
   };
@@ -131,15 +148,16 @@ export function WorkOrdersTab() {
               <TableHead className="text-right">Total Cost</TableHead>
               <TableHead className="text-right">Cost/Unit</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Created By</TableHead>
               <TableHead>Date</TableHead>
-              <TableHead className="w-[150px]">Actions</TableHead>
+              <TableHead className="w-[180px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No work orders found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">No work orders found</TableCell></TableRow>
             ) : (
               filtered.map((wo) => {
                 const cfg = STATUS_CONFIG[wo.status] || STATUS_CONFIG.draft;
@@ -156,9 +174,19 @@ export function WorkOrdersTab() {
                     <TableCell>
                       <Badge variant={cfg.variant} className="gap-1"><Icon className="h-3 w-3" />{cfg.label}</Badge>
                     </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {wo.created_by_user?.full_name || wo.created_by_user?.email || (
+                        <span className="text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" />Unknown</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{format(new Date(wo.created_at), 'MMM d, yyyy')}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {wo.status === 'draft' && canEdit && (
+                          <Button size="sm" variant="ghost" onClick={() => openEdit(wo)}>
+                            <Pencil className="h-3 w-3 mr-1" />Edit
+                          </Button>
+                        )}
                         {wo.status === 'draft' && (
                           <>
                             <Button size="sm" variant="outline" onClick={() => setConfirmAction({ type: 'approve', wo })}>Approve</Button>
@@ -178,10 +206,10 @@ export function WorkOrdersTab() {
         </Table>
       </Card>
 
-      {/* Create Dialog */}
+      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>New Work Order</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingWO ? 'Edit' : 'New'} Work Order</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Bill of Materials *</Label>
@@ -224,7 +252,7 @@ export function WorkOrdersTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={!bomId || !quantity || Number(quantity) <= 0}>Create</Button>
+            <Button onClick={handleSubmit} disabled={!bomId || !quantity || Number(quantity) <= 0}>{editingWO ? 'Update' : 'Create'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

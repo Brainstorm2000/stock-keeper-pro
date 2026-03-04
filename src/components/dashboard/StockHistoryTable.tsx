@@ -38,9 +38,12 @@ function getChangeIcon(changeType: string) {
 function getChangeBadgeVariant(changeType: string) {
   switch (changeType) {
     case 'increase':
+    case 'production':
       return 'default';
     case 'decrease':
     case 'sale':
+    case 'damage':
+    case 'waste':
       return 'destructive';
     case 'adjustment':
       return 'secondary';
