@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, Search, Package, ArrowUpDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Package, ArrowUpDown, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useRawMaterials, useCreateRawMaterial, useUpdateRawMaterial, useDeleteRawMaterial, useUpdateRawMaterialStock, type RawMaterial } from '@/hooks/useRawMaterials';
+import { useRecordWaste } from '@/hooks/useWorkOrders';
 import { useUnits } from '@/hooks/useUnits';
 import { useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { formatCurrency } from '@/lib/currency';
@@ -22,13 +23,16 @@ export function RawMaterialsTab() {
   const updateMaterial = useUpdateRawMaterial();
   const deleteMaterial = useDeleteRawMaterial();
   const updateStock = useUpdateRawMaterialStock();
+  const recordWaste = useRecordWaste();
   const { canCreate, canEdit, canDelete } = useModuleAccess('production');
 
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
+  const [wasteDialogOpen, setWasteDialogOpen] = useState(false);
   const [editing, setEditing] = useState<RawMaterial | null>(null);
   const [stockMaterial, setStockMaterial] = useState<RawMaterial | null>(null);
+  const [wasteMaterial, setWasteMaterial] = useState<RawMaterial | null>(null);
 
   // Form state
   const [name, setName] = useState('');
@@ -43,6 +47,10 @@ export function RawMaterialsTab() {
   const [stockChange, setStockChange] = useState('');
   const [stockChangeType, setStockChangeType] = useState<'increase' | 'decrease'>('increase');
   const [stockNotes, setStockNotes] = useState('');
+
+  // Waste
+  const [wasteQty, setWasteQty] = useState('');
+  const [wasteNotes, setWasteNotes] = useState('');
 
   const filtered = materials.filter((m) =>
     m.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -61,35 +69,22 @@ export function RawMaterialsTab() {
   };
 
   const openEdit = (m: RawMaterial) => {
-    setEditing(m);
-    setName(m.name);
-    setUnitId(m.unit_id);
-    setCostPerUnit(String(m.cost_per_unit));
-    setCurrentStock(String(m.current_stock));
-    setLowStockThreshold(String(m.low_stock_threshold));
-    setSku(m.sku || '');
-    setDescription(m.description || '');
-    setDialogOpen(true);
+    setEditing(m); setName(m.name); setUnitId(m.unit_id);
+    setCostPerUnit(String(m.cost_per_unit)); setCurrentStock(String(m.current_stock));
+    setLowStockThreshold(String(m.low_stock_threshold)); setSku(m.sku || '');
+    setDescription(m.description || ''); setDialogOpen(true);
   };
 
   const handleSubmit = async () => {
     if (!name || !unitId) return;
     const data = {
-      name,
-      unit_id: unitId,
-      cost_per_unit: Number(costPerUnit) || 0,
-      current_stock: Number(currentStock) || 0,
-      low_stock_threshold: Number(lowStockThreshold) || 10,
-      sku: sku || undefined,
-      description: description || undefined,
+      name, unit_id: unitId, cost_per_unit: Number(costPerUnit) || 0,
+      current_stock: Number(currentStock) || 0, low_stock_threshold: Number(lowStockThreshold) || 10,
+      sku: sku || undefined, description: description || undefined,
     };
-    if (editing) {
-      await updateMaterial.mutateAsync({ id: editing.id, ...data });
-    } else {
-      await createMaterial.mutateAsync(data);
-    }
-    setDialogOpen(false);
-    resetForm();
+    if (editing) await updateMaterial.mutateAsync({ id: editing.id, ...data });
+    else await createMaterial.mutateAsync(data);
+    setDialogOpen(false); resetForm();
   };
 
   const handleStockUpdate = async () => {
@@ -98,18 +93,20 @@ export function RawMaterialsTab() {
     const current = Number(stockMaterial.current_stock);
     const newStock = stockChangeType === 'increase' ? current + change : current - change;
     if (newStock < 0) return;
-
     await updateStock.mutateAsync({
-      materialId: stockMaterial.id,
-      currentStock: current,
-      newStock,
+      materialId: stockMaterial.id, currentStock: current, newStock,
       changeType: stockChangeType === 'increase' ? 'purchase' : 'adjustment',
       notes: stockNotes || undefined,
     });
-    setStockDialogOpen(false);
-    setStockMaterial(null);
-    setStockChange('');
-    setStockNotes('');
+    setStockDialogOpen(false); setStockMaterial(null); setStockChange(''); setStockNotes('');
+  };
+
+  const handleRecordWaste = async () => {
+    if (!wasteMaterial || !wasteQty || Number(wasteQty) <= 0) return;
+    await recordWaste.mutateAsync({
+      materialId: wasteMaterial.id, quantity: Number(wasteQty), notes: wasteNotes || undefined,
+    });
+    setWasteDialogOpen(false); setWasteMaterial(null); setWasteQty(''); setWasteNotes('');
   };
 
   const totalValue = filtered.reduce((sum, m) => sum + m.current_stock * m.cost_per_unit, 0);
@@ -117,34 +114,12 @@ export function RawMaterialsTab() {
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10"><Package className="h-5 w-5 text-primary" /></div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Materials</p>
-                <p className="text-2xl font-bold">{filtered.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Inventory Value</p>
-            <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Low Stock Alerts</p>
-            <p className="text-2xl font-bold text-destructive">{lowStockCount}</p>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-primary/10"><Package className="h-5 w-5 text-primary" /></div><div><p className="text-sm text-muted-foreground">Total Materials</p><p className="text-2xl font-bold">{filtered.length}</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Inventory Value</p><p className="text-2xl font-bold">{formatCurrency(totalValue)}</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Low Stock Alerts</p><p className="text-2xl font-bold text-destructive">{lowStockCount}</p></CardContent></Card>
       </div>
 
-      {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -157,7 +132,6 @@ export function RawMaterialsTab() {
         )}
       </div>
 
-      {/* Table */}
       <Card>
         <Table>
           <TableHeader>
@@ -168,7 +142,7 @@ export function RawMaterialsTab() {
               <TableHead className="text-right">Cost/Unit</TableHead>
               <TableHead className="text-right">Stock</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[120px]">Actions</TableHead>
+              <TableHead className="w-[160px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -193,13 +167,14 @@ export function RawMaterialsTab() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setStockMaterial(m); setStockDialogOpen(true); }}>
+                        <Button variant="ghost" size="icon" onClick={() => { setStockMaterial(m); setStockDialogOpen(true); }} title="Adjust Stock">
                           <ArrowUpDown className="h-4 w-4" />
                         </Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setWasteMaterial(m); setWasteDialogOpen(true); }} title="Record Waste" className="text-destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                        </Button>
                         {canEdit && (
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(m)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(m)}><Pencil className="h-4 w-4" /></Button>
                         )}
                         {canDelete && (
                           <AlertDialog>
@@ -280,6 +255,22 @@ export function RawMaterialsTab() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setStockDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleStockUpdate} disabled={!stockChange || Number(stockChange) <= 0}>Update Stock</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Waste Dialog */}
+      <Dialog open={wasteDialogOpen} onOpenChange={(open) => { setWasteDialogOpen(open); if (!open) { setWasteMaterial(null); setWasteQty(''); setWasteNotes(''); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Record Waste — {wasteMaterial?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Current stock: <span className="font-semibold text-foreground">{wasteMaterial?.current_stock}</span></p>
+            <div className="space-y-2"><Label>Waste Quantity *</Label><Input type="number" min="1" max={wasteMaterial?.current_stock} value={wasteQty} onChange={(e) => setWasteQty(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Reason / Notes</Label><Textarea value={wasteNotes} onChange={(e) => setWasteNotes(e.target.value)} rows={2} placeholder="e.g. Expired, contaminated..." /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWasteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRecordWaste} disabled={!wasteQty || Number(wasteQty) <= 0}>Record Waste</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

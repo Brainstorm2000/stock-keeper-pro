@@ -21,9 +21,12 @@ interface StockHistoryTableProps {
 function getChangeIcon(changeType: string) {
   switch (changeType) {
     case 'increase':
+    case 'production':
       return <ArrowUp className="h-4 w-4 text-stock-normal" />;
     case 'decrease':
     case 'sale':
+    case 'damage':
+    case 'waste':
       return <ArrowDown className="h-4 w-4 text-destructive" />;
     case 'adjustment':
       return <RefreshCw className="h-4 w-4 text-stock-low" />;
@@ -35,9 +38,12 @@ function getChangeIcon(changeType: string) {
 function getChangeBadgeVariant(changeType: string) {
   switch (changeType) {
     case 'increase':
+    case 'production':
       return 'default';
     case 'decrease':
     case 'sale':
+    case 'damage':
+    case 'waste':
       return 'destructive';
     case 'adjustment':
       return 'secondary';
