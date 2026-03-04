@@ -9,6 +9,7 @@ import { RawMaterialsTab } from '@/components/production/RawMaterialsTab';
 import { BOMTab } from '@/components/production/BOMTab';
 import { WorkOrdersTab } from '@/components/production/WorkOrdersTab';
 import { ProductionAnalyticsTab } from '@/components/production/ProductionAnalyticsTab';
+import { DamagesTab } from '@/components/production/DamagesTab';
 
 export default function Production() {
   const { user, loading: authLoading, hasCompletedOnboarding } = useAuth();
