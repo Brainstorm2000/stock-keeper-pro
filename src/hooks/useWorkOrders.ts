@@ -230,6 +230,7 @@ export function useUpdateWorkOrder() {
         .update({
           product_id: input.product_id,
           bom_id: input.bom_id,
+          branch_id: input.branch_id || null,
           quantity: input.quantity,
           labor_cost: laborCost,
           overhead_cost: overheadCost,
