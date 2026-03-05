@@ -25,6 +25,7 @@ export interface WorkOrderMaterial {
 export interface WorkOrder {
   id: string;
   organization_id: string;
+  branch_id: string | null;
   work_order_number: string;
   product_id: string;
   bom_id: string;
@@ -44,6 +45,7 @@ export interface WorkOrder {
   products?: { id: string; name: string; selling_price: number };
   bill_of_materials?: { id: string; name: string; labor_cost_per_unit: number; overhead_cost_per_unit: number };
   work_order_materials?: WorkOrderMaterial[];
+  branches?: { id: string; name: string } | null;
   created_by_user?: { full_name: string | null; email: string | null } | null;
 }
 
