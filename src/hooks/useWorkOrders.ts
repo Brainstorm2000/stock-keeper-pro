@@ -72,7 +72,8 @@ export function useWorkOrders() {
           work_order_materials (
             id, work_order_id, raw_material_id, quantity_required, quantity_used, unit_cost, total_cost,
             raw_materials (id, name, current_stock, cost_per_unit)
-          )
+          ),
+          branches (id, name)
         `)
         .order('created_at', { ascending: false });
       if (error) throw error;
