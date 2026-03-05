@@ -56,6 +56,7 @@ export interface WorkOrderInput {
   labor_cost?: number;
   overhead_cost?: number;
   notes?: string;
+  branch_id?: string;
 }
 
 export function useWorkOrders() {
