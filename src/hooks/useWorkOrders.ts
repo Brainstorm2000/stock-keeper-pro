@@ -149,6 +149,7 @@ export function useCreateWorkOrder() {
         .from('work_orders')
         .insert({
           organization_id: organizationId,
+          branch_id: input.branch_id || null,
           work_order_number: woNumber || 'WO-00001',
           product_id: input.product_id,
           bom_id: input.bom_id,
