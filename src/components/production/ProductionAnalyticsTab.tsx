@@ -5,8 +5,9 @@ import { AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
 import { useRawMaterials } from '@/hooks/useRawMaterials';
+import { useDamageHistory, useWasteHistory } from '@/hooks/useDamagesWaste';
 import { formatCurrency } from '@/lib/currency';
-import { format, subDays, isAfter } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
 const CHART_COLORS = [
   'hsl(var(--primary))',
@@ -19,11 +20,13 @@ const CHART_COLORS = [
 export function ProductionAnalyticsTab() {
   const { data: workOrders = [] } = useWorkOrders();
   const { data: materials = [] } = useRawMaterials();
+  const { data: damageHistory = [] } = useDamageHistory();
+  const { data: wasteHistory = [] } = useWasteHistory();
 
   // Production trends (last 30 days)
   const trendData = useMemo(() => {
     const days = 30;
-    const data: { date: string; produced: number; cost: number }[] = [];
+    const data: { date: string; produced: number; cost: number; waste: number; damage: number }[] = [];
     for (let i = days - 1; i >= 0; i--) {
       const day = subDays(new Date(), i);
       const dayStr = format(day, 'yyyy-MM-dd');
@@ -31,14 +34,22 @@ export function ProductionAnalyticsTab() {
       const completed = workOrders.filter(
         (wo) => wo.status === 'completed' && wo.completed_at && format(new Date(wo.completed_at), 'yyyy-MM-dd') === dayStr
       );
+      const dayWaste = wasteHistory.filter(
+        (w) => format(new Date(w.created_at), 'yyyy-MM-dd') === dayStr
+      );
+      const dayDamage = damageHistory.filter(
+        (d) => format(new Date(d.created_at), 'yyyy-MM-dd') === dayStr
+      );
       data.push({
         date: label,
         produced: completed.reduce((sum, wo) => sum + Number(wo.quantity), 0),
         cost: completed.reduce((sum, wo) => sum + Number(wo.total_cost), 0),
+        waste: dayWaste.reduce((sum, w) => sum + Math.abs(w.change_amount) * (w.raw_materials?.cost_per_unit || 0), 0),
+        damage: dayDamage.reduce((sum, d) => sum + Math.abs(d.change_amount) * (d.products?.cost_price || 0), 0),
       });
     }
     return data;
-  }, [workOrders]);
+  }, [workOrders, wasteHistory, damageHistory]);
 
   // Top produced products
   const topProducts = useMemo(() => {
@@ -77,28 +88,49 @@ export function ProductionAnalyticsTab() {
     return Array.from(map.values()).sort((a, b) => b.value - a.value).slice(0, 6);
   }, [workOrders]);
 
+  // Waste by material
+  const wasteByMaterial = useMemo(() => {
+    const map = new Map<string, { name: string; value: number }>();
+    wasteHistory.forEach((w) => {
+      const key = w.raw_material_id;
+      const existing = map.get(key);
+      const cost = Math.abs(w.change_amount) * (w.raw_materials?.cost_per_unit || 0);
+      if (existing) {
+        existing.value += cost;
+      } else {
+        map.set(key, { name: w.raw_materials?.name || 'Unknown', value: cost });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b.value - a.value).slice(0, 6);
+  }, [wasteHistory]);
+
   // Low stock materials
   const lowStockMaterials = materials.filter((m) => m.current_stock <= m.low_stock_threshold);
 
   // Summary stats
   const totalProduced = workOrders.filter((w) => w.status === 'completed').reduce((s, w) => s + Number(w.quantity), 0);
   const totalCost = workOrders.filter((w) => w.status === 'completed').reduce((s, w) => s + Number(w.total_cost), 0);
+  const totalWasteCost = wasteHistory.reduce((s, w) => s + Math.abs(w.change_amount) * (w.raw_materials?.cost_per_unit || 0), 0);
+  const totalDamageCost = damageHistory.reduce((s, d) => s + Math.abs(d.change_amount) * (d.products?.cost_price || 0), 0);
+  const totalLossCost = totalWasteCost + totalDamageCost;
 
   return (
     <div className="space-y-6">
       {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Total Produced</p><p className="text-2xl font-bold">{totalProduced.toLocaleString()}</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Total Production Cost</p><p className="text-2xl font-bold">{formatCurrency(totalCost)}</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Production Cost</p><p className="text-2xl font-bold">{formatCurrency(totalCost)}</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Work Orders</p><p className="text-2xl font-bold">{workOrders.length}</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Waste Cost</p><p className="text-2xl font-bold text-destructive">{formatCurrency(totalWasteCost)}</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Damage Cost</p><p className="text-2xl font-bold text-destructive">{formatCurrency(totalDamageCost)}</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Low Stock Materials</p><p className="text-2xl font-bold text-destructive">{lowStockMaterials.length}</p></CardContent></Card>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Production Trends */}
+        {/* Production & Loss Trends */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Production Trends (30 Days)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Production & Loss Trends (30 Days)</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={trendData}>
@@ -108,6 +140,8 @@ export function ProductionAnalyticsTab() {
                 <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} />
                 <Legend />
                 <Line type="monotone" dataKey="produced" name="Units Produced" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="waste" name="Waste Cost" stroke="hsl(var(--chart-3, 30 80% 55%))" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="damage" name="Damage Cost" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -153,14 +187,34 @@ export function ProductionAnalyticsTab() {
           </CardContent>
         </Card>
 
-        {/* Low Stock Alerts */}
+        {/* Waste by Material */}
         <Card>
+          <CardHeader><CardTitle className="text-base">Waste Cost by Material</CardTitle></CardHeader>
+          <CardContent>
+            {wasteByMaterial.length === 0 ? (
+              <p className="text-center text-muted-foreground py-12">No waste records yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={wasteByMaterial}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} formatter={(value: number) => formatCurrency(value)} />
+                  <Bar dataKey="value" name="Waste Cost" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Low Stock Alerts */}
+        <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="text-base">Low Stock Alerts</CardTitle></CardHeader>
           <CardContent>
             {lowStockMaterials.length === 0 ? (
               <p className="text-center text-muted-foreground py-12">All materials are sufficiently stocked</p>
             ) : (
-              <div className="space-y-3 max-h-[280px] overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[280px] overflow-y-auto">
                 {lowStockMaterials.map((m) => (
                   <div key={m.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
                     <div className="flex items-center gap-2">

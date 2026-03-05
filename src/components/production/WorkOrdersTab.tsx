@@ -16,7 +16,9 @@ import {
   type WorkOrder,
 } from '@/hooks/useWorkOrders';
 import { useBOMs } from '@/hooks/useBOM';
+import { useBranches, useMyBranchAssignments } from '@/hooks/useBranches';
 import { useModuleAccess } from '@/components/access/ModuleAccessGuard';
+import { useAuth } from '@/lib/auth';
 import { formatCurrency } from '@/lib/currency';
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<any>; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -28,8 +30,11 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<a
 };
 
 export function WorkOrdersTab() {
+  const { isSuperAdmin } = useAuth();
   const { data: workOrders = [], isLoading } = useWorkOrders();
   const { data: boms = [] } = useBOMs();
+  const { data: branches = [] } = useBranches();
+  const { data: myBranchAssignments = [] } = useMyBranchAssignments();
   const createWO = useCreateWorkOrder();
   const updateWO = useUpdateWorkOrder();
   const approveWO = useApproveWorkOrder();
@@ -39,12 +44,14 @@ export function WorkOrdersTab() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [branchFilter, setBranchFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWO, setEditingWO] = useState<WorkOrder | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'complete' | 'cancel'; wo: WorkOrder } | null>(null);
 
   // Form
   const [bomId, setBomId] = useState('');
+  const [branchId, setBranchId] = useState('');
   const [quantity, setQuantity] = useState('');
   const [laborCost, setLaborCost] = useState('');
   const [overheadCost, setOverheadCost] = useState('');
@@ -52,18 +59,29 @@ export function WorkOrdersTab() {
 
   const selectedBom = boms.find((b) => b.id === bomId);
 
-  const filtered = workOrders.filter((wo) => {
+  // User's accessible branches
+  const myBranchIds = myBranchAssignments.map(a => a.branch_id);
+  const accessibleBranches = isSuperAdmin ? branches : branches.filter(b => myBranchIds.includes(b.id));
+
+  // Filter work orders by branch access
+  const branchAccessFiltered = isSuperAdmin
+    ? workOrders
+    : workOrders.filter(wo => !wo.branch_id || myBranchIds.includes(wo.branch_id));
+
+  const filtered = branchAccessFiltered.filter((wo) => {
     const matchSearch = wo.work_order_number.toLowerCase().includes(search.toLowerCase()) ||
       wo.products?.name?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || wo.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchBranch = branchFilter === 'all' || wo.branch_id === branchFilter;
+    return matchSearch && matchStatus && matchBranch;
   });
 
-  const resetForm = () => { setBomId(''); setQuantity(''); setLaborCost(''); setOverheadCost(''); setNotes(''); setEditingWO(null); };
+  const resetForm = () => { setBomId(''); setBranchId(''); setQuantity(''); setLaborCost(''); setOverheadCost(''); setNotes(''); setEditingWO(null); };
 
   const openEdit = (wo: WorkOrder) => {
     setEditingWO(wo);
     setBomId(wo.bom_id);
+    setBranchId(wo.branch_id || '');
     setQuantity(String(wo.quantity));
     setLaborCost(String(wo.labor_cost));
     setOverheadCost(String(wo.overhead_cost));
@@ -71,8 +89,17 @@ export function WorkOrdersTab() {
     setDialogOpen(true);
   };
 
+  const openCreate = () => {
+    resetForm();
+    // Auto-select branch if user has exactly one
+    if (accessibleBranches.length === 1) {
+      setBranchId(accessibleBranches[0].id);
+    }
+    setDialogOpen(true);
+  };
+
   const handleSubmit = async () => {
-    if (!bomId || !quantity || !selectedBom) return;
+    if (!bomId || !quantity || !selectedBom || !branchId) return;
     const input = {
       product_id: selectedBom.product_id,
       bom_id: bomId,
@@ -80,6 +107,7 @@ export function WorkOrdersTab() {
       labor_cost: laborCost ? Number(laborCost) : undefined,
       overhead_cost: overheadCost ? Number(overheadCost) : undefined,
       notes: notes || undefined,
+      branch_id: branchId,
     };
     if (editingWO) {
       await updateWO.mutateAsync({ id: editingWO.id, input });
@@ -99,9 +127,21 @@ export function WorkOrdersTab() {
   };
 
   // Stats
-  const draftCount = workOrders.filter((w) => w.status === 'draft').length;
-  const activeCount = workOrders.filter((w) => ['approved', 'in_progress'].includes(w.status)).length;
-  const completedCount = workOrders.filter((w) => w.status === 'completed').length;
+  const draftCount = branchAccessFiltered.filter((w) => w.status === 'draft').length;
+  const activeCount = branchAccessFiltered.filter((w) => ['approved', 'in_progress'].includes(w.status)).length;
+  const completedCount = branchAccessFiltered.filter((w) => w.status === 'completed').length;
+
+  if (accessibleBranches.length === 0) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground py-8">
+            You need to be assigned to at least one branch to access Production. Contact your administrator.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -112,8 +152,8 @@ export function WorkOrdersTab() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex gap-3 flex-1">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex gap-3 flex-1 flex-wrap">
+          <div className="relative flex-1 max-w-sm min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search work orders..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
@@ -128,9 +168,18 @@ export function WorkOrdersTab() {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
+          {accessibleBranches.length > 1 && (
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Branch" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {accessibleBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         {canCreate && (
-          <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
+          <Button onClick={openCreate}>
             <Plus className="h-4 w-4 mr-2" />New Work Order
           </Button>
         )}
@@ -141,6 +190,7 @@ export function WorkOrdersTab() {
           <TableHeader>
             <TableRow>
               <TableHead>WO Number</TableHead>
+              <TableHead>Branch</TableHead>
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Qty</TableHead>
               <TableHead className="text-right">Material</TableHead>
@@ -155,9 +205,9 @@ export function WorkOrdersTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">No work orders found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">No work orders found</TableCell></TableRow>
             ) : (
               filtered.map((wo) => {
                 const cfg = STATUS_CONFIG[wo.status] || STATUS_CONFIG.draft;
@@ -165,6 +215,7 @@ export function WorkOrdersTab() {
                 return (
                   <TableRow key={wo.id}>
                     <TableCell className="font-medium">{wo.work_order_number}</TableCell>
+                    <TableCell className="text-sm">{wo.branches?.name || '—'}</TableCell>
                     <TableCell>{wo.products?.name || '—'}</TableCell>
                     <TableCell className="text-right">{Number(wo.quantity)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(wo.material_cost)}</TableCell>
@@ -212,6 +263,15 @@ export function WorkOrdersTab() {
           <DialogHeader><DialogTitle>{editingWO ? 'Edit' : 'New'} Work Order</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label>Branch *</Label>
+              <Select value={branchId} onValueChange={setBranchId}>
+                <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
+                <SelectContent>
+                  {accessibleBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Bill of Materials *</Label>
               <Select value={bomId} onValueChange={setBomId}>
                 <SelectTrigger><SelectValue placeholder="Select BOM" /></SelectTrigger>
@@ -252,7 +312,7 @@ export function WorkOrdersTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={!bomId || !quantity || Number(quantity) <= 0}>{editingWO ? 'Update' : 'Create'}</Button>
+            <Button onClick={handleSubmit} disabled={!bomId || !branchId || !quantity || Number(quantity) <= 0}>{editingWO ? 'Update' : 'Create'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
