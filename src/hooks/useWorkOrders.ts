@@ -25,6 +25,7 @@ export interface WorkOrderMaterial {
 export interface WorkOrder {
   id: string;
   organization_id: string;
+  branch_id: string | null;
   work_order_number: string;
   product_id: string;
   bom_id: string;
@@ -44,6 +45,7 @@ export interface WorkOrder {
   products?: { id: string; name: string; selling_price: number };
   bill_of_materials?: { id: string; name: string; labor_cost_per_unit: number; overhead_cost_per_unit: number };
   work_order_materials?: WorkOrderMaterial[];
+  branches?: { id: string; name: string } | null;
   created_by_user?: { full_name: string | null; email: string | null } | null;
 }
 
@@ -54,6 +56,7 @@ export interface WorkOrderInput {
   labor_cost?: number;
   overhead_cost?: number;
   notes?: string;
+  branch_id?: string;
 }
 
 export function useWorkOrders() {
@@ -69,7 +72,8 @@ export function useWorkOrders() {
           work_order_materials (
             id, work_order_id, raw_material_id, quantity_required, quantity_used, unit_cost, total_cost,
             raw_materials (id, name, current_stock, cost_per_unit)
-          )
+          ),
+          branches (id, name)
         `)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -145,6 +149,7 @@ export function useCreateWorkOrder() {
         .from('work_orders')
         .insert({
           organization_id: organizationId,
+          branch_id: input.branch_id || null,
           work_order_number: woNumber || 'WO-00001',
           product_id: input.product_id,
           bom_id: input.bom_id,
@@ -225,6 +230,7 @@ export function useUpdateWorkOrder() {
         .update({
           product_id: input.product_id,
           bom_id: input.bom_id,
+          branch_id: input.branch_id || null,
           quantity: input.quantity,
           labor_cost: laborCost,
           overhead_cost: overheadCost,

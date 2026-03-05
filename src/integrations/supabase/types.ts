@@ -1392,6 +1392,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           bom_id: string
+          branch_id: string | null
           completed_at: string | null
           cost_per_unit: number
           created_at: string
@@ -1412,6 +1413,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           bom_id: string
+          branch_id?: string | null
           completed_at?: string | null
           cost_per_unit?: number
           created_at?: string
@@ -1432,6 +1434,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           bom_id?: string
+          branch_id?: string | null
           completed_at?: string | null
           cost_per_unit?: number
           created_at?: string
@@ -1455,6 +1458,13 @@ export type Database = {
             columns: ["bom_id"]
             isOneToOne: false
             referencedRelation: "bill_of_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
           {
