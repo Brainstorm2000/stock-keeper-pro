@@ -157,8 +157,8 @@ export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFi
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          {accessibleBranches.length > 1 && (
-            <Select value={branchFilter} onValueChange={setBranchFilter}>
+          {!externalBranchFilter && accessibleBranches.length > 1 && (
+            <Select value={activeBranchFilter} onValueChange={() => {}}>
               <SelectTrigger className="w-[160px]"><SelectValue placeholder="Branch" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Branches</SelectItem>

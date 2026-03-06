@@ -150,9 +150,11 @@ export function DamagesTab({ branchFilter }: { branchFilter?: string }) {
   const totalDamageCost = damageHistory.reduce((sum, d) => sum + Math.abs(d.change_amount) * (d.products?.cost_price || 0), 0);
   const totalWasteCost = wasteHistory.reduce((sum, w) => sum + Math.abs(w.change_amount) * (w.raw_materials?.cost_per_unit || 0), 0);
 
-  const filteredDamage = damageHistory.filter(d =>
-    !search || d.products?.name?.toLowerCase().includes(search.toLowerCase()) || d.notes?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredDamage = damageHistory.filter(d => {
+    const matchSearch = !search || d.products?.name?.toLowerCase().includes(search.toLowerCase()) || d.notes?.toLowerCase().includes(search.toLowerCase());
+    const matchBranch = !branchFilter || branchFilter === 'all' || (d as any).products?.branch_id === branchFilter;
+    return matchSearch && matchBranch;
+  });
   const filteredWaste = wasteHistory.filter(w =>
     !search || w.raw_materials?.name?.toLowerCase().includes(search.toLowerCase()) || w.notes?.toLowerCase().includes(search.toLowerCase())
   );
