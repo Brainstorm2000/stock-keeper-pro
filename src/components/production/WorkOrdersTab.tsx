@@ -67,11 +67,13 @@ export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFi
     ? workOrders
     : workOrders.filter(wo => !wo.branch_id || myBranchIds.includes(wo.branch_id));
 
+  const activeBranchFilter = externalBranchFilter || 'all';
+
   const filtered = branchAccessFiltered.filter((wo) => {
     const matchSearch = wo.work_order_number.toLowerCase().includes(search.toLowerCase()) ||
       wo.products?.name?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || wo.status === statusFilter;
-    const matchBranch = branchFilter === 'all' || wo.branch_id === branchFilter;
+    const matchBranch = activeBranchFilter === 'all' || wo.branch_id === activeBranchFilter;
     return matchSearch && matchStatus && matchBranch;
   });
 
