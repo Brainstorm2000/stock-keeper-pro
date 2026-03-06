@@ -287,12 +287,13 @@ export function useApproveWorkOrder() {
         const currentStock = Number(mat.raw_materials?.current_stock || 0);
         const newStock = currentStock - Number(mat.quantity_required);
 
-        await supabase
+        const { error: updateMaterialError } = await supabase
           .from('raw_materials')
           .update({ current_stock: newStock })
           .eq('id', mat.raw_material_id);
+        assertNoError(updateMaterialError, 'Failed to update raw material stock');
 
-        await supabase.from('raw_material_stock_history').insert({
+        const { error: insertHistoryError } = await supabase.from('raw_material_stock_history').insert({
           raw_material_id: mat.raw_material_id,
           previous_stock: currentStock,
           new_stock: newStock,
@@ -303,13 +304,14 @@ export function useApproveWorkOrder() {
           notes: `Deducted for ${workOrder.work_order_number}`,
           changed_by: user?.id,
         });
+        assertNoError(insertHistoryError, 'Failed to write raw material stock history');
       }
 
       const { error } = await supabase
         .from('work_orders')
         .update({ status: 'approved', approved_at: new Date().toISOString() })
         .eq('id', workOrder.id);
-      if (error) throw error;
+      assertNoError(error, 'Failed to approve work order');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
