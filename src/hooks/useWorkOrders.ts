@@ -461,6 +461,7 @@ export function useRecordWaste() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['waste-history'] });
       toast({ title: 'Waste recorded successfully' });
     },
     onError: (error: Error) => {
