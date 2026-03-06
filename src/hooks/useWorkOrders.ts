@@ -417,8 +417,10 @@ export function useRecordDamage() {
       if (quantity > currentStock) throw new Error('Damage quantity exceeds current stock');
       const newStock = currentStock - quantity;
 
-      await supabase.from('products').update({ current_stock: newStock }).eq('id', productId);
-      await supabase.from('stock_history').insert({
+      const { error: updateProductError } = await supabase.from('products').update({ current_stock: newStock }).eq('id', productId);
+      assertNoError(updateProductError, 'Failed to update product stock for damage');
+
+      const { error: insertDamageHistoryError } = await supabase.from('stock_history').insert({
         product_id: productId,
         previous_stock: currentStock,
         new_stock: newStock,
@@ -427,6 +429,7 @@ export function useRecordDamage() {
         notes: notes || 'Finished goods damage recorded',
         changed_by: user?.id,
       });
+      assertNoError(insertDamageHistoryError, 'Failed to write damage stock history');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
