@@ -52,7 +52,7 @@ export function useDamageHistory() {
       const { data, error } = await supabase
         .from('stock_history')
         .select('*, products (id, name, current_stock, cost_price, branch_id)')
-        .eq('change_type', 'damage')
+        .in('change_type', ['damage', 'damaged'])
         .order('created_at', { ascending: false });
       if (error) throw error;
 
