@@ -17,11 +17,17 @@ const CHART_COLORS = [
   'hsl(var(--chart-5, 340 75% 55%))',
 ];
 
-export function ProductionAnalyticsTab() {
-  const { data: workOrders = [] } = useWorkOrders();
+export function ProductionAnalyticsTab({ branchFilter }: { branchFilter?: string }) {
+  const { data: allWorkOrders = [] } = useWorkOrders();
   const { data: materials = [] } = useRawMaterials();
   const { data: damageHistory = [] } = useDamageHistory();
   const { data: wasteHistory = [] } = useWasteHistory();
+
+  // Filter work orders by branch
+  const workOrders = useMemo(() => {
+    if (!branchFilter || branchFilter === 'all') return allWorkOrders;
+    return allWorkOrders.filter(wo => wo.branch_id === branchFilter);
+  }, [allWorkOrders, branchFilter]);
 
   // Production trends (last 30 days)
   const trendData = useMemo(() => {

@@ -51,7 +51,7 @@ export function useDamageHistory() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_history')
-        .select('*, products (id, name, current_stock, cost_price)')
+        .select('*, products (id, name, current_stock, cost_price, branch_id)')
         .eq('change_type', 'damage')
         .order('created_at', { ascending: false });
       if (error) throw error;

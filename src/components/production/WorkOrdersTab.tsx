@@ -29,7 +29,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<a
   cancelled: { label: 'Cancelled', icon: XCircle, variant: 'destructive' },
 };
 
-export function WorkOrdersTab() {
+export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFilter?: string }) {
   const { isSuperAdmin } = useAuth();
   const { data: workOrders = [], isLoading } = useWorkOrders();
   const { data: boms = [] } = useBOMs();
@@ -44,7 +44,6 @@ export function WorkOrdersTab() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [branchFilter, setBranchFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWO, setEditingWO] = useState<WorkOrder | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'complete' | 'cancel'; wo: WorkOrder } | null>(null);
@@ -68,11 +67,13 @@ export function WorkOrdersTab() {
     ? workOrders
     : workOrders.filter(wo => !wo.branch_id || myBranchIds.includes(wo.branch_id));
 
+  const activeBranchFilter = externalBranchFilter || 'all';
+
   const filtered = branchAccessFiltered.filter((wo) => {
     const matchSearch = wo.work_order_number.toLowerCase().includes(search.toLowerCase()) ||
       wo.products?.name?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || wo.status === statusFilter;
-    const matchBranch = branchFilter === 'all' || wo.branch_id === branchFilter;
+    const matchBranch = activeBranchFilter === 'all' || wo.branch_id === activeBranchFilter;
     return matchSearch && matchStatus && matchBranch;
   });
 
@@ -131,18 +132,6 @@ export function WorkOrdersTab() {
   const activeCount = branchAccessFiltered.filter((w) => ['approved', 'in_progress'].includes(w.status)).length;
   const completedCount = branchAccessFiltered.filter((w) => w.status === 'completed').length;
 
-  if (accessibleBranches.length === 0) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-center text-muted-foreground py-8">
-            You need to be assigned to at least one branch to access Production. Contact your administrator.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -168,8 +157,8 @@ export function WorkOrdersTab() {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          {accessibleBranches.length > 1 && (
-            <Select value={branchFilter} onValueChange={setBranchFilter}>
+          {!externalBranchFilter && accessibleBranches.length > 1 && (
+            <Select value={activeBranchFilter} onValueChange={() => {}}>
               <SelectTrigger className="w-[160px]"><SelectValue placeholder="Branch" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Branches</SelectItem>
