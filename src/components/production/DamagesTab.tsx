@@ -24,7 +24,7 @@ import {
 import { useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { formatCurrency } from '@/lib/currency';
 
-export function DamagesTab() {
+export function DamagesTab({ branchFilter }: { branchFilter?: string }) {
   const { data: products = [] } = useProducts();
   const { data: materials = [] } = useRawMaterials();
   const { data: damageHistory = [], isLoading: damageLoading } = useDamageHistory();
