@@ -421,6 +421,7 @@ export function useRecordDamage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['damage-history'] });
       toast({ title: 'Damage recorded successfully' });
     },
     onError: (error: Error) => {
