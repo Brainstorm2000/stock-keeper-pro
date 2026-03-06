@@ -132,18 +132,6 @@ export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFi
   const activeCount = branchAccessFiltered.filter((w) => ['approved', 'in_progress'].includes(w.status)).length;
   const completedCount = branchAccessFiltered.filter((w) => w.status === 'completed').length;
 
-  if (accessibleBranches.length === 0) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-center text-muted-foreground py-8">
-            You need to be assigned to at least one branch to access Production. Contact your administrator.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
