@@ -341,12 +341,13 @@ export function useCompleteWorkOrder() {
         const currentStock = Number(product.current_stock);
         const newStock = currentStock + Number(workOrder.quantity);
 
-        await supabase
+        const { error: updateProductError } = await supabase
           .from('products')
           .update({ current_stock: newStock })
           .eq('id', workOrder.product_id);
+        assertNoError(updateProductError, 'Failed to update finished goods stock');
 
-        await supabase.from('stock_history').insert({
+        const { error: insertHistoryError } = await supabase.from('stock_history').insert({
           product_id: workOrder.product_id,
           previous_stock: currentStock,
           new_stock: newStock,
@@ -355,13 +356,14 @@ export function useCompleteWorkOrder() {
           notes: `Produced via ${workOrder.work_order_number}`,
           changed_by: user?.id,
         });
+        assertNoError(insertHistoryError, 'Failed to write stock history for production');
       }
 
       const { error } = await supabase
         .from('work_orders')
         .update({ status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', workOrder.id);
-      if (error) throw error;
+      assertNoError(error, 'Failed to complete work order');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
