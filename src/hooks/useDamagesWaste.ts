@@ -14,7 +14,7 @@ export interface DamageRecord {
   notes: string | null;
   changed_by: string | null;
   created_at: string;
-  products?: { id: string; name: string; current_stock: number; cost_price: number };
+  products?: { id: string; name: string; current_stock: number; cost_price: number; branch_id?: string | null };
   changed_by_user?: { full_name: string | null; email: string | null } | null;
 }
 
@@ -52,7 +52,7 @@ export function useDamageHistory() {
       const { data, error } = await supabase
         .from('stock_history')
         .select('*, products (id, name, current_stock, cost_price, branch_id)')
-        .eq('change_type', 'damage')
+        .in('change_type', ['damage', 'damaged'])
         .order('created_at', { ascending: false });
       if (error) throw error;
 

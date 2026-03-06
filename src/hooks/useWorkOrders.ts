@@ -59,6 +59,12 @@ export interface WorkOrderInput {
   branch_id?: string;
 }
 
+const assertNoError = (error: { message: string } | null, context: string) => {
+  if (error) {
+    throw new Error(`${context}: ${error.message}`);
+  }
+};
+
 export function useWorkOrders() {
   return useQuery({
     queryKey: ['work-orders'],
@@ -281,12 +287,13 @@ export function useApproveWorkOrder() {
         const currentStock = Number(mat.raw_materials?.current_stock || 0);
         const newStock = currentStock - Number(mat.quantity_required);
 
-        await supabase
+        const { error: updateMaterialError } = await supabase
           .from('raw_materials')
           .update({ current_stock: newStock })
           .eq('id', mat.raw_material_id);
+        assertNoError(updateMaterialError, 'Failed to update raw material stock');
 
-        await supabase.from('raw_material_stock_history').insert({
+        const { error: insertHistoryError } = await supabase.from('raw_material_stock_history').insert({
           raw_material_id: mat.raw_material_id,
           previous_stock: currentStock,
           new_stock: newStock,
@@ -297,13 +304,14 @@ export function useApproveWorkOrder() {
           notes: `Deducted for ${workOrder.work_order_number}`,
           changed_by: user?.id,
         });
+        assertNoError(insertHistoryError, 'Failed to write raw material stock history');
       }
 
       const { error } = await supabase
         .from('work_orders')
         .update({ status: 'approved', approved_at: new Date().toISOString() })
         .eq('id', workOrder.id);
-      if (error) throw error;
+      assertNoError(error, 'Failed to approve work order');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
@@ -333,12 +341,13 @@ export function useCompleteWorkOrder() {
         const currentStock = Number(product.current_stock);
         const newStock = currentStock + Number(workOrder.quantity);
 
-        await supabase
+        const { error: updateProductError } = await supabase
           .from('products')
           .update({ current_stock: newStock })
           .eq('id', workOrder.product_id);
+        assertNoError(updateProductError, 'Failed to update finished goods stock');
 
-        await supabase.from('stock_history').insert({
+        const { error: insertHistoryError } = await supabase.from('stock_history').insert({
           product_id: workOrder.product_id,
           previous_stock: currentStock,
           new_stock: newStock,
@@ -347,13 +356,14 @@ export function useCompleteWorkOrder() {
           notes: `Produced via ${workOrder.work_order_number}`,
           changed_by: user?.id,
         });
+        assertNoError(insertHistoryError, 'Failed to write stock history for production');
       }
 
       const { error } = await supabase
         .from('work_orders')
         .update({ status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', workOrder.id);
-      if (error) throw error;
+      assertNoError(error, 'Failed to complete work order');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
@@ -407,8 +417,10 @@ export function useRecordDamage() {
       if (quantity > currentStock) throw new Error('Damage quantity exceeds current stock');
       const newStock = currentStock - quantity;
 
-      await supabase.from('products').update({ current_stock: newStock }).eq('id', productId);
-      await supabase.from('stock_history').insert({
+      const { error: updateProductError } = await supabase.from('products').update({ current_stock: newStock }).eq('id', productId);
+      assertNoError(updateProductError, 'Failed to update product stock for damage');
+
+      const { error: insertDamageHistoryError } = await supabase.from('stock_history').insert({
         product_id: productId,
         previous_stock: currentStock,
         new_stock: newStock,
@@ -417,6 +429,7 @@ export function useRecordDamage() {
         notes: notes || 'Finished goods damage recorded',
         changed_by: user?.id,
       });
+      assertNoError(insertDamageHistoryError, 'Failed to write damage stock history');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -448,8 +461,10 @@ export function useRecordWaste() {
       if (quantity > currentStock) throw new Error('Waste quantity exceeds current stock');
       const newStock = currentStock - quantity;
 
-      await supabase.from('raw_materials').update({ current_stock: newStock }).eq('id', materialId);
-      await supabase.from('raw_material_stock_history').insert({
+      const { error: updateMaterialError } = await supabase.from('raw_materials').update({ current_stock: newStock }).eq('id', materialId);
+      assertNoError(updateMaterialError, 'Failed to update raw material stock for waste');
+
+      const { error: insertWasteHistoryError } = await supabase.from('raw_material_stock_history').insert({
         raw_material_id: materialId,
         previous_stock: currentStock,
         new_stock: newStock,
@@ -458,6 +473,7 @@ export function useRecordWaste() {
         notes: notes || 'Raw material waste recorded',
         changed_by: user?.id,
       });
+      assertNoError(insertWasteHistoryError, 'Failed to write raw material waste history');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
