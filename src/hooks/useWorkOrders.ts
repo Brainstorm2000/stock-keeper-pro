@@ -59,6 +59,12 @@ export interface WorkOrderInput {
   branch_id?: string;
 }
 
+const assertNoError = (error: { message: string } | null, context: string) => {
+  if (error) {
+    throw new Error(`${context}: ${error.message}`);
+  }
+};
+
 export function useWorkOrders() {
   return useQuery({
     queryKey: ['work-orders'],

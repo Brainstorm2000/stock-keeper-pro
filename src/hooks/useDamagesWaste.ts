@@ -14,7 +14,7 @@ export interface DamageRecord {
   notes: string | null;
   changed_by: string | null;
   created_at: string;
-  products?: { id: string; name: string; current_stock: number; cost_price: number };
+  products?: { id: string; name: string; current_stock: number; cost_price: number; branch_id?: string | null };
   changed_by_user?: { full_name: string | null; email: string | null } | null;
 }
 
