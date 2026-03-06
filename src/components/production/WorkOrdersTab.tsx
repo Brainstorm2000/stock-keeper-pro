@@ -29,7 +29,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<a
   cancelled: { label: 'Cancelled', icon: XCircle, variant: 'destructive' },
 };
 
-export function WorkOrdersTab() {
+export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFilter?: string }) {
   const { isSuperAdmin } = useAuth();
   const { data: workOrders = [], isLoading } = useWorkOrders();
   const { data: boms = [] } = useBOMs();
@@ -44,7 +44,6 @@ export function WorkOrdersTab() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [branchFilter, setBranchFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWO, setEditingWO] = useState<WorkOrder | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'complete' | 'cancel'; wo: WorkOrder } | null>(null);
