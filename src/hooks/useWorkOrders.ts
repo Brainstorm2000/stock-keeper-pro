@@ -461,8 +461,10 @@ export function useRecordWaste() {
       if (quantity > currentStock) throw new Error('Waste quantity exceeds current stock');
       const newStock = currentStock - quantity;
 
-      await supabase.from('raw_materials').update({ current_stock: newStock }).eq('id', materialId);
-      await supabase.from('raw_material_stock_history').insert({
+      const { error: updateMaterialError } = await supabase.from('raw_materials').update({ current_stock: newStock }).eq('id', materialId);
+      assertNoError(updateMaterialError, 'Failed to update raw material stock for waste');
+
+      const { error: insertWasteHistoryError } = await supabase.from('raw_material_stock_history').insert({
         raw_material_id: materialId,
         previous_stock: currentStock,
         new_stock: newStock,
@@ -471,6 +473,7 @@ export function useRecordWaste() {
         notes: notes || 'Raw material waste recorded',
         changed_by: user?.id,
       });
+      assertNoError(insertWasteHistoryError, 'Failed to write raw material waste history');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
