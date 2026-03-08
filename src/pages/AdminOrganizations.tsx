@@ -55,6 +55,23 @@ function useOrgUserCounts() {
   });
 }
 
+function useOrgBranchCounts() {
+  return useQuery({
+    queryKey: ['admin-org-branch-counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('branches').select('organization_id');
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data || []).forEach((b: any) => {
+        if (b.organization_id) {
+          counts[b.organization_id] = (counts[b.organization_id] || 0) + 1;
+        }
+      });
+      return counts;
+    },
+  });
+}
+
 interface OrgSubscription {
   id: string;
   organization_id: string;
@@ -115,6 +132,7 @@ export default function AdminOrganizationsPage() {
   const queryClient = useQueryClient();
   const { data: organizations = [], isLoading } = useAllOrganizations();
   const { data: userCounts = {} } = useOrgUserCounts();
+  const { data: branchCounts = {} } = useOrgBranchCounts();
   const { data: orgSubscriptions = [] } = useOrgSubscriptions();
   const { data: pricingPlans = [] } = usePricingPlansForOrgs();
 
@@ -288,7 +306,8 @@ export default function AdminOrganizationsPage() {
                       <TableHead>Sub Status</TableHead>
                       <TableHead>Days Left</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Users</TableHead>
+                       <TableHead>Users</TableHead>
+                       <TableHead>Branches</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -296,7 +315,7 @@ export default function AdminOrganizationsPage() {
                   <TableBody>
                     {filteredOrgs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No organizations found</TableCell>
+                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">No organizations found</TableCell>
                       </TableRow>
                     ) : (
                       filteredOrgs.map((org) => {
@@ -352,7 +371,8 @@ export default function AdminOrganizationsPage() {
                           <TableCell>
                             <Badge variant={org.is_active ? 'default' : 'secondary'}>{org.is_active ? 'Active' : 'Inactive'}</Badge>
                           </TableCell>
-                          <TableCell>{userCounts[org.id] || 0}</TableCell>
+                           <TableCell>{userCounts[org.id] || 0}</TableCell>
+                           <TableCell>{branchCounts[org.id] || 0}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{createdStr}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
