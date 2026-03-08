@@ -385,32 +385,38 @@ export type Database = {
       }
       organization_subscriptions: {
         Row: {
+          billing_cycle: string
           created_at: string
           id: string
           monthly_price: number
           number_of_branches: number
           number_of_users: number
           organization_id: string
+          plan_id: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          billing_cycle?: string
           created_at?: string
           id?: string
           monthly_price?: number
           number_of_branches?: number
           number_of_users?: number
           organization_id: string
+          plan_id?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          billing_cycle?: string
           created_at?: string
           id?: string
           monthly_price?: number
           number_of_branches?: number
           number_of_users?: number
           organization_id?: string
+          plan_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -420,6 +426,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: true
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -470,6 +483,7 @@ export type Database = {
           price_per_extra_branch: number
           price_per_extra_user: number
           updated_at: string
+          yearly_discount_percent: number
         }
         Insert: {
           base_branches_included?: number
@@ -480,6 +494,7 @@ export type Database = {
           price_per_extra_branch?: number
           price_per_extra_user?: number
           updated_at?: string
+          yearly_discount_percent?: number
         }
         Update: {
           base_branches_included?: number
@@ -490,6 +505,7 @@ export type Database = {
           price_per_extra_branch?: number
           price_per_extra_user?: number
           updated_at?: string
+          yearly_discount_percent?: number
         }
         Relationships: []
       }
@@ -519,6 +535,45 @@ export type Database = {
           is_enabled?: boolean
           monthly_price?: number
           name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pricing_plans: {
+        Row: {
+          base_price: number
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          max_branches: number
+          max_users: number
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_branches?: number
+          max_users?: number
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_branches?: number
+          max_users?: number
+          name?: string
+          sort_order?: number
           updated_at?: string
         }
         Relationships: []
