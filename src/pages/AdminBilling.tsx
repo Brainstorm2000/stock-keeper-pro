@@ -640,6 +640,7 @@ export default function AdminBillingPage() { // eslint-disable-line
                 <SelectContent>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="lifetime">Lifetime</SelectItem>
                   <SelectItem value="expired">Expired</SelectItem>
                   <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
