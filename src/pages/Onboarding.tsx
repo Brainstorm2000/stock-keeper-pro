@@ -88,6 +88,9 @@ export default function Onboarding() {
         logo_url: orgLogoUrl || undefined,
         email: orgEmail || undefined,
         address: orgAddress || undefined,
+        adminEmail,
+        adminPassword,
+        adminFullName,
       });
       await refreshProfile();
       navigate('/dashboard');
