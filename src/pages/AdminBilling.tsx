@@ -137,6 +137,27 @@ function useOrganizations() {
   });
 }
 
+function useOrgCounts() {
+  return useQuery({
+    queryKey: ['admin-org-counts'],
+    queryFn: async () => {
+      const [{ data: profiles }, { data: branches }] = await Promise.all([
+        supabase.from('profiles').select('organization_id'),
+        supabase.from('branches').select('organization_id'),
+      ]);
+      const userCounts: Record<string, number> = {};
+      const branchCounts: Record<string, number> = {};
+      (profiles || []).forEach((p: any) => {
+        if (p.organization_id) userCounts[p.organization_id] = (userCounts[p.organization_id] || 0) + 1;
+      });
+      (branches || []).forEach((b: any) => {
+        if (b.organization_id) branchCounts[b.organization_id] = (branchCounts[b.organization_id] || 0) + 1;
+      });
+      return { userCounts, branchCounts };
+    },
+  });
+}
+
 function calculatePrice(
   config: PricingConfig | undefined,
   plan: PricingPlan | undefined,
