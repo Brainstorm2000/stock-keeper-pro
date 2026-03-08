@@ -8,6 +8,7 @@ import { Download, FileText, Package, AlertTriangle, PackageX } from 'lucide-rea
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface InventoryReportTabProps {
   products: any[];
@@ -18,6 +19,7 @@ interface InventoryReportTabProps {
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export function InventoryReportTab({ products, branches, selectedBranch }: InventoryReportTabProps) {
+  const { data: org } = useOrganization();
   const filteredProducts = useMemo(() => {
     return products.filter(p => selectedBranch === 'all' || p.branch_id === selectedBranch);
   }, [products, selectedBranch]);
@@ -79,7 +81,8 @@ export function InventoryReportTab({ products, branches, selectedBranch }: Inven
         formatCurrency(p.current_stock * p.cost_price),
         p.current_stock <= p.out_of_stock_threshold ? 'Out of Stock' : p.current_stock <= p.low_stock_threshold ? 'Low Stock' : 'Normal'
       ]),
-      { 'Total Items': String(totalItems), 'Total Stock': String(totalStock), 'Total Value (Cost)': formatCurrency(totalCostValue), 'Selling Value': formatCurrency(totalValue) }
+      { 'Total Items': String(totalItems), 'Total Stock': String(totalStock), 'Total Value (Cost)': formatCurrency(totalCostValue), 'Selling Value': formatCurrency(totalValue) },
+      org || undefined
     );
   };
 

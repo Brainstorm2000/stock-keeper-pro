@@ -9,6 +9,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Toolti
 import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
 import { DateRange } from '@/components/reports/DateRangeFilter';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface PurchaseReportTabProps {
   purchases: any[];
@@ -20,6 +21,7 @@ interface PurchaseReportTabProps {
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export function PurchaseReportTab({ purchases, dateRange, branches, selectedBranch }: PurchaseReportTabProps) {
+  const { data: org } = useOrganization();
   const filteredPurchases = useMemo(() => {
     return purchases.filter(p => {
       const d = new Date(p.purchase_date);
@@ -84,7 +86,8 @@ export function PurchaseReportTab({ purchases, dateRange, branches, selectedBran
   const handleExportPDF = () => {
     exportToPDF('Purchase Report', ['PO #', 'Date', 'Supplier', 'Total', 'Paid', 'Status'],
       filteredPurchases.map(p => [p.purchase_number, p.purchase_date, p.suppliers?.name || '-', formatCurrency(p.total_amount), formatCurrency(p.amount_paid), p.payment_status]),
-      { 'Total Purchases': formatCurrency(totalAmount), 'Total Paid': formatCurrency(totalPaid), 'Outstanding': formatCurrency(totalOutstanding) }
+      { 'Total Purchases': formatCurrency(totalAmount), 'Total Paid': formatCurrency(totalPaid), 'Outstanding': formatCurrency(totalOutstanding) },
+      org || undefined
     );
   };
 

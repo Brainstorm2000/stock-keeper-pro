@@ -8,6 +8,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Cart
 import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
 import { DateRange } from '@/components/reports/DateRangeFilter';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface ExpenseReportTabProps {
   expenses: any[];
@@ -20,6 +21,7 @@ interface ExpenseReportTabProps {
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--destructive))'];
 
 export function ExpenseReportTab({ expenses, categories, dateRange, branches, selectedBranch }: ExpenseReportTabProps) {
+  const { data: org } = useOrganization();
   const filteredExpenses = useMemo(() => {
     return expenses.filter(e => {
       const d = new Date(e.expense_date);
@@ -84,7 +86,8 @@ export function ExpenseReportTab({ expenses, categories, dateRange, branches, se
   const handleExportPDF = () => {
     exportToPDF('Expense Report', ['Date', 'Description', 'Category', 'Amount'],
       filteredExpenses.map(e => [e.expense_date, e.description, categories.find(c => c.id === e.category_id)?.name || '-', formatCurrency(e.amount)]),
-      { 'Total Expenses': formatCurrency(totalExpenses), 'Entries': String(filteredExpenses.length), 'Average': formatCurrency(avgExpense) }
+      { 'Total Expenses': formatCurrency(totalExpenses), 'Entries': String(filteredExpenses.length), 'Average': formatCurrency(avgExpense) },
+      org || undefined
     );
   };
 
