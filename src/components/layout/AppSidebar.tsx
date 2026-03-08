@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus, Lock, Loader2, Factory, CreditCard, BarChart3 } from 'lucide-react';
+import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus, Lock, Loader2, Factory, CreditCard, BarChart3, Users2, ClipboardList } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +37,8 @@ const navItems: NavItem[] = [
   { href: '/purchases', label: 'Purchases', icon: PackagePlus, module: 'purchases' },
   { href: '/expenses', label: 'Expenses', icon: Wallet, module: 'expenses' },
   { href: '/production', label: 'Production', icon: Factory, module: 'production' },
+  { href: '/staff', label: 'Staff', icon: Users2, module: 'staff' as AppModule },
+  { href: '/action-tracker', label: 'Action Tracker', icon: ClipboardList, module: 'tasks' as AppModule },
   { href: '/reports', label: 'Reports', icon: BarChart3, module: 'reports' },
 ];
 

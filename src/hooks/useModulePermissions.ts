@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/hooks/use-toast';
 
-export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production' | 'reports';
+export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production' | 'reports' | 'staff' | 'tasks';
 export type ModuleAccessLevel = 'none' | 'view' | 'create' | 'full';
 export type AppRole = 'admin' | 'user' | 'super_admin' | 'super_super_admin';
 
@@ -22,7 +22,7 @@ export interface UserModulePermission {
   access_level: ModuleAccessLevel;
 }
 
-export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses', 'production', 'reports'];
+export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses', 'production', 'reports', 'staff', 'tasks'];
 
 export const MODULE_LABELS: Record<AppModule, string> = {
   pos: 'Point of Sale',
@@ -31,6 +31,8 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   expenses: 'Expenses',
   production: 'Production',
   reports: 'Reports',
+  staff: 'Staff Management',
+  tasks: 'Action Tracker',
 };
 
 export const ACCESS_LEVEL_LABELS: Record<ModuleAccessLevel, string> = {
@@ -82,6 +84,8 @@ export function useMyModuleAccess() {
           expenses: 'full',
           production: 'full',
           reports: 'full',
+          staff: 'full',
+          tasks: 'full',
         };
         // Even super admins respect org-level module disablement
         if (orgModules) {
@@ -117,6 +121,8 @@ export function useMyModuleAccess() {
         expenses: 'none',
         production: 'none',
         reports: 'none',
+        staff: 'none',
+        tasks: 'none',
       };
 
       // Apply role-based permissions first

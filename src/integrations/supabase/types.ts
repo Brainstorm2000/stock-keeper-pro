@@ -14,6 +14,79 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_tasks: {
+        Row: {
+          branch_id: string | null
+          completion_date: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          organization_id: string
+          priority: Database["public"]["Enums"]["task_priority"]
+          staff_id: string
+          start_date: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          completion_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          organization_id: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          staff_id: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          completion_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          organization_id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          staff_id?: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_tasks_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_tasks_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bill_of_materials: {
         Row: {
           created_at: string
@@ -1335,6 +1408,75 @@ export type Database = {
           },
         ]
       }
+      staff: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          department: string | null
+          email: string | null
+          employment_date: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          organization_id: string
+          phone: string | null
+          role: string | null
+          staff_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          email?: string | null
+          employment_date?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+          role?: string | null
+          staff_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          email?: string | null
+          employment_date?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+          role?: string | null
+          staff_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_history: {
         Row: {
           change_amount: number
@@ -1793,6 +1935,8 @@ export type Database = {
         | "expenses"
         | "production"
         | "reports"
+        | "staff"
+        | "tasks"
       app_role: "admin" | "user" | "super_admin" | "super_super_admin"
       item_type: "product" | "service"
       module_access_level: "none" | "view" | "create" | "full"
@@ -1806,6 +1950,8 @@ export type Database = {
       purchase_payment_status: "pending" | "partial" | "paid"
       sale_status: "pending" | "completed" | "cancelled" | "on_hold"
       stock_status: "normal" | "low" | "out_of_stock"
+      task_priority: "low" | "medium" | "high"
+      task_status: "pending" | "in_progress" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1940,6 +2086,8 @@ export const Constants = {
         "expenses",
         "production",
         "reports",
+        "staff",
+        "tasks",
       ],
       app_role: ["admin", "user", "super_admin", "super_super_admin"],
       item_type: ["product", "service"],
@@ -1955,6 +2103,8 @@ export const Constants = {
       purchase_payment_status: ["pending", "partial", "paid"],
       sale_status: ["pending", "completed", "cancelled", "on_hold"],
       stock_status: ["normal", "low", "out_of_stock"],
+      task_priority: ["low", "medium", "high"],
+      task_status: ["pending", "in_progress", "completed"],
     },
   },
 } as const
