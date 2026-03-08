@@ -8,6 +8,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Cart
 import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
 import { DateRange } from '@/components/reports/DateRangeFilter';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface ExpenseReportTabProps {
   expenses: any[];
