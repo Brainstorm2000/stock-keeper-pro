@@ -22,6 +22,7 @@ interface SalesReportTabProps {
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export function SalesReportTab({ sales, saleItems, dateRange, branches, selectedBranch }: SalesReportTabProps) {
+  const { data: org } = useOrganization();
   const filteredSales = useMemo(() => {
     return sales.filter(s => {
       const d = new Date(s.created_at);
