@@ -378,9 +378,12 @@ export default function AdminOrganizationsPage() {
                           <TableCell className="text-sm text-muted-foreground">{createdStr}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => setViewOrgId(org.id)} title="View Users">
-                                <Eye className="h-4 w-4" />
+                              <Button variant="ghost" size="icon" onClick={() => setModulesOrgId(org.id)} title="Module Access">
+                                <Settings2 className="h-4 w-4" />
                               </Button>
+                              <Button variant="ghost" size="icon" onClick={() => setViewOrgId(org.id)} title="View Users">
+                                 <Eye className="h-4 w-4" />
+                               </Button>
                               <Button variant="ghost" size="icon" onClick={() => openEdit(org)} title="Edit">
                                 <Pencil className="h-4 w-4" />
                               </Button>
