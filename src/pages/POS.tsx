@@ -524,9 +524,9 @@ export default function POS() {
                     type="number"
                     min="0"
                     max="100"
-                    value={discountPercent}
+                    value={discountPercent || ''}
                     onChange={(e) => {
-                      setDiscountPercent(Number(e.target.value));
+                      setDiscountPercent(e.target.value === '' ? 0 : Number(e.target.value));
                       setDiscountAmount(0);
                     }}
                     className="h-8"
