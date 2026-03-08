@@ -19,6 +19,7 @@ interface InventoryReportTabProps {
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export function InventoryReportTab({ products, branches, selectedBranch }: InventoryReportTabProps) {
+  const { data: org } = useOrganization();
   const filteredProducts = useMemo(() => {
     return products.filter(p => selectedBranch === 'all' || p.branch_id === selectedBranch);
   }, [products, selectedBranch]);
