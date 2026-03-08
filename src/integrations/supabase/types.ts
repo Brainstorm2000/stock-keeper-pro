@@ -1716,6 +1716,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_branch_access: {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean
