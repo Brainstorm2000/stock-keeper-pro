@@ -254,9 +254,6 @@ export default function AdminBillingPage() { // eslint-disable-line
     setFormModuleIds(moduleIds);
     setDialogOpen(true);
   };
-    setFormModuleIds(moduleIds);
-    setDialogOpen(true);
-  };
 
   const handleSave = async () => {
     // Validate plan limits
