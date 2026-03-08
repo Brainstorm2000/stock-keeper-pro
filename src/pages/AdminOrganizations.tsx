@@ -315,7 +315,7 @@ export default function AdminOrganizationsPage() {
                   <TableBody>
                     {filteredOrgs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No organizations found</TableCell>
+                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">No organizations found</TableCell>
                       </TableRow>
                     ) : (
                       filteredOrgs.map((org) => {
