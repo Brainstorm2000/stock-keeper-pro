@@ -53,7 +53,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
                 location.pathname === item.href
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                  : 'text-sidebar-foreground opacity-70 hover:bg-sidebar-accent/50 hover:opacity-100'
               )}
             >
               <item.icon className="h-4 w-4" />
