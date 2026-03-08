@@ -69,6 +69,7 @@ export default function SubscriptionPage() {
   };
 
   const statusVariant = sub?.status === 'active' ? 'default' as const
+    : sub?.status === 'lifetime' ? 'default' as const
     : sub?.status === 'trial' ? 'secondary' as const
     : 'destructive' as const;
 
