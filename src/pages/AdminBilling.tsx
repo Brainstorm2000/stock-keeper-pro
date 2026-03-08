@@ -480,7 +480,7 @@ export default function AdminBillingPage() {
                             <TableCell>{sub.number_of_branches}{plan ? `/${plan.max_branches}` : ''}</TableCell>
                             <TableCell className="font-medium">{formatCurrency(sub.monthly_price)}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {endDate ? format(new Date(endDate), 'MMM d, yyyy') : '—'}
+                              {endDateStr}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
