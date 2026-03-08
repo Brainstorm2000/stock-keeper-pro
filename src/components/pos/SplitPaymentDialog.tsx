@@ -123,12 +123,12 @@ export function SplitPaymentDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input
+                   <Input
                     type="number"
                     min="0"
                     step="0.01"
-                    value={payment.amount}
-                    onChange={(e) => updatePayment(index, { amount: Number(e.target.value) })}
+                    value={payment.amount || ''}
+                    onChange={(e) => updatePayment(index, { amount: e.target.value === '' ? 0 : Number(e.target.value) })}
                     className="flex-1"
                     placeholder="Amount"
                   />
