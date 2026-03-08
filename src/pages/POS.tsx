@@ -537,9 +537,9 @@ export default function POS() {
                   <Input
                     type="number"
                     min="0"
-                    value={discountAmount}
+                    value={discountAmount || ''}
                     onChange={(e) => {
-                      setDiscountAmount(Number(e.target.value));
+                      setDiscountAmount(e.target.value === '' ? 0 : Number(e.target.value));
                       setDiscountPercent(0);
                     }}
                     className="h-8"
