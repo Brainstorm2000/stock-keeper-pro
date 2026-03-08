@@ -299,7 +299,12 @@ export default function AdminOrganizationsPage() {
                         <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No organizations found</TableCell>
                       </TableRow>
                     ) : (
-                      filteredOrgs.map((org) => (
+                      filteredOrgs.map((org) => {
+                        const sub = subMap[org.id];
+                        const endDate = sub ? (sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date) : null;
+                        const daysLeft = endDate ? differenceInDays(new Date(endDate), new Date()) : null;
+                        const subStatusVariant = !sub ? 'outline' : sub.status === 'active' ? 'default' : sub.status === 'trial' ? 'secondary' : 'destructive';
+                        return (
                         <TableRow key={org.id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -315,6 +320,27 @@ export default function AdminOrganizationsPage() {
                                 <code className="text-xs text-muted-foreground">{org.slug}</code>
                               </div>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            {sub && sub.plan_id ? (
+                              <Badge variant="outline" className="text-xs">{planMap[sub.plan_id] || '—'}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">None</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={subStatusVariant} className="text-xs capitalize">
+                              {sub ? sub.status : 'No sub'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {daysLeft !== null ? (
+                              <span className={daysLeft <= 3 ? 'text-destructive font-semibold' : daysLeft <= 7 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : 'text-muted-foreground'}>
+                                {daysLeft <= 0 ? 'Expired' : `${daysLeft}d`}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge variant={org.is_active ? 'default' : 'secondary'}>{org.is_active ? 'Active' : 'Inactive'}</Badge>
