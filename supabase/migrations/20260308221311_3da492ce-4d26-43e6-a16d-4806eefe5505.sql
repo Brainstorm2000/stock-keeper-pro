@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX idx_branches_unique_name_per_org ON public.branches (organization_id, lower(name));
