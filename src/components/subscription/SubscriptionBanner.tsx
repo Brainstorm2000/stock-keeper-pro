@@ -7,31 +7,32 @@ export function SubscriptionBanner() {
   const { isSuperSuperAdmin } = useAuth();
   const { data: subscription } = useOrgSubscription();
 
-  // Don't show for super_super_admin or if no subscription
   if (isSuperSuperAdmin || !subscription) return null;
 
   const daysRemaining = getSubscriptionDaysRemaining(subscription);
   const status = subscription.status;
 
-  // Trial banner
+  // Trial expired
+  if (status === 'trial' && daysRemaining !== null && daysRemaining <= 0) {
+    return (
+      <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+        <XCircle className="h-4 w-4" />
+        <AlertTitle>Trial Expired</AlertTitle>
+        <AlertDescription>
+          Your free trial has expired. Contact the developer to renew your subscription in order to continue using the system.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  // Trial active
   if (status === 'trial') {
-    if (daysRemaining !== null && daysRemaining <= 0) {
-      return (
-        <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
-          <XCircle className="h-4 w-4" />
-          <AlertTitle>Trial Expired</AlertTitle>
-          <AlertDescription>
-            Your free trial has expired. Please upgrade your subscription to continue using the platform.
-          </AlertDescription>
-        </Alert>
-      );
-    }
     return (
       <Alert className="border-primary/30 bg-primary/5">
         <Sparkles className="h-4 w-4 text-primary" />
         <AlertTitle className="text-primary">Free Trial</AlertTitle>
         <AlertDescription>
-          Your free trial expires in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}. Upgrade your subscription to continue using the platform.
+          Your free trial expires in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}. Contact the developer to subscribe before your trial ends.
         </AlertDescription>
       </Alert>
     );
@@ -44,7 +45,7 @@ export function SubscriptionBanner() {
         <XCircle className="h-4 w-4" />
         <AlertTitle>Subscription Expired</AlertTitle>
         <AlertDescription>
-          Your subscription has expired. Please renew to continue using the system.
+          Your organization's subscription has expired. Contact the developer to renew your subscription in order to continue using the system.
         </AlertDescription>
       </Alert>
     );
@@ -57,7 +58,7 @@ export function SubscriptionBanner() {
         <XCircle className="h-4 w-4" />
         <AlertTitle>Subscription Suspended</AlertTitle>
         <AlertDescription>
-          Your subscription has been suspended. Please contact support to restore access.
+          Your subscription has been suspended. Contact the developer to restore access.
         </AlertDescription>
       </Alert>
     );
@@ -71,7 +72,7 @@ export function SubscriptionBanner() {
           <XCircle className="h-4 w-4" />
           <AlertTitle>Subscription Expired</AlertTitle>
           <AlertDescription>
-            Your subscription has expired. Please renew to continue using the system.
+            Your organization's subscription has expired. Contact the developer to renew your subscription in order to continue using the system.
           </AlertDescription>
         </Alert>
       );
@@ -82,7 +83,7 @@ export function SubscriptionBanner() {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Subscription Expiring Soon</AlertTitle>
           <AlertDescription>
-            Your subscription will expire in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}. Please renew to avoid interruption.
+            Your subscription will expire in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}. Contact the developer to renew and avoid interruption.
           </AlertDescription>
         </Alert>
       );
