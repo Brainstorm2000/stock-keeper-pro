@@ -112,6 +112,26 @@ export default function Auth() {
           </div>
         </div>
 
+        {user && isOrgDisabled ? (
+          <Card className="glass-card">
+            <CardHeader className="space-y-1 text-center">
+              <div className="flex justify-center mb-2">
+                <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <ShieldAlert className="h-6 w-6 text-destructive" />
+                </div>
+              </div>
+              <CardTitle className="text-xl font-semibold">Account Disabled</CardTitle>
+              <CardDescription>
+                Your organization has been disabled. Please contact the developer for assistance.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" onClick={signOut}>
+                Sign Out
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
         <Card className="glass-card">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-semibold text-center">
