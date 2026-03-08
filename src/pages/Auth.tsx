@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, ShieldAlert } from 'lucide-react';
 import { z } from 'zod';
 
 const authSchema = z.object({
