@@ -432,8 +432,12 @@ export default function AdminBillingPage() {
                       </TableRow>
                     ) : (
                       filteredSubs.map((sub) => {
-                        const modNames = getSubModuleNames(sub.id);
                         const plan = sub.plan_id ? planMap[sub.plan_id] : null;
+                        const endDate = sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date;
+                        const daysLeft = endDate ? differenceInDays(new Date(endDate), new Date()) : null;
+                        const statusVariant = sub.status === 'active' ? 'default' 
+                          : sub.status === 'trial' ? 'secondary' 
+                          : 'destructive';
                         return (
                           <TableRow key={sub.id}>
                             <TableCell className="font-medium">{orgMap[sub.organization_id] || sub.organization_id.slice(0, 8)}</TableCell>
@@ -445,26 +449,24 @@ export default function AdminBillingPage() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={sub.billing_cycle === 'yearly' ? 'default' : 'secondary'} className="text-xs">
-                                {sub.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly'}
+                              <Badge variant={statusVariant} className="text-xs capitalize">
+                                {sub.status}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {daysLeft !== null ? (
+                                <span className={daysLeft <= 3 ? 'text-destructive font-semibold' : daysLeft <= 7 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : ''}>
+                                  {daysLeft <= 0 ? 'Expired' : `${daysLeft}d`}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
                             </TableCell>
                             <TableCell>{sub.number_of_users}{plan ? `/${plan.max_users}` : ''}</TableCell>
                             <TableCell>{sub.number_of_branches}{plan ? `/${plan.max_branches}` : ''}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {modNames.length === 0 ? (
-                                  <span className="text-muted-foreground text-xs">None</span>
-                                ) : (
-                                  modNames.map((n) => <Badge key={n} variant="secondary" className="text-xs">{n}</Badge>)
-                                )}
-                              </div>
-                            </TableCell>
                             <TableCell className="font-medium">{formatCurrency(sub.monthly_price)}</TableCell>
-                            <TableCell>
-                              <Badge variant={sub.status === 'active' ? 'default' : 'secondary'}>
-                                {sub.status === 'active' ? 'Active' : 'Suspended'}
-                              </Badge>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {endDate ? format(new Date(endDate), 'MMM d, yyyy') : '—'}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
