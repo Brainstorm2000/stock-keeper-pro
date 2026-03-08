@@ -603,10 +603,30 @@ export default function AdminBillingPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
                   <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Date Fields */}
+            {formStatus === 'trial' && (
+              <div className="space-y-2">
+                <Label>Trial End Date</Label>
+                <Input type="date" value={formTrialEnd} onChange={(e) => setFormTrialEnd(e.target.value)} />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Subscription Start</Label>
+                <Input type="date" value={formSubStart} onChange={(e) => setFormSubStart(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Subscription End</Label>
+                <Input type="date" value={formSubEnd} onChange={(e) => setFormSubEnd(e.target.value)} />
+              </div>
             </div>
 
             {enabledModules.length > 0 && (
