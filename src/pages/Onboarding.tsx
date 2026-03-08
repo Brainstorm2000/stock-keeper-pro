@@ -68,8 +68,14 @@ export default function Onboarding() {
 
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orgName.trim() || !orgSlug.trim() || !fullName.trim()) {
+    if (!orgName.trim() || !orgSlug.trim() || !fullName.trim() || !adminEmail.trim() || !adminPassword.trim() || !adminFullName.trim()) {
       toast({ title: 'Please fill in all required fields', variant: 'destructive' });
+      return;
+    }
+    if (adminPassword.length < 6) {
+      toast({ title: 'Admin password must be at least 6 characters', variant: 'destructive' });
+      return;
+    }
       return;
     }
 
