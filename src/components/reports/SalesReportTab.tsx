@@ -9,6 +9,7 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
 import { DateRange } from '@/components/reports/DateRangeFilter';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface SalesReportTabProps {
   sales: any[];
