@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInDays } from 'date-fns';
-import { Search, Plus, Pencil, Trash2, Loader2, Building2, Activity, Users, Eye, Clock } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Loader2, Building2, Activity, Users, Eye, Clock, Settings2 } from 'lucide-react';
+import { OrgModulesDialog } from '@/components/organizations/OrgModulesDialog';
 
 interface Organization {
   id: string;
