@@ -9,6 +9,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Toolti
 import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
 import { DateRange } from '@/components/reports/DateRangeFilter';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface PurchaseReportTabProps {
   purchases: any[];
