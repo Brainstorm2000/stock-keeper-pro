@@ -282,8 +282,11 @@ export default function AdminOrganizationsPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                     <TableRow>
                       <TableHead>Organization</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Sub Status</TableHead>
+                      <TableHead>Days Left</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Users</TableHead>
                       <TableHead>Created</TableHead>
