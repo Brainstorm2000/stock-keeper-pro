@@ -306,7 +306,8 @@ export default function AdminOrganizationsPage() {
                       <TableHead>Sub Status</TableHead>
                       <TableHead>Days Left</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Users</TableHead>
+                       <TableHead>Users</TableHead>
+                       <TableHead>Branches</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
