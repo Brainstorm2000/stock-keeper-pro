@@ -505,6 +505,7 @@ export default function POS() {
                       item={item}
                       index={index}
                       onQuantityChange={updateQuantity}
+                      onPriceChange={updatePrice}
                       onRemove={removeFromCart}
                     />
                   ))}
