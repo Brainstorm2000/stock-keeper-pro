@@ -41,6 +41,7 @@ export function SplitPaymentDialog({
   payments,
   onPaymentsChange,
   onConfirm,
+  isLoading,
 }: SplitPaymentDialogProps) {
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = totalAmount - totalPaid;
