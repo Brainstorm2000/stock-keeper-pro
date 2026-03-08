@@ -383,6 +383,47 @@ export type Database = {
           },
         ]
       }
+      organization_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          monthly_price: number
+          number_of_branches: number
+          number_of_users: number
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          monthly_price?: number
+          number_of_branches?: number
+          number_of_users?: number
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          monthly_price?: number
+          number_of_branches?: number
+          number_of_users?: number
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           address: string | null
@@ -415,6 +456,69 @@ export type Database = {
           logo_url?: string | null
           name?: string
           slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pricing_config: {
+        Row: {
+          base_branches_included: number
+          base_plan_price: number
+          base_users_included: number
+          created_at: string
+          id: string
+          price_per_extra_branch: number
+          price_per_extra_user: number
+          updated_at: string
+        }
+        Insert: {
+          base_branches_included?: number
+          base_plan_price?: number
+          base_users_included?: number
+          created_at?: string
+          id?: string
+          price_per_extra_branch?: number
+          price_per_extra_user?: number
+          updated_at?: string
+        }
+        Update: {
+          base_branches_included?: number
+          base_plan_price?: number
+          base_users_included?: number
+          created_at?: string
+          id?: string
+          price_per_extra_branch?: number
+          price_per_extra_user?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pricing_modules: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_enabled: boolean
+          monthly_price: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          monthly_price?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          monthly_price?: number
+          name?: string
           updated_at?: string
         }
         Relationships: []
@@ -1169,6 +1273,42 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_modules: {
+        Row: {
+          created_at: string
+          id: string
+          pricing_module_id: string
+          subscription_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pricing_module_id: string
+          subscription_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pricing_module_id?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_modules_pricing_module_id_fkey"
+            columns: ["pricing_module_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_modules_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "organization_subscriptions"
             referencedColumns: ["id"]
           },
         ]
