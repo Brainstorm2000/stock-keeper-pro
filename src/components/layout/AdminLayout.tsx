@@ -37,7 +37,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-64 border-r bg-sidebar-background text-sidebar-foreground flex flex-col shrink-0 sticky top-0 h-screen">
+      <aside className="w-64 border-r bg-sidebar text-sidebar-foreground flex flex-col shrink-0 sticky top-0 h-screen">
         <div className="p-4 flex items-center gap-3 border-b border-sidebar-border">
           <div className="h-8 w-8 rounded-lg bg-destructive flex items-center justify-center">
             <ShieldAlert className="h-5 w-5 text-destructive-foreground" />
@@ -53,7 +53,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
                 location.pathname === item.href
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                  : 'text-sidebar-foreground opacity-70 hover:bg-sidebar-accent/50 hover:opacity-100'
               )}
             >
               <item.icon className="h-4 w-4" />
