@@ -470,6 +470,7 @@ export default function AdminBillingPage() { // eslint-disable-line
                         const endDateObj = endDate ? new Date(endDate) : null;
                         const endDateStr = endDateObj && !isNaN(endDateObj.getTime()) ? format(endDateObj, 'MMM d, yyyy') : '—';
                         const statusVariant = sub.status === 'active' ? 'default' as const
+                          : sub.status === 'lifetime' ? 'default' as const
                           : sub.status === 'trial' ? 'secondary' as const
                           : 'destructive' as const;
                         return (
