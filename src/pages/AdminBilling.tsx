@@ -489,7 +489,9 @@ export default function AdminBillingPage() { // eslint-disable-line
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              {daysLeft !== null ? (
+                              {isLifetime ? (
+                                <Badge variant="default" className="text-xs">∞ Lifetime</Badge>
+                              ) : daysLeft !== null ? (
                                 <span className={daysLeft <= 3 ? 'text-destructive font-semibold' : daysLeft <= 7 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : ''}>
                                   {daysLeft <= 0 ? 'Expired' : `${daysLeft}d`}
                                 </span>
