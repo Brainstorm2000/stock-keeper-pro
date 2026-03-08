@@ -652,22 +652,29 @@ export default function AdminBillingPage() { // eslint-disable-line
             </div>
 
             {/* Date Fields */}
+            {formStatus === 'lifetime' && (
+              <p className="text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
+                ∞ Lifetime subscriptions never expire. No end date is needed.
+              </p>
+            )}
             {formStatus === 'trial' && (
               <div className="space-y-2">
                 <Label>Trial End Date</Label>
                 <Input type="date" value={formTrialEnd} onChange={(e) => setFormTrialEnd(e.target.value)} />
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Subscription Start</Label>
-                <Input type="date" value={formSubStart} onChange={(e) => setFormSubStart(e.target.value)} />
+            {formStatus !== 'lifetime' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Subscription Start</Label>
+                  <Input type="date" value={formSubStart} onChange={(e) => setFormSubStart(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Subscription End</Label>
+                  <Input type="date" value={formSubEnd} onChange={(e) => setFormSubEnd(e.target.value)} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Subscription End</Label>
-                <Input type="date" value={formSubEnd} onChange={(e) => setFormSubEnd(e.target.value)} />
-              </div>
-            </div>
+            )}
 
             {enabledModules.length > 0 && (
               <div className="space-y-2">
