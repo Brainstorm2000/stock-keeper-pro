@@ -371,7 +371,8 @@ export default function AdminOrganizationsPage() {
                           <TableCell>
                             <Badge variant={org.is_active ? 'default' : 'secondary'}>{org.is_active ? 'Active' : 'Inactive'}</Badge>
                           </TableCell>
-                          <TableCell>{userCounts[org.id] || 0}</TableCell>
+                           <TableCell>{userCounts[org.id] || 0}</TableCell>
+                           <TableCell>{branchCounts[org.id] || 0}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{createdStr}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
