@@ -184,6 +184,10 @@ function calculatePrice(
     return { monthly, total, discount };
   }
 
+  if (billingCycle === 'one_off') {
+    return { monthly, total: monthly, discount: 0 };
+  }
+
   return { monthly, total: monthly, discount: 0 };
 }
 
