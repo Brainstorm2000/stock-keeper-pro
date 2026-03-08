@@ -33,7 +33,8 @@ export default function Reports() {
   const { data: products = [] } = useProducts();
   const { data: sales = [] } = useSales();
   const { data: purchases = [] } = usePurchases();
-  const { expenses = [], categories = [] } = useExpenses();
+  const { data: expenses = [] } = useExpenses();
+  const { data: categories = [] } = useExpenseCategories();
 
   // Fetch sale items for sales report
   const { data: saleItems = [] } = useQuery({
