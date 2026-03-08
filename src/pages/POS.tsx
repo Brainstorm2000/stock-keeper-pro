@@ -596,12 +596,16 @@ export default function POS() {
                   disabled={cart.length === 0 || createHeldOrder.isPending}
                   onClick={handleHoldOrder}
                 >
-                  <Pause className="h-4 w-4 mr-1" />
-                  Hold
+                  {createHeldOrder.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Pause className="h-4 w-4 mr-1" />
+                  )}
+                  {createHeldOrder.isPending ? 'Holding...' : 'Hold'}
                 </Button>
                 <Button
                   className="flex-1"
-                  disabled={cart.length === 0}
+                  disabled={cart.length === 0 || createSale.isPending}
                   onClick={() => setCheckoutDialogOpen(true)}
                 >
                   Checkout
