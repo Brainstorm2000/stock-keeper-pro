@@ -142,6 +142,7 @@ export default function AdminOrganizationsPage() {
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [deleteOrgId, setDeleteOrgId] = useState<string | null>(null);
   const [viewOrgId, setViewOrgId] = useState<string | null>(null);
+  const [modulesOrgId, setModulesOrgId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Form state
