@@ -9,6 +9,7 @@ interface AuthContextType {
   session: Session | null;
   role: AppRole | null;
   organizationId: string | null;
+  isOrgDisabled: boolean;
   hasCompletedOnboarding: boolean | null;
   isAdmin: boolean;
   isSuperAdmin: boolean;
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [isOrgDisabled, setIsOrgDisabled] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!roleError && roleData?.role === 'super_super_admin') {
         setOrganizationId(null);
         setHasCompletedOnboarding(true);
+        setIsOrgDisabled(false);
         return 'super_super_admin' as AppRole;
       }
 
@@ -59,6 +62,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const orgId = profile?.organization_id || null;
       setOrganizationId(orgId);
       setHasCompletedOnboarding(!!orgId);
+
+      // Check if organization is active
+      if (orgId) {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('is_active')
+          .eq('id', orgId)
+          .single();
+        
+        setIsOrgDisabled(org?.is_active === false);
+      } else {
+        setIsOrgDisabled(false);
+      }
 
       // Fetch role
       if (orgId) {
@@ -94,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRole(null);
           setOrganizationId(null);
           setHasCompletedOnboarding(null);
+          setIsOrgDisabled(false);
         }
         
         setLoading(false);
@@ -145,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
     setOrganizationId(null);
     setHasCompletedOnboarding(null);
+    setIsOrgDisabled(false);
   };
 
   const value = {
@@ -152,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     role,
     organizationId,
+    isOrgDisabled,
     hasCompletedOnboarding,
     isAdmin: role === 'admin' || role === 'super_admin' || role === 'super_super_admin',
     isSuperAdmin: role === 'super_admin' || role === 'super_super_admin',

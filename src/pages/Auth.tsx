@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, ShieldAlert } from 'lucide-react';
 import { z } from 'zod';
 
 const authSchema = z.object({
@@ -21,7 +21,7 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const { signIn, signUp, user, hasCompletedOnboarding, isSuperSuperAdmin } = useAuth();
+  const { signIn, signUp, user, hasCompletedOnboarding, isSuperSuperAdmin, isOrgDisabled, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -29,13 +29,13 @@ export default function Auth() {
     if (user) {
       if (isSuperSuperAdmin) {
         navigate('/admin');
+      } else if (isOrgDisabled) {
+        // Stay on auth page - show disabled message
       } else if (hasCompletedOnboarding) {
         navigate('/dashboard');
       }
-      // If hasCompletedOnboarding is false, user stays on /auth
-      // (onboarding is only for super_super_admins)
     }
-  }, [user, hasCompletedOnboarding, isSuperSuperAdmin, navigate]);
+  }, [user, hasCompletedOnboarding, isSuperSuperAdmin, isOrgDisabled, navigate]);
 
   const validateForm = () => {
     try {
@@ -112,6 +112,26 @@ export default function Auth() {
           </div>
         </div>
 
+        {user && isOrgDisabled ? (
+          <Card className="glass-card">
+            <CardHeader className="space-y-1 text-center">
+              <div className="flex justify-center mb-2">
+                <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <ShieldAlert className="h-6 w-6 text-destructive" />
+                </div>
+              </div>
+              <CardTitle className="text-xl font-semibold">Account Disabled</CardTitle>
+              <CardDescription>
+                Your organization has been disabled. Please contact the developer for assistance.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" onClick={signOut}>
+                Sign Out
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
         <Card className="glass-card">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-semibold text-center">
@@ -185,6 +205,7 @@ export default function Auth() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );
