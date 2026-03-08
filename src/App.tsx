@@ -13,6 +13,8 @@ import Sales from "./pages/Sales";
 import Purchases from "./pages/Purchases";
 import Expenses from "./pages/Expenses";
 import Production from "./pages/Production";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,8 @@ const App = () => (
               <Route path="/purchases" element={<Purchases />} />
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/production" element={<Production />} />
+              <Route path="/admin-login" element={<AdminLogin />} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

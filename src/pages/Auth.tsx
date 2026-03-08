@@ -27,13 +27,15 @@ export default function Auth() {
 
   useEffect(() => {
     if (user) {
-      if (hasCompletedOnboarding) {
+      if (isSuperSuperAdmin) {
+        navigate('/admin');
+      } else if (hasCompletedOnboarding) {
         navigate('/dashboard');
       } else if (hasCompletedOnboarding === false) {
         navigate('/onboarding');
       }
     }
-  }, [user, hasCompletedOnboarding, navigate]);
+  }, [user, hasCompletedOnboarding, isSuperSuperAdmin, navigate]);
 
   const validateForm = () => {
     try {
