@@ -461,9 +461,10 @@ export default function AdminBillingPage() { // eslint-disable-line
                     ) : (
                       filteredSubs.map((sub) => {
                         const plan = sub.plan_id ? planMap[sub.plan_id] : null;
+                        const isLifetime = sub.status === 'lifetime';
                         const endDate = sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date;
                         let daysLeft: number | null = null;
-                        if (endDate) {
+                        if (!isLifetime && endDate) {
                           try { daysLeft = differenceInDays(new Date(endDate), new Date()); } catch { daysLeft = null; }
                         }
                         const endDateObj = endDate ? new Date(endDate) : null;
