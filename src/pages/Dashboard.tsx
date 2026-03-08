@@ -62,10 +62,12 @@ export default function Dashboard() {
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
+    } else if (!authLoading && user && isSuperSuperAdmin) {
+      navigate('/admin');
     } else if (!authLoading && user && hasCompletedOnboarding === false) {
       navigate('/onboarding');
     }
-  }, [user, authLoading, hasCompletedOnboarding, navigate]);
+  }, [user, authLoading, hasCompletedOnboarding, isSuperSuperAdmin, navigate]);
 
   // Real-time subscription for products
   useEffect(() => {

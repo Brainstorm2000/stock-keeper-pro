@@ -38,6 +38,12 @@ export default function Onboarding() {
     return null;
   }
 
+  // Super super admins don't use onboarding
+  if (isSuperSuperAdmin) {
+    navigate('/admin');
+    return null;
+  }
+
   // Redirect if not logged in
   if (!user) {
     navigate('/auth');
