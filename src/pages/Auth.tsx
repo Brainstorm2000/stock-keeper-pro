@@ -31,9 +31,9 @@ export default function Auth() {
         navigate('/admin');
       } else if (hasCompletedOnboarding) {
         navigate('/dashboard');
-      } else if (hasCompletedOnboarding === false) {
-        navigate('/onboarding');
       }
+      // If hasCompletedOnboarding is false, user stays on /auth
+      // (onboarding is only for super_super_admins)
     }
   }, [user, hasCompletedOnboarding, isSuperSuperAdmin, navigate]);
 
