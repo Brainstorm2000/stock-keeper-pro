@@ -118,6 +118,23 @@ export function useCreateOrganization() {
 
       if (roleError) throw roleError;
 
+      // 4. Auto-create a 14-day free trial subscription
+      const now = new Date();
+      const trialEnd = new Date(now);
+      trialEnd.setDate(trialEnd.getDate() + 14);
+      
+      const subPayload: any = {
+        organization_id: org.id,
+        status: 'trial',
+        trial_start_date: now.toISOString(),
+        trial_end_date: trialEnd.toISOString(),
+        number_of_users: 1,
+        number_of_branches: 1,
+        monthly_price: 0,
+      };
+      
+      await supabase.from('organization_subscriptions').insert(subPayload);
+
       return org as Organization;
     },
     onSuccess: () => {

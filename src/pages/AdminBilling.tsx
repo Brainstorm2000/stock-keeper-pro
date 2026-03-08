@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/currency';
-import { Search, Pencil, Loader2, DollarSign, Building2, Activity, CreditCard, Calendar } from 'lucide-react';
+import { Search, Pencil, Loader2, DollarSign, Building2, Activity, CreditCard, Calendar, AlertTriangle } from 'lucide-react';
+import { format, differenceInDays, addDays } from 'date-fns';
 
 interface Organization {
   id: string;
@@ -57,6 +58,10 @@ interface Subscription {
   status: string;
   billing_cycle: string;
   plan_id: string | null;
+  trial_start_date: string | null;
+  trial_end_date: string | null;
+  subscription_start_date: string | null;
+  subscription_end_date: string | null;
   created_at: string;
 }
 
@@ -181,9 +186,12 @@ export default function AdminBillingPage() {
   const [formPlanId, setFormPlanId] = useState<string>('');
   const [formUsers, setFormUsers] = useState(1);
   const [formBranches, setFormBranches] = useState(1);
-  const [formStatus, setFormStatus] = useState('active');
+  const [formStatus, setFormStatus] = useState('trial');
   const [formBillingCycle, setFormBillingCycle] = useState('monthly');
   const [formModuleIds, setFormModuleIds] = useState<string[]>([]);
+  const [formTrialEnd, setFormTrialEnd] = useState('');
+  const [formSubStart, setFormSubStart] = useState('');
+  const [formSubEnd, setFormSubEnd] = useState('');
 
   const orgMap = Object.fromEntries(organizations.map((o) => [o.id, o.name]));
   const planMap = Object.fromEntries(plans.map((p) => [p.id, p]));
@@ -221,9 +229,13 @@ export default function AdminBillingPage() {
     setFormPlanId(activePlans[0]?.id || '');
     setFormUsers(1);
     setFormBranches(1);
-    setFormStatus('active');
+    setFormStatus('trial');
     setFormBillingCycle('monthly');
     setFormModuleIds([]);
+    const now = new Date();
+    setFormTrialEnd(format(addDays(now, 14), 'yyyy-MM-dd'));
+    setFormSubStart('');
+    setFormSubEnd('');
     setDialogOpen(true);
   };
 
@@ -235,7 +247,13 @@ export default function AdminBillingPage() {
     setFormBranches(sub.number_of_branches);
     setFormStatus(sub.status);
     setFormBillingCycle(sub.billing_cycle || 'monthly');
+    setFormTrialEnd(sub.trial_end_date ? format(new Date(sub.trial_end_date), 'yyyy-MM-dd') : '');
+    setFormSubStart(sub.subscription_start_date ? format(new Date(sub.subscription_start_date), 'yyyy-MM-dd') : '');
+    setFormSubEnd(sub.subscription_end_date ? format(new Date(sub.subscription_end_date), 'yyyy-MM-dd') : '');
     const moduleIds = subModules.filter((sm) => sm.subscription_id === sub.id).map((sm) => sm.pricing_module_id);
+    setFormModuleIds(moduleIds);
+    setDialogOpen(true);
+  };
     setFormModuleIds(moduleIds);
     setDialogOpen(true);
   };
@@ -258,14 +276,23 @@ export default function AdminBillingPage() {
       const selMods = enabledModules.filter((m) => formModuleIds.includes(m.id));
       const { monthly } = calculatePrice(config, selectedPlan, formUsers, formBranches, selMods, formBillingCycle);
 
-      const payload = {
+      const now = new Date().toISOString();
+      const payload: any = {
         number_of_users: formUsers,
         number_of_branches: formBranches,
         monthly_price: monthly,
         status: formStatus,
         billing_cycle: formBillingCycle,
         plan_id: formPlanId || null,
+        trial_end_date: formTrialEnd ? new Date(formTrialEnd).toISOString() : null,
+        subscription_start_date: formSubStart ? new Date(formSubStart).toISOString() : null,
+        subscription_end_date: formSubEnd ? new Date(formSubEnd).toISOString() : null,
       };
+
+      // For new subscriptions with trial status, set trial_start_date
+      if (!editingSub && formStatus === 'trial') {
+        payload.trial_start_date = now;
+      }
 
       if (editingSub) {
         const { error } = await supabase.from('organization_subscriptions').update(payload).eq('id', editingSub.id);
@@ -323,6 +350,8 @@ export default function AdminBillingPage() {
 
   const totalMRR = subscriptions.filter((s) => s.status === 'active').reduce((sum, s) => sum + s.monthly_price, 0);
   const activeSubs = subscriptions.filter((s) => s.status === 'active').length;
+  const trialSubs = subscriptions.filter((s) => s.status === 'trial').length;
+  const expiredSubs = subscriptions.filter((s) => s.status === 'expired').length;
 
   const getSubModuleNames = (subId: string) => {
     const modIds = subModules.filter((sm) => sm.subscription_id === subId).map((sm) => sm.pricing_module_id);
@@ -344,7 +373,7 @@ export default function AdminBillingPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
@@ -354,17 +383,24 @@ export default function AdminBillingPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
+              <CardTitle className="text-sm font-medium">Active</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent><div className="text-2xl font-bold">{activeSubs}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Subscriptions</CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">On Trial</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{subscriptions.length}</div></CardContent>
+            <CardContent><div className="text-2xl font-bold">{trialSubs}</div></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Expired</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">{expiredSubs}</div></CardContent>
           </Card>
         </div>
 
@@ -389,12 +425,12 @@ export default function AdminBillingPage() {
                     <TableRow>
                       <TableHead>Organization</TableHead>
                       <TableHead>Plan</TableHead>
-                      <TableHead>Billing</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Days Left</TableHead>
                       <TableHead>Users</TableHead>
                       <TableHead>Branches</TableHead>
-                      <TableHead>Modules</TableHead>
                       <TableHead>Monthly Price</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>End Date</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -405,8 +441,12 @@ export default function AdminBillingPage() {
                       </TableRow>
                     ) : (
                       filteredSubs.map((sub) => {
-                        const modNames = getSubModuleNames(sub.id);
                         const plan = sub.plan_id ? planMap[sub.plan_id] : null;
+                        const endDate = sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date;
+                        const daysLeft = endDate ? differenceInDays(new Date(endDate), new Date()) : null;
+                        const statusVariant = sub.status === 'active' ? 'default' 
+                          : sub.status === 'trial' ? 'secondary' 
+                          : 'destructive';
                         return (
                           <TableRow key={sub.id}>
                             <TableCell className="font-medium">{orgMap[sub.organization_id] || sub.organization_id.slice(0, 8)}</TableCell>
@@ -418,26 +458,24 @@ export default function AdminBillingPage() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={sub.billing_cycle === 'yearly' ? 'default' : 'secondary'} className="text-xs">
-                                {sub.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly'}
+                              <Badge variant={statusVariant} className="text-xs capitalize">
+                                {sub.status}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {daysLeft !== null ? (
+                                <span className={daysLeft <= 3 ? 'text-destructive font-semibold' : daysLeft <= 7 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : ''}>
+                                  {daysLeft <= 0 ? 'Expired' : `${daysLeft}d`}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
                             </TableCell>
                             <TableCell>{sub.number_of_users}{plan ? `/${plan.max_users}` : ''}</TableCell>
                             <TableCell>{sub.number_of_branches}{plan ? `/${plan.max_branches}` : ''}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {modNames.length === 0 ? (
-                                  <span className="text-muted-foreground text-xs">None</span>
-                                ) : (
-                                  modNames.map((n) => <Badge key={n} variant="secondary" className="text-xs">{n}</Badge>)
-                                )}
-                              </div>
-                            </TableCell>
                             <TableCell className="font-medium">{formatCurrency(sub.monthly_price)}</TableCell>
-                            <TableCell>
-                              <Badge variant={sub.status === 'active' ? 'default' : 'secondary'}>
-                                {sub.status === 'active' ? 'Active' : 'Suspended'}
-                              </Badge>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {endDate ? format(new Date(endDate), 'MMM d, yyyy') : '—'}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
@@ -576,10 +614,30 @@ export default function AdminBillingPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
                   <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Date Fields */}
+            {formStatus === 'trial' && (
+              <div className="space-y-2">
+                <Label>Trial End Date</Label>
+                <Input type="date" value={formTrialEnd} onChange={(e) => setFormTrialEnd(e.target.value)} />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Subscription Start</Label>
+                <Input type="date" value={formSubStart} onChange={(e) => setFormSubStart(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Subscription End</Label>
+                <Input type="date" value={formSubEnd} onChange={(e) => setFormSubEnd(e.target.value)} />
+              </div>
             </div>
 
             {enabledModules.length > 0 && (

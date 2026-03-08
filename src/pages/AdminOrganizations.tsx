@@ -13,8 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
-import { Search, Plus, Pencil, Trash2, Loader2, Building2, Activity, Users, Eye } from 'lucide-react';
+import { format, differenceInDays } from 'date-fns';
+import { Search, Plus, Pencil, Trash2, Loader2, Building2, Activity, Users, Eye, Clock } from 'lucide-react';
 
 interface Organization {
   id: string;
@@ -55,6 +55,37 @@ function useOrgUserCounts() {
   });
 }
 
+interface OrgSubscription {
+  id: string;
+  organization_id: string;
+  status: string;
+  plan_id: string | null;
+  trial_end_date: string | null;
+  subscription_end_date: string | null;
+}
+
+function useOrgSubscriptions() {
+  return useQuery({
+    queryKey: ['admin-org-subscriptions'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('organization_subscriptions').select('id, organization_id, status, plan_id, trial_end_date, subscription_end_date');
+      if (error) throw error;
+      return data as OrgSubscription[];
+    },
+  });
+}
+
+function usePricingPlansForOrgs() {
+  return useQuery({
+    queryKey: ['admin-pricing-plans-orgs'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pricing_plans').select('id, name');
+      if (error) throw error;
+      return data as { id: string; name: string }[];
+    },
+  });
+}
+
 function useOrgUsers(orgId: string | null) {
   return useQuery({
     queryKey: ['admin-org-users', orgId],
@@ -84,6 +115,8 @@ export default function AdminOrganizationsPage() {
   const queryClient = useQueryClient();
   const { data: organizations = [], isLoading } = useAllOrganizations();
   const { data: userCounts = {} } = useOrgUserCounts();
+  const { data: orgSubscriptions = [] } = useOrgSubscriptions();
+  const { data: pricingPlans = [] } = usePricingPlansForOrgs();
 
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -106,6 +139,9 @@ export default function AdminOrganizationsPage() {
       org.name.toLowerCase().includes(search.toLowerCase()) ||
       org.slug.toLowerCase().includes(search.toLowerCase())
   );
+
+  const subMap = Object.fromEntries(orgSubscriptions.map((s) => [s.organization_id, s]));
+  const planMap = Object.fromEntries(pricingPlans.map((p) => [p.id, p.name]));
 
   const openCreate = () => {
     setEditingOrg(null);
@@ -246,8 +282,11 @@ export default function AdminOrganizationsPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                     <TableRow>
                       <TableHead>Organization</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Sub Status</TableHead>
+                      <TableHead>Days Left</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Users</TableHead>
                       <TableHead>Created</TableHead>
@@ -257,10 +296,15 @@ export default function AdminOrganizationsPage() {
                   <TableBody>
                     {filteredOrgs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No organizations found</TableCell>
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No organizations found</TableCell>
                       </TableRow>
                     ) : (
-                      filteredOrgs.map((org) => (
+                      filteredOrgs.map((org) => {
+                        const sub = subMap[org.id];
+                        const endDate = sub ? (sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date) : null;
+                        const daysLeft = endDate ? differenceInDays(new Date(endDate), new Date()) : null;
+                        const subStatusVariant = !sub ? 'outline' : sub.status === 'active' ? 'default' : sub.status === 'trial' ? 'secondary' : 'destructive';
+                        return (
                         <TableRow key={org.id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -276,6 +320,27 @@ export default function AdminOrganizationsPage() {
                                 <code className="text-xs text-muted-foreground">{org.slug}</code>
                               </div>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            {sub && sub.plan_id ? (
+                              <Badge variant="outline" className="text-xs">{planMap[sub.plan_id] || '—'}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">None</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={subStatusVariant} className="text-xs capitalize">
+                              {sub ? sub.status : 'No sub'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {daysLeft !== null ? (
+                              <span className={daysLeft <= 3 ? 'text-destructive font-semibold' : daysLeft <= 7 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : 'text-muted-foreground'}>
+                                {daysLeft <= 0 ? 'Expired' : `${daysLeft}d`}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge variant={org.is_active ? 'default' : 'secondary'}>{org.is_active ? 'Active' : 'Inactive'}</Badge>
@@ -308,7 +373,8 @@ export default function AdminOrganizationsPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>

@@ -4,6 +4,7 @@ import { AppSidebar } from '@/components/layout/AppSidebar';
 import { ProfileSettingsDialog } from '@/components/profile/ProfileSettingsDialog';
 import { ModulePermissionsDialog } from '@/components/permissions/ModulePermissionsDialog';
 import { OrganizationSettingsDialog } from '@/components/organization/OrganizationSettingsDialog';
+import { SubscriptionBanner } from '@/components/subscription/SubscriptionBanner';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -28,7 +29,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <SidebarTrigger />
           </header>
 
-          <main className="flex-1 p-4 md:p-6">
+          <main className="flex-1 p-4 md:p-6 space-y-4">
+            <SubscriptionBanner />
             {children}
           </main>
         </div>
