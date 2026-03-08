@@ -596,6 +596,7 @@ export default function AdminBillingPage() { // eslint-disable-line
                   <SelectItem value="yearly">
                     Yearly {config && config.yearly_discount_percent > 0 ? `(${config.yearly_discount_percent}% discount)` : ''}
                   </SelectItem>
+                  <SelectItem value="one_off">One Off</SelectItem>
                 </SelectContent>
               </Select>
             </div>
