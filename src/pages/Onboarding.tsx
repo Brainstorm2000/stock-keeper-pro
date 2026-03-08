@@ -194,13 +194,13 @@ export default function Onboarding() {
                 Create Organization
               </CardTitle>
               <CardDescription className="text-center">
-                You'll be the Super Admin of this organization
+                Set up the organization and its admin account
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleCreateOrg} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Your Name *</Label>
+                  <Label htmlFor="fullName">Your Name (Platform Admin) *</Label>
                   <Input
                     id="fullName"
                     placeholder="John Doe"
@@ -263,6 +263,50 @@ export default function Onboarding() {
                     disabled={isLoading}
                     rows={2}
                   />
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <p className="text-sm font-medium text-foreground mb-3">Organization Admin Login Details</p>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="adminFullName">Admin Full Name *</Label>
+                      <Input
+                        id="adminFullName"
+                        placeholder="Jane Smith"
+                        value={adminFullName}
+                        onChange={(e) => setAdminFullName(e.target.value)}
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="adminEmail">Admin Email *</Label>
+                      <Input
+                        id="adminEmail"
+                        type="email"
+                        placeholder="admin@acme.com"
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="adminPassword">Admin Password *</Label>
+                      <Input
+                        id="adminPassword"
+                        type="password"
+                        placeholder="••••••••"
+                        value={adminPassword}
+                        onChange={(e) => setAdminPassword(e.target.value)}
+                        disabled={isLoading}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Minimum 6 characters. The admin will use this to log in.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex gap-2 pt-2">
