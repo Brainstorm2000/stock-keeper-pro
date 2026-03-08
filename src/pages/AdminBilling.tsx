@@ -186,9 +186,12 @@ export default function AdminBillingPage() {
   const [formPlanId, setFormPlanId] = useState<string>('');
   const [formUsers, setFormUsers] = useState(1);
   const [formBranches, setFormBranches] = useState(1);
-  const [formStatus, setFormStatus] = useState('active');
+  const [formStatus, setFormStatus] = useState('trial');
   const [formBillingCycle, setFormBillingCycle] = useState('monthly');
   const [formModuleIds, setFormModuleIds] = useState<string[]>([]);
+  const [formTrialEnd, setFormTrialEnd] = useState('');
+  const [formSubStart, setFormSubStart] = useState('');
+  const [formSubEnd, setFormSubEnd] = useState('');
 
   const orgMap = Object.fromEntries(organizations.map((o) => [o.id, o.name]));
   const planMap = Object.fromEntries(plans.map((p) => [p.id, p]));
