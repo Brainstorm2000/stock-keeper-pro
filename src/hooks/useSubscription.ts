@@ -40,6 +40,9 @@ export function useOrgSubscription() {
 export function getSubscriptionDaysRemaining(sub: OrgSubscription | null | undefined): number | null {
   if (!sub) return null;
   
+  // Lifetime never expires
+  if (sub.status === 'lifetime') return null;
+  
   const now = new Date();
   
   if (sub.status === 'trial' && sub.trial_end_date) {
