@@ -416,12 +416,12 @@ export default function AdminBillingPage() {
                     <TableRow>
                       <TableHead>Organization</TableHead>
                       <TableHead>Plan</TableHead>
-                      <TableHead>Billing</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Days Left</TableHead>
                       <TableHead>Users</TableHead>
                       <TableHead>Branches</TableHead>
-                      <TableHead>Modules</TableHead>
                       <TableHead>Monthly Price</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>End Date</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
