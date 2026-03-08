@@ -276,14 +276,23 @@ export default function AdminBillingPage() {
       const selMods = enabledModules.filter((m) => formModuleIds.includes(m.id));
       const { monthly } = calculatePrice(config, selectedPlan, formUsers, formBranches, selMods, formBillingCycle);
 
-      const payload = {
+      const now = new Date().toISOString();
+      const payload: any = {
         number_of_users: formUsers,
         number_of_branches: formBranches,
         monthly_price: monthly,
         status: formStatus,
         billing_cycle: formBillingCycle,
         plan_id: formPlanId || null,
+        trial_end_date: formTrialEnd ? new Date(formTrialEnd).toISOString() : null,
+        subscription_start_date: formSubStart ? new Date(formSubStart).toISOString() : null,
+        subscription_end_date: formSubEnd ? new Date(formSubEnd).toISOString() : null,
       };
+
+      // For new subscriptions with trial status, set trial_start_date
+      if (!editingSub && formStatus === 'trial') {
+        payload.trial_start_date = now;
+      }
 
       if (editingSub) {
         const { error } = await supabase.from('organization_subscriptions').update(payload).eq('id', editingSub.id);
