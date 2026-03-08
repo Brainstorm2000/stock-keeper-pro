@@ -37,7 +37,7 @@ function UserBranchBadges({ userId }: { userId: string }) {
   );
 }
 
-function RoleBadge({ role }: { role: 'admin' | 'user' | 'super_admin' }) {
+function RoleBadge({ role }: { role: string }) {
   if (role === 'admin') {
     return (
       <Badge variant="default" className="text-xs gap-1">

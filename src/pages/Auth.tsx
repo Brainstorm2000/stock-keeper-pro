@@ -21,19 +21,21 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const { signIn, signUp, user, hasCompletedOnboarding } = useAuth();
+  const { signIn, signUp, user, hasCompletedOnboarding, isSuperSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
-      if (hasCompletedOnboarding) {
+      if (isSuperSuperAdmin) {
+        navigate('/admin');
+      } else if (hasCompletedOnboarding) {
         navigate('/dashboard');
       } else if (hasCompletedOnboarding === false) {
         navigate('/onboarding');
       }
     }
-  }, [user, hasCompletedOnboarding, navigate]);
+  }, [user, hasCompletedOnboarding, isSuperSuperAdmin, navigate]);
 
   const validateForm = () => {
     try {

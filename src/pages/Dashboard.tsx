@@ -35,7 +35,7 @@ export default function Dashboard() {
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
   
-  const { user, loading: authLoading, isAdmin, isSuperAdmin, hasCompletedOnboarding } = useAuth();
+  const { user, loading: authLoading, isAdmin, isSuperAdmin, isSuperSuperAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: branches = [] } = useBranches();
   const { data: myBranchAssignments = [] } = useMyBranchAssignments();
@@ -62,10 +62,12 @@ export default function Dashboard() {
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
+    } else if (!authLoading && user && isSuperSuperAdmin) {
+      navigate('/admin');
     } else if (!authLoading && user && hasCompletedOnboarding === false) {
       navigate('/onboarding');
     }
-  }, [user, authLoading, hasCompletedOnboarding, navigate]);
+  }, [user, authLoading, hasCompletedOnboarding, isSuperSuperAdmin, navigate]);
 
   // Real-time subscription for products
   useEffect(() => {

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type AppRole = 'admin' | 'user' | 'super_admin';
+type AppRole = 'admin' | 'user' | 'super_admin' | 'super_super_admin';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthContextType {
   hasCompletedOnboarding: boolean | null;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isSuperSuperAdmin: boolean;
   loading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -31,6 +32,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      // First check if user has super_super_admin role (no org needed)
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      if (!roleError && roleData?.role === 'super_super_admin') {
+        setOrganizationId(null);
+        setHasCompletedOnboarding(true);
+        return 'super_super_admin' as AppRole;
+      }
+
       // Fetch profile to check if onboarding is complete
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -48,17 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch role
       if (orgId) {
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .single();
-
-        if (roleError) {
-          console.error('Error fetching role:', roleError);
-          return null;
-        }
-        return roleData?.role as AppRole;
+        return roleData?.role as AppRole || null;
       }
       return null;
     } catch (err) {
@@ -149,8 +153,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role,
     organizationId,
     hasCompletedOnboarding,
-    isAdmin: role === 'admin' || role === 'super_admin',
-    isSuperAdmin: role === 'super_admin',
+    isAdmin: role === 'admin' || role === 'super_admin' || role === 'super_super_admin',
+    isSuperAdmin: role === 'super_admin' || role === 'super_super_admin',
+    isSuperSuperAdmin: role === 'super_super_admin',
     loading,
     signUp,
     signIn,

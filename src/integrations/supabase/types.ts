@@ -389,6 +389,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          is_active: boolean
           logo_url: string | null
           name: string
           slug: string
@@ -399,6 +400,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean
           logo_url?: string | null
           name: string
           slug: string
@@ -409,6 +411,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean
           logo_url?: string | null
           name?: string
           slug?: string
@@ -1527,10 +1530,11 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_super_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_module: "pos" | "sales" | "purchases" | "expenses" | "production"
-      app_role: "admin" | "user" | "super_admin"
+      app_role: "admin" | "user" | "super_admin" | "super_super_admin"
       item_type: "product" | "service"
       module_access_level: "none" | "view" | "create" | "full"
       payment_method:
@@ -1671,7 +1675,7 @@ export const Constants = {
   public: {
     Enums: {
       app_module: ["pos", "sales", "purchases", "expenses", "production"],
-      app_role: ["admin", "user", "super_admin"],
+      app_role: ["admin", "user", "super_admin", "super_super_admin"],
       item_type: ["product", "service"],
       module_access_level: ["none", "view", "create", "full"],
       payment_method: [

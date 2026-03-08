@@ -28,13 +28,19 @@ export default function Onboarding() {
 
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, refreshProfile, hasCompletedOnboarding } = useAuth();
+  const { user, refreshProfile, hasCompletedOnboarding, isSuperSuperAdmin } = useAuth();
   const createOrg = useCreateOrganization();
   const joinOrg = useJoinOrganization();
 
   // Redirect if already onboarded
   if (hasCompletedOnboarding) {
     navigate('/dashboard');
+    return null;
+  }
+
+  // Super super admins don't use onboarding
+  if (isSuperSuperAdmin) {
+    navigate('/admin');
     return null;
   }
 

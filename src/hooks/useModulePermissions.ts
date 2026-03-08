@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 
 export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production';
 export type ModuleAccessLevel = 'none' | 'view' | 'create' | 'full';
-export type AppRole = 'admin' | 'user' | 'super_admin';
+export type AppRole = 'admin' | 'user' | 'super_admin' | 'super_super_admin';
 
 export interface RoleModulePermission {
   id: string;
