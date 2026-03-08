@@ -21,6 +21,7 @@ interface ExpenseReportTabProps {
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--destructive))'];
 
 export function ExpenseReportTab({ expenses, categories, dateRange, branches, selectedBranch }: ExpenseReportTabProps) {
+  const { data: org } = useOrganization();
   const filteredExpenses = useMemo(() => {
     return expenses.filter(e => {
       const d = new Date(e.expense_date);
