@@ -301,9 +301,16 @@ export default function AdminOrganizationsPage() {
                     ) : (
                       filteredOrgs.map((org) => {
                         const sub = subMap[org.id];
-                        const endDate = sub ? (sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date) : null;
-                        const daysLeft = endDate ? differenceInDays(new Date(endDate), new Date()) : null;
-                        const subStatusVariant = !sub ? 'outline' : sub.status === 'active' ? 'default' : sub.status === 'trial' ? 'secondary' : 'destructive';
+                        const endDateStr = sub ? (sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date) : null;
+                        let daysLeft: number | null = null;
+                        if (endDateStr) {
+                          try {
+                            daysLeft = differenceInDays(new Date(endDateStr), new Date());
+                          } catch { daysLeft = null; }
+                        }
+                        const subStatusVariant = !sub ? 'outline' as const : sub.status === 'active' ? 'default' as const : sub.status === 'trial' ? 'secondary' as const : 'destructive' as const;
+                        const createdDate = org.created_at ? new Date(org.created_at) : null;
+                        const createdStr = createdDate && !isNaN(createdDate.getTime()) ? format(createdDate, 'MMM d, yyyy') : '—';
                         return (
                         <TableRow key={org.id}>
                           <TableCell>
@@ -335,7 +342,7 @@ export default function AdminOrganizationsPage() {
                           </TableCell>
                           <TableCell>
                             {daysLeft !== null ? (
-                              <span className={daysLeft <= 3 ? 'text-destructive font-semibold' : daysLeft <= 7 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : 'text-muted-foreground'}>
+                              <span className={daysLeft <= 3 ? 'text-destructive font-semibold' : daysLeft <= 7 ? 'font-medium text-muted-foreground' : 'text-muted-foreground'}>
                                 {daysLeft <= 0 ? 'Expired' : `${daysLeft}d`}
                               </span>
                             ) : (
@@ -346,7 +353,7 @@ export default function AdminOrganizationsPage() {
                             <Badge variant={org.is_active ? 'default' : 'secondary'}>{org.is_active ? 'Active' : 'Inactive'}</Badge>
                           </TableCell>
                           <TableCell>{userCounts[org.id] || 0}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{format(new Date(org.created_at), 'MMM d, yyyy')}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{createdStr}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button variant="ghost" size="icon" onClick={() => setViewOrgId(org.id)} title="View Users">

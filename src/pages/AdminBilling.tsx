@@ -443,10 +443,15 @@ export default function AdminBillingPage() {
                       filteredSubs.map((sub) => {
                         const plan = sub.plan_id ? planMap[sub.plan_id] : null;
                         const endDate = sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date;
-                        const daysLeft = endDate ? differenceInDays(new Date(endDate), new Date()) : null;
-                        const statusVariant = sub.status === 'active' ? 'default' 
-                          : sub.status === 'trial' ? 'secondary' 
-                          : 'destructive';
+                        let daysLeft: number | null = null;
+                        if (endDate) {
+                          try { daysLeft = differenceInDays(new Date(endDate), new Date()); } catch { daysLeft = null; }
+                        }
+                        const endDateObj = endDate ? new Date(endDate) : null;
+                        const endDateStr = endDateObj && !isNaN(endDateObj.getTime()) ? format(endDateObj, 'MMM d, yyyy') : '—';
+                        const statusVariant = sub.status === 'active' ? 'default' as const
+                          : sub.status === 'trial' ? 'secondary' as const
+                          : 'destructive' as const;
                         return (
                           <TableRow key={sub.id}>
                             <TableCell className="font-medium">{orgMap[sub.organization_id] || sub.organization_id.slice(0, 8)}</TableCell>
@@ -475,7 +480,7 @@ export default function AdminBillingPage() {
                             <TableCell>{sub.number_of_branches}{plan ? `/${plan.max_branches}` : ''}</TableCell>
                             <TableCell className="font-medium">{formatCurrency(sub.monthly_price)}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {endDate ? format(new Date(endDate), 'MMM d, yyyy') : '—'}
+                              {endDateStr}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
@@ -742,3 +747,4 @@ export default function AdminBillingPage() {
     </AdminLayout>
   );
 }
+
