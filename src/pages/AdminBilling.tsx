@@ -373,7 +373,7 @@ export default function AdminBillingPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
@@ -383,17 +383,24 @@ export default function AdminBillingPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
+              <CardTitle className="text-sm font-medium">Active</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent><div className="text-2xl font-bold">{activeSubs}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Subscriptions</CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">On Trial</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{subscriptions.length}</div></CardContent>
+            <CardContent><div className="text-2xl font-bold">{trialSubs}</div></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Expired</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">{expiredSubs}</div></CardContent>
           </Card>
         </div>
 
