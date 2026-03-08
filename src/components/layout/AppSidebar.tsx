@@ -37,6 +37,7 @@ const navItems: NavItem[] = [
   { href: '/purchases', label: 'Purchases', icon: PackagePlus, module: 'purchases' },
   { href: '/expenses', label: 'Expenses', icon: Wallet, module: 'expenses' },
   { href: '/production', label: 'Production', icon: Factory, module: 'production' },
+  { href: '/reports', label: 'Reports', icon: BarChart3, module: 'reports' },
 ];
 
 interface AppSidebarProps {
