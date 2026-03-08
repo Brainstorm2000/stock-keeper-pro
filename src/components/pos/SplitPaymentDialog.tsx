@@ -23,6 +23,7 @@ interface SplitPaymentDialogProps {
   payments: PaymentSplit[];
   onPaymentsChange: (payments: PaymentSplit[]) => void;
   onConfirm: () => void;
+  isLoading?: boolean;
 }
 
 const paymentMethodLabels: Record<PaymentMethod, { label: string; icon: React.ReactNode }> = {
