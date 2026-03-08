@@ -556,8 +556,8 @@ export default function POS() {
                     min="0"
                     max="100"
                     step="0.01"
-                    value={taxRate}
-                    onChange={(e) => setTaxRate(Number(e.target.value))}
+                    value={taxRate || ''}
+                    onChange={(e) => setTaxRate(e.target.value === '' ? 0 : Number(e.target.value))}
                     className="h-8"
                   />
                 </div>
