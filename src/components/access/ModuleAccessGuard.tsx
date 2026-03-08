@@ -68,19 +68,7 @@ export function ModuleAccessGuard({
 
 // Hook to check access within components
 export function useModuleAccess(module: AppModule) {
-  const { isSuperAdmin } = useAuth();
   const { data: moduleAccess, isLoading } = useMyModuleAccess();
-
-  if (isSuperAdmin) {
-    return {
-      isLoading: false,
-      canView: true,
-      canCreate: true,
-      canEdit: true,
-      canDelete: true,
-      accessLevel: 'full' as ModuleAccessLevel,
-    };
-  }
 
   const accessLevel = moduleAccess?.[module] || 'none';
 
