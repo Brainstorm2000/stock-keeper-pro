@@ -23,6 +23,7 @@ interface SplitPaymentDialogProps {
   payments: PaymentSplit[];
   onPaymentsChange: (payments: PaymentSplit[]) => void;
   onConfirm: () => void;
+  isLoading?: boolean;
 }
 
 const paymentMethodLabels: Record<PaymentMethod, { label: string; icon: React.ReactNode }> = {
@@ -40,6 +41,7 @@ export function SplitPaymentDialog({
   payments,
   onPaymentsChange,
   onConfirm,
+  isLoading,
 }: SplitPaymentDialogProps) {
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = totalAmount - totalPaid;
@@ -121,12 +123,12 @@ export function SplitPaymentDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input
+                   <Input
                     type="number"
                     min="0"
                     step="0.01"
-                    value={payment.amount}
-                    onChange={(e) => updatePayment(index, { amount: Number(e.target.value) })}
+                    value={payment.amount || ''}
+                    onChange={(e) => updatePayment(index, { amount: e.target.value === '' ? 0 : Number(e.target.value) })}
                     className="flex-1"
                     placeholder="Amount"
                   />
@@ -154,9 +156,9 @@ export function SplitPaymentDialog({
           </Button>
           <Button 
             onClick={onConfirm} 
-            disabled={!isBalanced || payments.length === 0}
+            disabled={!isBalanced || payments.length === 0 || isLoading}
           >
-            Confirm Payment
+            {isLoading ? 'Processing...' : 'Confirm Payment'}
           </Button>
         </DialogFooter>
       </DialogContent>

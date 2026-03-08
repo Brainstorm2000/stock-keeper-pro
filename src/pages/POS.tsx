@@ -191,11 +191,9 @@ export default function POS() {
     if (newQty <= 0) {
       newCart.splice(index, 1);
     } else {
-      // Allow any quantity - just update without blocking
       newCart[index].quantity = newQty;
       newCart[index].total_price = (newQty * newCart[index].unit_price) - newCart[index].discount_amount;
       
-      // Show warning if exceeding stock
       if (newCart[index].item_type === 'product' && 
           newCart[index].max_quantity !== undefined && 
           newQty > newCart[index].max_quantity) {
@@ -207,6 +205,13 @@ export default function POS() {
       }
     }
     
+    setCart(newCart);
+  };
+
+  const updatePrice = (index: number, newPrice: number) => {
+    const newCart = [...cart];
+    newCart[index].unit_price = newPrice;
+    newCart[index].total_price = (newCart[index].quantity * newPrice) - newCart[index].discount_amount;
     setCart(newCart);
   };
 
@@ -500,6 +505,7 @@ export default function POS() {
                       item={item}
                       index={index}
                       onQuantityChange={updateQuantity}
+                      onPriceChange={updatePrice}
                       onRemove={removeFromCart}
                     />
                   ))}
@@ -518,9 +524,9 @@ export default function POS() {
                     type="number"
                     min="0"
                     max="100"
-                    value={discountPercent}
+                    value={discountPercent || ''}
                     onChange={(e) => {
-                      setDiscountPercent(Number(e.target.value));
+                      setDiscountPercent(e.target.value === '' ? 0 : Number(e.target.value));
                       setDiscountAmount(0);
                     }}
                     className="h-8"
@@ -531,9 +537,9 @@ export default function POS() {
                   <Input
                     type="number"
                     min="0"
-                    value={discountAmount}
+                    value={discountAmount || ''}
                     onChange={(e) => {
-                      setDiscountAmount(Number(e.target.value));
+                      setDiscountAmount(e.target.value === '' ? 0 : Number(e.target.value));
                       setDiscountPercent(0);
                     }}
                     className="h-8"
@@ -550,8 +556,8 @@ export default function POS() {
                     min="0"
                     max="100"
                     step="0.01"
-                    value={taxRate}
-                    onChange={(e) => setTaxRate(Number(e.target.value))}
+                    value={taxRate || ''}
+                    onChange={(e) => setTaxRate(e.target.value === '' ? 0 : Number(e.target.value))}
                     className="h-8"
                   />
                 </div>
@@ -590,12 +596,16 @@ export default function POS() {
                   disabled={cart.length === 0 || createHeldOrder.isPending}
                   onClick={handleHoldOrder}
                 >
-                  <Pause className="h-4 w-4 mr-1" />
-                  Hold
+                  {createHeldOrder.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Pause className="h-4 w-4 mr-1" />
+                  )}
+                  {createHeldOrder.isPending ? 'Holding...' : 'Hold'}
                 </Button>
                 <Button
                   className="flex-1"
-                  disabled={cart.length === 0}
+                  disabled={cart.length === 0 || createSale.isPending}
                   onClick={() => setCheckoutDialogOpen(true)}
                 >
                   Checkout
@@ -774,6 +784,7 @@ export default function POS() {
         payments={paymentSplits}
         onPaymentsChange={setPaymentSplits}
         onConfirm={handleSplitPaymentConfirm}
+        isLoading={createSale.isPending}
       />
 
       {/* Held Orders Dialog */}
