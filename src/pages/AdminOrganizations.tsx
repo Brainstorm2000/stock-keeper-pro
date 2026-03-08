@@ -132,6 +132,7 @@ export default function AdminOrganizationsPage() {
   const queryClient = useQueryClient();
   const { data: organizations = [], isLoading } = useAllOrganizations();
   const { data: userCounts = {} } = useOrgUserCounts();
+  const { data: branchCounts = {} } = useOrgBranchCounts();
   const { data: orgSubscriptions = [] } = useOrgSubscriptions();
   const { data: pricingPlans = [] } = usePricingPlansForOrgs();
 
