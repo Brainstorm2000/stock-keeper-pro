@@ -156,9 +156,9 @@ export function SplitPaymentDialog({
           </Button>
           <Button 
             onClick={onConfirm} 
-            disabled={!isBalanced || payments.length === 0}
+            disabled={!isBalanced || payments.length === 0 || isLoading}
           >
-            Confirm Payment
+            {isLoading ? 'Processing...' : 'Confirm Payment'}
           </Button>
         </DialogFooter>
       </DialogContent>
