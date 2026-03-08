@@ -131,6 +131,14 @@ export function AppSidebar({ onOpenProfile, onOpenOrgSettings, onOpenPermissions
                     <span>Permissions</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location.pathname === '/subscription'}>
+                    <NavLink to="/subscription" end>
+                      <CreditCard className="h-4 w-4" />
+                      <span>Subscription</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

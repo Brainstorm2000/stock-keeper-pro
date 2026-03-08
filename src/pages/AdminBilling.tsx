@@ -495,8 +495,8 @@ export default function AdminBillingPage() { // eslint-disable-line
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </TableCell>
-                            <TableCell>{sub.number_of_users}{plan ? `/${plan.max_users}` : ''}</TableCell>
-                            <TableCell>{sub.number_of_branches}{plan ? `/${plan.max_branches}` : ''}</TableCell>
+                            <TableCell>{orgCounts?.userCounts[sub.organization_id] ?? 0}/{sub.number_of_users}{plan ? ` (max ${plan.max_users})` : ''}</TableCell>
+                            <TableCell>{orgCounts?.branchCounts[sub.organization_id] ?? 0}/{sub.number_of_branches}{plan ? ` (max ${plan.max_branches})` : ''}</TableCell>
                             <TableCell className="font-medium">{formatCurrency(sub.monthly_price)}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {endDateStr}
