@@ -103,7 +103,8 @@ export function SalesReportTab({ sales, saleItems, dateRange, branches, selected
   const handleExportPDF = () => {
     exportToPDF('Sales Report', ['Sale #', 'Date', 'Customer', 'Total', 'Payment'],
       filteredSales.map(s => [s.sale_number, format(new Date(s.created_at), 'MMM dd, yyyy'), s.customer_name || '-', formatCurrency(s.total_amount), s.payment_method]),
-      { 'Total Revenue': formatCurrency(totalRevenue), 'Total Sales': String(filteredSales.length), 'Avg. Order Value': formatCurrency(avgOrderValue) }
+      { 'Total Revenue': formatCurrency(totalRevenue), 'Total Sales': String(filteredSales.length), 'Avg. Order Value': formatCurrency(avgOrderValue) },
+      org || undefined
     );
   };
 

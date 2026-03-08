@@ -86,7 +86,8 @@ export function ExpenseReportTab({ expenses, categories, dateRange, branches, se
   const handleExportPDF = () => {
     exportToPDF('Expense Report', ['Date', 'Description', 'Category', 'Amount'],
       filteredExpenses.map(e => [e.expense_date, e.description, categories.find(c => c.id === e.category_id)?.name || '-', formatCurrency(e.amount)]),
-      { 'Total Expenses': formatCurrency(totalExpenses), 'Entries': String(filteredExpenses.length), 'Average': formatCurrency(avgExpense) }
+      { 'Total Expenses': formatCurrency(totalExpenses), 'Entries': String(filteredExpenses.length), 'Average': formatCurrency(avgExpense) },
+      org || undefined
     );
   };
 

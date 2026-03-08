@@ -81,7 +81,8 @@ export function InventoryReportTab({ products, branches, selectedBranch }: Inven
         formatCurrency(p.current_stock * p.cost_price),
         p.current_stock <= p.out_of_stock_threshold ? 'Out of Stock' : p.current_stock <= p.low_stock_threshold ? 'Low Stock' : 'Normal'
       ]),
-      { 'Total Items': String(totalItems), 'Total Stock': String(totalStock), 'Total Value (Cost)': formatCurrency(totalCostValue), 'Selling Value': formatCurrency(totalValue) }
+      { 'Total Items': String(totalItems), 'Total Stock': String(totalStock), 'Total Value (Cost)': formatCurrency(totalCostValue), 'Selling Value': formatCurrency(totalValue) },
+      org || undefined
     );
   };
 

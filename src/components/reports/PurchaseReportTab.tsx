@@ -86,7 +86,8 @@ export function PurchaseReportTab({ purchases, dateRange, branches, selectedBran
   const handleExportPDF = () => {
     exportToPDF('Purchase Report', ['PO #', 'Date', 'Supplier', 'Total', 'Paid', 'Status'],
       filteredPurchases.map(p => [p.purchase_number, p.purchase_date, p.suppliers?.name || '-', formatCurrency(p.total_amount), formatCurrency(p.amount_paid), p.payment_status]),
-      { 'Total Purchases': formatCurrency(totalAmount), 'Total Paid': formatCurrency(totalPaid), 'Outstanding': formatCurrency(totalOutstanding) }
+      { 'Total Purchases': formatCurrency(totalAmount), 'Total Paid': formatCurrency(totalPaid), 'Outstanding': formatCurrency(totalOutstanding) },
+      org || undefined
     );
   };
 
