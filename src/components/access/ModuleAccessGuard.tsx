@@ -19,14 +19,9 @@ export function ModuleAccessGuard({
   children, 
   fallback 
 }: ModuleAccessGuardProps) {
-  const { isSuperAdmin, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const { data: moduleAccess, isLoading } = useMyModuleAccess();
   const navigate = useNavigate();
-
-  // Super admins always have access
-  if (isSuperAdmin) {
-    return <>{children}</>;
-  }
 
   // Still loading
   if (authLoading || isLoading) {
@@ -73,19 +68,7 @@ export function ModuleAccessGuard({
 
 // Hook to check access within components
 export function useModuleAccess(module: AppModule) {
-  const { isSuperAdmin } = useAuth();
   const { data: moduleAccess, isLoading } = useMyModuleAccess();
-
-  if (isSuperAdmin) {
-    return {
-      isLoading: false,
-      canView: true,
-      canCreate: true,
-      canEdit: true,
-      canDelete: true,
-      accessLevel: 'full' as ModuleAccessLevel,
-    };
-  }
 
   const accessLevel = moduleAccess?.[module] || 'none';
 
