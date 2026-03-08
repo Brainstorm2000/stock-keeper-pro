@@ -25,6 +25,9 @@ export default function Onboarding() {
   const [fullName, setFullName] = useState('');
   const [joinRole, setJoinRole] = useState<'admin' | 'user'>('user');
   const [isLoading, setIsLoading] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminFullName, setAdminFullName] = useState('');
 
   const navigate = useNavigate();
   const { toast } = useToast();
