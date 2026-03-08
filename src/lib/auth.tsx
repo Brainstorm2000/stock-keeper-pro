@@ -32,6 +32,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      // First check if user has super_super_admin role (no org needed)
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      if (!roleError && roleData?.role === 'super_super_admin') {
+        setOrganizationId(null);
+        setHasCompletedOnboarding(true);
+        return 'super_super_admin' as AppRole;
+      }
+
       // Fetch profile to check if onboarding is complete
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -49,17 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch role
       if (orgId) {
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .single();
-
-        if (roleError) {
-          console.error('Error fetching role:', roleError);
-          return null;
-        }
-        return roleData?.role as AppRole;
+        return roleData?.role as AppRole || null;
       }
       return null;
     } catch (err) {
