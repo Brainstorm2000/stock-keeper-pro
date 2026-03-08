@@ -81,6 +81,7 @@ export function useMyModuleAccess() {
           purchases: 'full',
           expenses: 'full',
           production: 'full',
+          reports: 'full',
         };
         // Even super admins respect org-level module disablement
         if (orgModules) {
