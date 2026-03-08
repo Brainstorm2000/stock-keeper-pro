@@ -367,8 +367,8 @@ export default function AdminBillingPage() { // eslint-disable-line
     }
   };
 
-  const totalMRR = subscriptions.filter((s) => s.status === 'active').reduce((sum, s) => sum + s.monthly_price, 0);
-  const activeSubs = subscriptions.filter((s) => s.status === 'active').length;
+  const totalMRR = subscriptions.filter((s) => s.status === 'active' || s.status === 'lifetime').reduce((sum, s) => sum + s.monthly_price, 0);
+  const activeSubs = subscriptions.filter((s) => s.status === 'active' || s.status === 'lifetime').length;
   const trialSubs = subscriptions.filter((s) => s.status === 'trial').length;
   const expiredSubs = subscriptions.filter((s) => s.status === 'expired').length;
 
