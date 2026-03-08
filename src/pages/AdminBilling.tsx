@@ -247,7 +247,13 @@ export default function AdminBillingPage() {
     setFormBranches(sub.number_of_branches);
     setFormStatus(sub.status);
     setFormBillingCycle(sub.billing_cycle || 'monthly');
+    setFormTrialEnd(sub.trial_end_date ? format(new Date(sub.trial_end_date), 'yyyy-MM-dd') : '');
+    setFormSubStart(sub.subscription_start_date ? format(new Date(sub.subscription_start_date), 'yyyy-MM-dd') : '');
+    setFormSubEnd(sub.subscription_end_date ? format(new Date(sub.subscription_end_date), 'yyyy-MM-dd') : '');
     const moduleIds = subModules.filter((sm) => sm.subscription_id === sub.id).map((sm) => sm.pricing_module_id);
+    setFormModuleIds(moduleIds);
+    setDialogOpen(true);
+  };
     setFormModuleIds(moduleIds);
     setDialogOpen(true);
   };
