@@ -443,10 +443,15 @@ export default function AdminBillingPage() {
                       filteredSubs.map((sub) => {
                         const plan = sub.plan_id ? planMap[sub.plan_id] : null;
                         const endDate = sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date;
-                        const daysLeft = endDate ? differenceInDays(new Date(endDate), new Date()) : null;
-                        const statusVariant = sub.status === 'active' ? 'default' 
-                          : sub.status === 'trial' ? 'secondary' 
-                          : 'destructive';
+                        let daysLeft: number | null = null;
+                        if (endDate) {
+                          try { daysLeft = differenceInDays(new Date(endDate), new Date()); } catch { daysLeft = null; }
+                        }
+                        const endDateObj = endDate ? new Date(endDate) : null;
+                        const endDateStr = endDateObj && !isNaN(endDateObj.getTime()) ? format(endDateObj, 'MMM d, yyyy') : '—';
+                        const statusVariant = sub.status === 'active' ? 'default' as const
+                          : sub.status === 'trial' ? 'secondary' as const
+                          : 'destructive' as const;
                         return (
                           <TableRow key={sub.id}>
                             <TableCell className="font-medium">{orgMap[sub.organization_id] || sub.organization_id.slice(0, 8)}</TableCell>
