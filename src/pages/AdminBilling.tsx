@@ -350,6 +350,8 @@ export default function AdminBillingPage() {
 
   const totalMRR = subscriptions.filter((s) => s.status === 'active').reduce((sum, s) => sum + s.monthly_price, 0);
   const activeSubs = subscriptions.filter((s) => s.status === 'active').length;
+  const trialSubs = subscriptions.filter((s) => s.status === 'trial').length;
+  const expiredSubs = subscriptions.filter((s) => s.status === 'expired').length;
 
   const getSubModuleNames = (subId: string) => {
     const modIds = subModules.filter((sm) => sm.subscription_id === subId).map((sm) => sm.pricing_module_id);
