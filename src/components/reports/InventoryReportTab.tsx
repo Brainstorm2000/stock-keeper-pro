@@ -8,6 +8,7 @@ import { Download, FileText, Package, AlertTriangle, PackageX } from 'lucide-rea
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface InventoryReportTabProps {
   products: any[];
