@@ -493,6 +493,14 @@ export default function AdminOrganizationsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Org Modules Dialog */}
+      <OrgModulesDialog
+        orgId={modulesOrgId}
+        orgName={organizations.find((o) => o.id === modulesOrgId)?.name}
+        open={!!modulesOrgId}
+        onOpenChange={(o) => !o && setModulesOrgId(null)}
+      />
+
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteOrgId} onOpenChange={() => setDeleteOrgId(null)}>
         <AlertDialogContent>
