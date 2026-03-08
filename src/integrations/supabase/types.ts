@@ -383,6 +383,41 @@ export type Database = {
           },
         ]
       }
+      organization_modules: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          module: Database["public"]["Enums"]["app_module"]
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          module: Database["public"]["Enums"]["app_module"]
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          module?: Database["public"]["Enums"]["app_module"]
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_modules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_subscriptions: {
         Row: {
           billing_cycle: string
@@ -1733,6 +1768,13 @@ export type Database = {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+        }
+        Returns: boolean
+      }
+      is_module_enabled_for_org: {
+        Args: {
+          _module: Database["public"]["Enums"]["app_module"]
+          _org_id: string
         }
         Returns: boolean
       }
