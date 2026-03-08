@@ -77,13 +77,20 @@ export function useUserProfile() {
   });
 }
 
+export interface CreateOrgInput extends OrganizationInput {
+  fullName: string;
+  adminEmail: string;
+  adminPassword: string;
+  adminFullName: string;
+}
+
 export function useCreateOrganization() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ name, slug, fullName, logo_url, email, address }: OrganizationInput & { fullName: string }) => {
+    mutationFn: async ({ name, slug, fullName, logo_url, email, address, adminEmail, adminPassword, adminFullName }: CreateOrgInput) => {
       if (!user) throw new Error('User not authenticated');
 
       // 1. Create the organization
@@ -95,28 +102,35 @@ export function useCreateOrganization() {
 
       if (orgError) throw orgError;
 
-      // 2. Create user profile with organization
-      const { error: profileError } = await supabase
+      // 2. Create the org's super_admin user via edge function
+      const { data: adminResult, error: adminError } = await supabase.functions.invoke('admin-manage-users', {
+        body: {
+          action: 'create_user',
+          email: adminEmail,
+          password: adminPassword,
+          full_name: adminFullName,
+          organization_id: org.id,
+          role: 'super_admin',
+        },
+      });
+
+      if (adminError) throw new Error(adminError.message || 'Failed to create admin user');
+      if (adminResult?.error) throw new Error(adminResult.error);
+
+      // 3. Ensure super_super_admin has a profile (idempotent — skip if exists)
+      const { data: existingProfile } = await supabase
         .from('profiles')
-        .insert({
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        await supabase.from('profiles').insert({
           user_id: user.id,
           email: user.email,
           full_name: fullName,
-          organization_id: org.id,
         });
-
-      if (profileError) throw profileError;
-
-      // 3. Create user role as super_admin for their org
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
-          role: 'super_admin',
-          organization_id: org.id,
-        });
-
-      if (roleError) throw roleError;
+      }
 
       // 4. Auto-create a 14-day free trial subscription
       const now = new Date();
@@ -140,7 +154,7 @@ export function useCreateOrganization() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization'] });
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-      toast({ title: 'Organization created successfully' });
+      toast({ title: 'Organization created successfully', description: 'The admin account has been created and can log in immediately.' });
     },
     onError: (error: Error) => {
       const { title, description } = parseDbError(error, 'create organization');
