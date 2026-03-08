@@ -55,7 +55,7 @@ export function AppSidebar({ onOpenProfile, onOpenOrgSettings, onOpenPermissions
 
   const visibleLinks = navItems.filter((link) => {
     if (!link.module) return true;
-    if (accessLoading || isSuperAdmin) return true;
+    if (accessLoading) return true;
     return hasAccess(moduleAccess, link.module, 'view');
   });
 
