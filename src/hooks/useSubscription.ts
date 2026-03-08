@@ -60,6 +60,7 @@ export function getSubscriptionDaysRemaining(sub: OrgSubscription | null | undef
 
 export function isSubscriptionExpired(sub: OrgSubscription | null | undefined): boolean {
   if (!sub) return false;
+  if (sub.status === 'lifetime') return false;
   if (sub.status === 'expired') return true;
   if (sub.status === 'suspended') return true;
   
