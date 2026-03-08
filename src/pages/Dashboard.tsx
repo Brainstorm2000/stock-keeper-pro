@@ -66,8 +66,10 @@ export default function Dashboard() {
       navigate('/admin');
     } else if (!authLoading && user && hasCompletedOnboarding === false) {
       navigate('/auth');
+    } else if (!authLoading && user && isOrgDisabled) {
+      navigate('/auth');
     }
-  }, [user, authLoading, hasCompletedOnboarding, isSuperSuperAdmin, navigate]);
+  }, [user, authLoading, hasCompletedOnboarding, isSuperSuperAdmin, isOrgDisabled, navigate]);
 
   // Real-time subscription for products
   useEffect(() => {
