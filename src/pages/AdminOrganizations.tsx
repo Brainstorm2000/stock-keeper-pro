@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInDays } from 'date-fns';
-import { Search, Plus, Pencil, Trash2, Loader2, Building2, Activity, Users, Eye, Clock } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Loader2, Building2, Activity, Users, Eye, Clock, Settings2 } from 'lucide-react';
+import { OrgModulesDialog } from '@/components/organizations/OrgModulesDialog';
 
 interface Organization {
   id: string;
@@ -141,6 +142,7 @@ export default function AdminOrganizationsPage() {
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [deleteOrgId, setDeleteOrgId] = useState<string | null>(null);
   const [viewOrgId, setViewOrgId] = useState<string | null>(null);
+  const [modulesOrgId, setModulesOrgId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Form state
@@ -376,9 +378,12 @@ export default function AdminOrganizationsPage() {
                           <TableCell className="text-sm text-muted-foreground">{createdStr}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => setViewOrgId(org.id)} title="View Users">
-                                <Eye className="h-4 w-4" />
+                              <Button variant="ghost" size="icon" onClick={() => setModulesOrgId(org.id)} title="Module Access">
+                                <Settings2 className="h-4 w-4" />
                               </Button>
+                              <Button variant="ghost" size="icon" onClick={() => setViewOrgId(org.id)} title="View Users">
+                                 <Eye className="h-4 w-4" />
+                               </Button>
                               <Button variant="ghost" size="icon" onClick={() => openEdit(org)} title="Edit">
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -487,6 +492,14 @@ export default function AdminOrganizationsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Org Modules Dialog */}
+      <OrgModulesDialog
+        orgId={modulesOrgId}
+        orgName={organizations.find((o) => o.id === modulesOrgId)?.name}
+        open={!!modulesOrgId}
+        onOpenChange={(o) => !o && setModulesOrgId(null)}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteOrgId} onOpenChange={() => setDeleteOrgId(null)}>

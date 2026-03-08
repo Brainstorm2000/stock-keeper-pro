@@ -39,24 +39,56 @@ export const ACCESS_LEVEL_LABELS: Record<ModuleAccessLevel, string> = {
   full: 'Full Access',
 };
 
+// Hook to get org-level module enablement
+export function useOrgModules() {
+  const { organizationId } = useAuth();
+
+  return useQuery({
+    queryKey: ['org-modules', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return null;
+      const { data, error } = await supabase
+        .from('organization_modules')
+        .select('module, is_enabled')
+        .eq('organization_id', organizationId);
+      if (error) throw error;
+      const map: Record<string, boolean> = {};
+      (data || []).forEach((row: any) => {
+        map[row.module] = row.is_enabled;
+      });
+      return map;
+    },
+    enabled: !!organizationId,
+  });
+}
+
 // Hook to get the current user's module access
 export function useMyModuleAccess() {
   const { user, isSuperAdmin } = useAuth();
+  const { data: orgModules } = useOrgModules();
 
   return useQuery({
-    queryKey: ['my-module-access', user?.id],
+    queryKey: ['my-module-access', user?.id, orgModules],
     queryFn: async () => {
       if (!user) return null;
 
       // Super admins have full access to everything
       if (isSuperAdmin) {
-      const access: Record<AppModule, ModuleAccessLevel> = {
+        const access: Record<AppModule, ModuleAccessLevel> = {
           pos: 'full',
           sales: 'full',
           purchases: 'full',
           expenses: 'full',
           production: 'full',
         };
+        // Even super admins respect org-level module disablement
+        if (orgModules) {
+          ALL_MODULES.forEach((mod) => {
+            if (orgModules[mod] === false) {
+              access[mod] = 'none';
+            }
+          });
+        }
         return access;
       }
 
@@ -93,6 +125,15 @@ export function useMyModuleAccess() {
       userPerms?.forEach((perm) => {
         access[perm.module as AppModule] = perm.access_level as ModuleAccessLevel;
       });
+
+      // Override with org-level module disablement
+      if (orgModules) {
+        ALL_MODULES.forEach((mod) => {
+          if (orgModules[mod] === false) {
+            access[mod] = 'none';
+          }
+        });
+      }
 
       return access;
     },
