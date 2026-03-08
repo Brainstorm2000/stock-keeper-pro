@@ -16,7 +16,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { usePurchases } from '@/hooks/usePurchases';
-import { useExpenses } from '@/hooks/useExpenses';
+import { useExpenses, useExpenseCategories } from '@/hooks/useExpenses';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
