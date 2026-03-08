@@ -57,6 +57,10 @@ interface Subscription {
   status: string;
   billing_cycle: string;
   plan_id: string | null;
+  trial_start_date: string | null;
+  trial_end_date: string | null;
+  subscription_start_date: string | null;
+  subscription_end_date: string | null;
   created_at: string;
 }
 
