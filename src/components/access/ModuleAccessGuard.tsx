@@ -19,14 +19,9 @@ export function ModuleAccessGuard({
   children, 
   fallback 
 }: ModuleAccessGuardProps) {
-  const { isSuperAdmin, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const { data: moduleAccess, isLoading } = useMyModuleAccess();
   const navigate = useNavigate();
-
-  // Super admins always have access
-  if (isSuperAdmin) {
-    return <>{children}</>;
-  }
 
   // Still loading
   if (authLoading || isLoading) {
