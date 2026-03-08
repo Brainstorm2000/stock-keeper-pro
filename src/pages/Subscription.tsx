@@ -165,10 +165,12 @@ export default function SubscriptionPage() {
                 <p className="text-sm text-muted-foreground">Monthly Price</p>
                 <p className="font-medium">{formatCurrency(sub.monthly_price)}</p>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Trial End Date</p>
-                <p className="font-medium">{safeFormat(sub.trial_end_date)}</p>
-              </div>
+              {sub.status === 'trial' && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Trial End Date</p>
+                  <p className="font-medium">{safeFormat(sub.trial_end_date)}</p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-muted-foreground">Subscription Start</p>
                 <p className="font-medium">{safeFormat(sub.subscription_start_date)}</p>
