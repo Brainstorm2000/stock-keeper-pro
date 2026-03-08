@@ -65,7 +65,8 @@ export default function Dashboard() {
     } else if (!authLoading && user && isSuperSuperAdmin) {
       navigate('/admin');
     } else if (!authLoading && user && hasCompletedOnboarding === false) {
-      navigate('/onboarding');
+      // Users without org can't access dashboard - sign them out
+      navigate('/auth');
     }
   }, [user, authLoading, hasCompletedOnboarding, isSuperSuperAdmin, navigate]);
 

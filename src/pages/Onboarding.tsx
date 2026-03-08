@@ -32,8 +32,19 @@ export default function Onboarding() {
   const createOrg = useCreateOrganization();
   const joinOrg = useJoinOrganization();
 
+  // Only super_super_admin can access onboarding
+  if (!user) {
+    navigate('/auth');
+    return null;
+  }
+
+  if (isSuperSuperAdmin === false) {
+    navigate(hasCompletedOnboarding ? '/dashboard' : '/auth');
+    return null;
+  }
+
   // Redirect if already onboarded
-  if (hasCompletedOnboarding) {
+  if (hasCompletedOnboarding && !isSuperSuperAdmin) {
     navigate('/dashboard');
     return null;
   }
