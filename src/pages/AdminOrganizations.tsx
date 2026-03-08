@@ -55,6 +55,23 @@ function useOrgUserCounts() {
   });
 }
 
+function useOrgBranchCounts() {
+  return useQuery({
+    queryKey: ['admin-org-branch-counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('branches').select('organization_id');
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data || []).forEach((b: any) => {
+        if (b.organization_id) {
+          counts[b.organization_id] = (counts[b.organization_id] || 0) + 1;
+        }
+      });
+      return counts;
+    },
+  });
+}
+
 interface OrgSubscription {
   id: string;
   organization_id: string;
