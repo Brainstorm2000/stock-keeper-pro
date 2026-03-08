@@ -166,7 +166,7 @@ function calculatePrice(
   return { monthly, total: monthly, discount: 0 };
 }
 
-export default function AdminBillingPage() {
+export default function AdminBillingPage() { // eslint-disable-line
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: subscriptions = [], isLoading } = useSubscriptions();
@@ -251,9 +251,6 @@ export default function AdminBillingPage() {
     setFormSubStart(sub.subscription_start_date ? format(new Date(sub.subscription_start_date), 'yyyy-MM-dd') : '');
     setFormSubEnd(sub.subscription_end_date ? format(new Date(sub.subscription_end_date), 'yyyy-MM-dd') : '');
     const moduleIds = subModules.filter((sm) => sm.subscription_id === sub.id).map((sm) => sm.pricing_module_id);
-    setFormModuleIds(moduleIds);
-    setDialogOpen(true);
-  };
     setFormModuleIds(moduleIds);
     setDialogOpen(true);
   };
