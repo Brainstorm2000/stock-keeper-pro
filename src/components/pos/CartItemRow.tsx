@@ -3,7 +3,7 @@ import { Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
- import { formatCurrency } from '@/lib/currency';
+import { formatCurrency } from '@/lib/currency';
 
 interface CartItem {
   product_id: string;
@@ -19,43 +19,48 @@ interface CartItemRowProps {
   item: CartItem;
   index: number;
   onQuantityChange: (index: number, quantity: number) => void;
+  onPriceChange: (index: number, price: number) => void;
   onRemove: (index: number) => void;
 }
 
-export function CartItemRow({ item, index, onQuantityChange, onRemove }: CartItemRowProps) {
-  const [inputValue, setInputValue] = useState(String(item.quantity));
+export function CartItemRow({ item, index, onQuantityChange, onPriceChange, onRemove }: CartItemRowProps) {
+  const [qtyInput, setQtyInput] = useState(String(item.quantity));
+  const [priceInput, setPriceInput] = useState(String(item.unit_price));
 
   useEffect(() => {
-    setInputValue(String(item.quantity));
+    setQtyInput(String(item.quantity));
   }, [item.quantity]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setInputValue(value);
-  };
+  useEffect(() => {
+    setPriceInput(String(item.unit_price));
+  }, [item.unit_price]);
 
-  const handleInputBlur = () => {
-    const newQty = parseInt(inputValue, 10);
-    if (isNaN(newQty) || newQty < 1) {
-      setInputValue(String(item.quantity));
+  const handleQtyBlur = () => {
+    const val = parseInt(qtyInput, 10);
+    if (isNaN(val) || val < 1) {
+      setQtyInput(String(item.quantity));
       return;
     }
+    if (val !== item.quantity) onQuantityChange(index, val);
+    setQtyInput(String(val));
+  };
 
-    // Allow exceeding stock - just update the quantity without capping
-    if (newQty !== item.quantity) {
-      onQuantityChange(index, newQty);
+  const handlePriceBlur = () => {
+    const val = parseFloat(priceInput);
+    if (isNaN(val) || val < 0) {
+      setPriceInput(String(item.unit_price));
+      return;
     }
-    setInputValue(String(newQty));
+    if (val !== item.unit_price) onPriceChange(index, val);
+    setPriceInput(String(val));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      (e.target as HTMLInputElement).blur();
-    }
+    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   };
 
-  const isOverStock = item.item_type === 'product' && 
-    item.max_quantity !== undefined && 
+  const isOverStock = item.item_type === 'product' &&
+    item.max_quantity !== undefined &&
     item.quantity > item.max_quantity;
 
   return (
@@ -65,9 +70,20 @@ export function CartItemRow({ item, index, onQuantityChange, onRemove }: CartIte
     )}>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm truncate">{item.product_name}</p>
-        <p className="text-xs text-muted-foreground">
-           {formatCurrency(item.unit_price)} × {item.quantity}
-        </p>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span>@</span>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={priceInput}
+            onChange={(e) => setPriceInput(e.target.value)}
+            onBlur={handlePriceBlur}
+            onKeyDown={handleKeyDown}
+            className="w-20 h-6 text-xs px-1 py-0 inline-flex"
+          />
+          <span>× {item.quantity}</span>
+        </div>
         {isOverStock && (
           <div className="flex items-center gap-1 text-destructive text-xs mt-1">
             <AlertTriangle className="h-3 w-3" />
@@ -79,9 +95,9 @@ export function CartItemRow({ item, index, onQuantityChange, onRemove }: CartIte
         <Input
           type="number"
           min="1"
-          value={inputValue}
-          onChange={handleInputChange}
-          onBlur={handleInputBlur}
+          value={qtyInput}
+          onChange={(e) => setQtyInput(e.target.value)}
+          onBlur={handleQtyBlur}
           onKeyDown={handleKeyDown}
           className={cn(
             "w-16 h-8 text-center text-sm px-1",
@@ -90,7 +106,7 @@ export function CartItemRow({ item, index, onQuantityChange, onRemove }: CartIte
         />
       </div>
       <div className="text-right w-20">
-         <p className="font-medium text-sm">{formatCurrency(item.total_price)}</p>
+        <p className="font-medium text-sm">{formatCurrency(item.total_price)}</p>
       </div>
       <Button
         variant="ghost"

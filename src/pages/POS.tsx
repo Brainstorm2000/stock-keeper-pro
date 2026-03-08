@@ -191,11 +191,9 @@ export default function POS() {
     if (newQty <= 0) {
       newCart.splice(index, 1);
     } else {
-      // Allow any quantity - just update without blocking
       newCart[index].quantity = newQty;
       newCart[index].total_price = (newQty * newCart[index].unit_price) - newCart[index].discount_amount;
       
-      // Show warning if exceeding stock
       if (newCart[index].item_type === 'product' && 
           newCart[index].max_quantity !== undefined && 
           newQty > newCart[index].max_quantity) {
@@ -207,6 +205,13 @@ export default function POS() {
       }
     }
     
+    setCart(newCart);
+  };
+
+  const updatePrice = (index: number, newPrice: number) => {
+    const newCart = [...cart];
+    newCart[index].unit_price = newPrice;
+    newCart[index].total_price = (newCart[index].quantity * newPrice) - newCart[index].discount_amount;
     setCart(newCart);
   };
 
