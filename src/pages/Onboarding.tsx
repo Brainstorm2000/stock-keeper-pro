@@ -32,10 +32,18 @@ export default function Onboarding() {
   const createOrg = useCreateOrganization();
   const joinOrg = useJoinOrganization();
 
-  // Redirect if already onboarded
+  // Redirect if already onboarded or not a super_super_admin
   if (hasCompletedOnboarding) {
-    navigate('/dashboard');
+    navigate(isSuperSuperAdmin ? '/admin' : '/dashboard');
     return null;
+  }
+
+  // Only super_super_admin can access onboarding to create orgs
+  // Regular users who haven't onboarded yet are an exception - they need to complete onboarding
+  if (isSuperSuperAdmin === false && hasCompletedOnboarding === false) {
+    // Allow - user needs to onboard
+  } else if (isSuperSuperAdmin === false && hasCompletedOnboarding === null) {
+    // Still loading, allow render (loading state will show)
   }
 
   // Super super admins don't use onboarding
