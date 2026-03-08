@@ -55,6 +55,37 @@ function useOrgUserCounts() {
   });
 }
 
+interface OrgSubscription {
+  id: string;
+  organization_id: string;
+  status: string;
+  plan_id: string | null;
+  trial_end_date: string | null;
+  subscription_end_date: string | null;
+}
+
+function useOrgSubscriptions() {
+  return useQuery({
+    queryKey: ['admin-org-subscriptions'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('organization_subscriptions').select('id, organization_id, status, plan_id, trial_end_date, subscription_end_date');
+      if (error) throw error;
+      return data as OrgSubscription[];
+    },
+  });
+}
+
+function usePricingPlansForOrgs() {
+  return useQuery({
+    queryKey: ['admin-pricing-plans-orgs'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pricing_plans').select('id, name');
+      if (error) throw error;
+      return data as { id: string; name: string }[];
+    },
+  });
+}
+
 function useOrgUsers(orgId: string | null) {
   return useQuery({
     queryKey: ['admin-org-users', orgId],
