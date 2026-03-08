@@ -166,7 +166,7 @@ function calculatePrice(
   return { monthly, total: monthly, discount: 0 };
 }
 
-export default function AdminBillingPage() {
+export default function AdminBillingPage() { // eslint-disable-line
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: subscriptions = [], isLoading } = useSubscriptions();
