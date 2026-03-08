@@ -373,7 +373,8 @@ export default function AdminOrganizationsPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
