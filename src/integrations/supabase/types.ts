@@ -394,6 +394,10 @@ export type Database = {
           organization_id: string
           plan_id: string | null
           status: string
+          subscription_end_date: string | null
+          subscription_start_date: string | null
+          trial_end_date: string | null
+          trial_start_date: string | null
           updated_at: string
         }
         Insert: {
@@ -406,6 +410,10 @@ export type Database = {
           organization_id: string
           plan_id?: string | null
           status?: string
+          subscription_end_date?: string | null
+          subscription_start_date?: string | null
+          trial_end_date?: string | null
+          trial_start_date?: string | null
           updated_at?: string
         }
         Update: {
@@ -418,6 +426,10 @@ export type Database = {
           organization_id?: string
           plan_id?: string | null
           status?: string
+          subscription_end_date?: string | null
+          subscription_start_date?: string | null
+          trial_end_date?: string | null
+          trial_start_date?: string | null
           updated_at?: string
         }
         Relationships: [
