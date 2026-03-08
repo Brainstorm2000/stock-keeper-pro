@@ -304,8 +304,8 @@ export default function AdminBillingPage() { // eslint-disable-line
         billing_cycle: formBillingCycle,
         plan_id: formPlanId || null,
         trial_end_date: formTrialEnd ? new Date(formTrialEnd).toISOString() : null,
-        subscription_start_date: formSubStart ? new Date(formSubStart).toISOString() : null,
-        subscription_end_date: formSubEnd ? new Date(formSubEnd).toISOString() : null,
+        subscription_start_date: formStatus === 'lifetime' ? (formSubStart ? new Date(formSubStart).toISOString() : new Date().toISOString()) : (formSubStart ? new Date(formSubStart).toISOString() : null),
+        subscription_end_date: formStatus === 'lifetime' ? null : (formSubEnd ? new Date(formSubEnd).toISOString() : null),
       };
 
       // For new subscriptions with trial status, set trial_start_date
@@ -367,8 +367,8 @@ export default function AdminBillingPage() { // eslint-disable-line
     }
   };
 
-  const totalMRR = subscriptions.filter((s) => s.status === 'active').reduce((sum, s) => sum + s.monthly_price, 0);
-  const activeSubs = subscriptions.filter((s) => s.status === 'active').length;
+  const totalMRR = subscriptions.filter((s) => s.status === 'active' || s.status === 'lifetime').reduce((sum, s) => sum + s.monthly_price, 0);
+  const activeSubs = subscriptions.filter((s) => s.status === 'active' || s.status === 'lifetime').length;
   const trialSubs = subscriptions.filter((s) => s.status === 'trial').length;
   const expiredSubs = subscriptions.filter((s) => s.status === 'expired').length;
 
@@ -461,14 +461,16 @@ export default function AdminBillingPage() { // eslint-disable-line
                     ) : (
                       filteredSubs.map((sub) => {
                         const plan = sub.plan_id ? planMap[sub.plan_id] : null;
+                        const isLifetime = sub.status === 'lifetime';
                         const endDate = sub.status === 'trial' ? sub.trial_end_date : sub.subscription_end_date;
                         let daysLeft: number | null = null;
-                        if (endDate) {
+                        if (!isLifetime && endDate) {
                           try { daysLeft = differenceInDays(new Date(endDate), new Date()); } catch { daysLeft = null; }
                         }
                         const endDateObj = endDate ? new Date(endDate) : null;
                         const endDateStr = endDateObj && !isNaN(endDateObj.getTime()) ? format(endDateObj, 'MMM d, yyyy') : '—';
                         const statusVariant = sub.status === 'active' ? 'default' as const
+                          : sub.status === 'lifetime' ? 'default' as const
                           : sub.status === 'trial' ? 'secondary' as const
                           : 'destructive' as const;
                         return (
@@ -487,7 +489,9 @@ export default function AdminBillingPage() { // eslint-disable-line
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              {daysLeft !== null ? (
+                              {isLifetime ? (
+                                <Badge variant="default" className="text-xs">∞ Lifetime</Badge>
+                              ) : daysLeft !== null ? (
                                 <span className={daysLeft <= 3 ? 'text-destructive font-semibold' : daysLeft <= 7 ? 'text-yellow-600 dark:text-yellow-400 font-medium' : ''}>
                                   {daysLeft <= 0 ? 'Expired' : `${daysLeft}d`}
                                 </span>
@@ -640,6 +644,7 @@ export default function AdminBillingPage() { // eslint-disable-line
                 <SelectContent>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="lifetime">Lifetime</SelectItem>
                   <SelectItem value="expired">Expired</SelectItem>
                   <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
@@ -647,22 +652,29 @@ export default function AdminBillingPage() { // eslint-disable-line
             </div>
 
             {/* Date Fields */}
+            {formStatus === 'lifetime' && (
+              <p className="text-sm text-muted-foreground bg-muted/50 rounded-md p-3">
+                ∞ Lifetime subscriptions never expire. No end date is needed.
+              </p>
+            )}
             {formStatus === 'trial' && (
               <div className="space-y-2">
                 <Label>Trial End Date</Label>
                 <Input type="date" value={formTrialEnd} onChange={(e) => setFormTrialEnd(e.target.value)} />
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Subscription Start</Label>
-                <Input type="date" value={formSubStart} onChange={(e) => setFormSubStart(e.target.value)} />
+            {formStatus !== 'lifetime' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Subscription Start</Label>
+                  <Input type="date" value={formSubStart} onChange={(e) => setFormSubStart(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Subscription End</Label>
+                  <Input type="date" value={formSubEnd} onChange={(e) => setFormSubEnd(e.target.value)} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Subscription End</Label>
-                <Input type="date" value={formSubEnd} onChange={(e) => setFormSubEnd(e.target.value)} />
-              </div>
-            </div>
+            )}
 
             {enabledModules.length > 0 && (
               <div className="space-y-2">

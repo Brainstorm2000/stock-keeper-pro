@@ -69,6 +69,7 @@ export default function SubscriptionPage() {
   };
 
   const statusVariant = sub?.status === 'active' ? 'default' as const
+    : sub?.status === 'lifetime' ? 'default' as const
     : sub?.status === 'trial' ? 'secondary' as const
     : 'destructive' as const;
 
@@ -118,8 +119,8 @@ export default function SubscriptionPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${daysLeft !== null && daysLeft <= 3 ? 'text-destructive' : daysLeft !== null && daysLeft <= 7 ? 'text-yellow-600 dark:text-yellow-400' : ''}`}>
-                {daysLeft !== null ? (daysLeft <= 0 ? 'Expired' : `${daysLeft} days`) : '—'}
+              <div className={`text-2xl font-bold ${sub?.status === 'lifetime' ? 'text-primary' : daysLeft !== null && daysLeft <= 3 ? 'text-destructive' : daysLeft !== null && daysLeft <= 7 ? 'text-yellow-600 dark:text-yellow-400' : ''}`}>
+                {sub?.status === 'lifetime' ? '∞ Lifetime' : daysLeft !== null ? (daysLeft <= 0 ? 'Expired' : `${daysLeft} days`) : '—'}
               </div>
             </CardContent>
           </Card>
