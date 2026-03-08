@@ -29,7 +29,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <SidebarTrigger />
           </header>
 
-          <main className="flex-1 p-4 md:p-6">
+          <main className="flex-1 p-4 md:p-6 space-y-4">
             <SubscriptionBanner />
             {children}
           </main>
