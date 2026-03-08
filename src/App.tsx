@@ -13,6 +13,7 @@ import Sales from "./pages/Sales";
 import Purchases from "./pages/Purchases";
 import Expenses from "./pages/Expenses";
 import Production from "./pages/Production";
+import Reports from "./pages/Reports";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/purchases" element={<Purchases />} />
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/production" element={<Production />} />
+              <Route path="/reports" element={<Reports />} />
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/admin-login" element={<AdminLogin />} />
               <Route path="/admin" element={<AdminDashboard />} />
