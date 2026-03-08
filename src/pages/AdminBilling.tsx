@@ -196,6 +196,7 @@ export default function AdminBillingPage() { // eslint-disable-line
   const { data: pricingModules = [] } = usePricingModules();
   const { data: plans = [] } = usePricingPlans();
   const { data: organizations = [] } = useOrganizations();
+  const { data: orgCounts } = useOrgCounts();
 
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
