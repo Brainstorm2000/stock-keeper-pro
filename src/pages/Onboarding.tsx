@@ -76,8 +76,6 @@ export default function Onboarding() {
       toast({ title: 'Admin password must be at least 6 characters', variant: 'destructive' });
       return;
     }
-      return;
-    }
 
     setIsLoading(true);
     try {
