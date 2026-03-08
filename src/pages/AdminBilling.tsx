@@ -229,9 +229,13 @@ export default function AdminBillingPage() {
     setFormPlanId(activePlans[0]?.id || '');
     setFormUsers(1);
     setFormBranches(1);
-    setFormStatus('active');
+    setFormStatus('trial');
     setFormBillingCycle('monthly');
     setFormModuleIds([]);
+    const now = new Date();
+    setFormTrialEnd(format(addDays(now, 14), 'yyyy-MM-dd'));
+    setFormSubStart('');
+    setFormSubEnd('');
     setDialogOpen(true);
   };
 
