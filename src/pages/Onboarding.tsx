@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,37 +28,27 @@ export default function Onboarding() {
 
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, refreshProfile, hasCompletedOnboarding, isSuperSuperAdmin } = useAuth();
+  const { user, loading, refreshProfile, hasCompletedOnboarding, isSuperSuperAdmin } = useAuth();
   const createOrg = useCreateOrganization();
   const joinOrg = useJoinOrganization();
 
+  // Wait for auth to load before making routing decisions
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Not logged in
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
   // Only super_super_admin can access onboarding
-  if (!user) {
-    navigate('/auth');
-    return null;
-  }
-
-  if (isSuperSuperAdmin === false) {
-    navigate(hasCompletedOnboarding ? '/dashboard' : '/auth');
-    return null;
-  }
-
-  // Redirect if already onboarded
-  if (hasCompletedOnboarding && !isSuperSuperAdmin) {
-    navigate('/dashboard');
-    return null;
-  }
-
-  // Super super admins don't use onboarding
-  if (isSuperSuperAdmin) {
-    navigate('/admin');
-    return null;
-  }
-
-  // Redirect if not logged in
-  if (!user) {
-    navigate('/auth');
-    return null;
+  if (!isSuperSuperAdmin) {
+    return <Navigate to={hasCompletedOnboarding ? '/dashboard' : '/auth'} replace />;
   }
 
   const generateSlug = (name: string) => {
