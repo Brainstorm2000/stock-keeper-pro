@@ -304,8 +304,8 @@ export default function AdminBillingPage() { // eslint-disable-line
         billing_cycle: formBillingCycle,
         plan_id: formPlanId || null,
         trial_end_date: formTrialEnd ? new Date(formTrialEnd).toISOString() : null,
-        subscription_start_date: formSubStart ? new Date(formSubStart).toISOString() : null,
-        subscription_end_date: formSubEnd ? new Date(formSubEnd).toISOString() : null,
+        subscription_start_date: formStatus === 'lifetime' ? (formSubStart ? new Date(formSubStart).toISOString() : new Date().toISOString()) : (formSubStart ? new Date(formSubStart).toISOString() : null),
+        subscription_end_date: formStatus === 'lifetime' ? null : (formSubEnd ? new Date(formSubEnd).toISOString() : null),
       };
 
       // For new subscriptions with trial status, set trial_start_date
