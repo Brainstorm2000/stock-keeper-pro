@@ -9,6 +9,7 @@ interface AuthContextType {
   session: Session | null;
   role: AppRole | null;
   organizationId: string | null;
+  isOrgDisabled: boolean;
   hasCompletedOnboarding: boolean | null;
   isAdmin: boolean;
   isSuperAdmin: boolean;
