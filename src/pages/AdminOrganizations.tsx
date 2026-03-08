@@ -140,6 +140,9 @@ export default function AdminOrganizationsPage() {
       org.slug.toLowerCase().includes(search.toLowerCase())
   );
 
+  const subMap = Object.fromEntries(orgSubscriptions.map((s) => [s.organization_id, s]));
+  const planMap = Object.fromEntries(pricingPlans.map((p) => [p.id, p.name]));
+
   const openCreate = () => {
     setEditingOrg(null);
     setFormName('');
