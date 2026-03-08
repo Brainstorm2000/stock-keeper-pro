@@ -6,7 +6,7 @@ export interface UserWithRole {
   user_id: string;
   email: string | null;
   full_name: string | null;
-  role: 'admin' | 'user' | 'super_admin';
+  role: 'admin' | 'user' | 'super_admin' | 'super_super_admin';
   created_at: string;
 }
 
