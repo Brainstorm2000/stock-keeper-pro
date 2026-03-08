@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminLayout } from '@/components/layout/AdminLayout';
@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -15,8 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/currency';
-import { format } from 'date-fns';
-import { Search, Pencil, Loader2, DollarSign, Building2, Activity, CreditCard } from 'lucide-react';
+import { Search, Pencil, Loader2, DollarSign, Building2, Activity, CreditCard, Calendar } from 'lucide-react';
 
 interface Organization {
   id: string;
@@ -31,6 +29,7 @@ interface PricingConfig {
   price_per_extra_user: number;
   base_branches_included: number;
   price_per_extra_branch: number;
+  yearly_discount_percent: number;
 }
 
 interface PricingModule {
@@ -40,6 +39,15 @@ interface PricingModule {
   is_enabled: boolean;
 }
 
+interface PricingPlan {
+  id: string;
+  name: string;
+  max_users: number;
+  max_branches: number;
+  base_price: number;
+  is_active: boolean;
+}
+
 interface Subscription {
   id: string;
   organization_id: string;
@@ -47,6 +55,8 @@ interface Subscription {
   number_of_branches: number;
   monthly_price: number;
   status: string;
+  billing_cycle: string;
+  plan_id: string | null;
   created_at: string;
 }
 
@@ -100,6 +110,17 @@ function usePricingModules() {
   });
 }
 
+function usePricingPlans() {
+  return useQuery({
+    queryKey: ['pricing-plans'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pricing_plans').select('*').order('sort_order');
+      if (error) throw error;
+      return data as PricingPlan[];
+    },
+  });
+}
+
 function useOrganizations() {
   return useQuery({
     queryKey: ['admin-all-organizations'],
@@ -113,15 +134,31 @@ function useOrganizations() {
 
 function calculatePrice(
   config: PricingConfig | undefined,
+  plan: PricingPlan | undefined,
   numUsers: number,
   numBranches: number,
-  selectedModules: PricingModule[]
-): number {
-  if (!config) return 0;
-  const extraUsers = Math.max(0, numUsers - config.base_users_included);
-  const extraBranches = Math.max(0, numBranches - config.base_branches_included);
+  selectedModules: PricingModule[],
+  billingCycle: string
+): { monthly: number; total: number; discount: number } {
+  if (!config) return { monthly: 0, total: 0, discount: 0 };
+
+  const basePlanPrice = plan ? plan.base_price : config.base_plan_price;
+  const baseUsersIncluded = config.base_users_included;
+  const baseBranchesIncluded = config.base_branches_included;
+
+  const extraUsers = Math.max(0, numUsers - baseUsersIncluded);
+  const extraBranches = Math.max(0, numBranches - baseBranchesIncluded);
   const modulesTotal = selectedModules.reduce((sum, m) => sum + m.monthly_price, 0);
-  return config.base_plan_price + extraUsers * config.price_per_extra_user + extraBranches * config.price_per_extra_branch + modulesTotal;
+  const monthly = basePlanPrice + extraUsers * config.price_per_extra_user + extraBranches * config.price_per_extra_branch + modulesTotal;
+
+  if (billingCycle === 'yearly') {
+    const yearlyFull = monthly * 12;
+    const discount = yearlyFull * (config.yearly_discount_percent / 100);
+    const total = yearlyFull - discount;
+    return { monthly, total, discount };
+  }
+
+  return { monthly, total: monthly, discount: 0 };
 }
 
 export default function AdminBillingPage() {
@@ -131,6 +168,7 @@ export default function AdminBillingPage() {
   const { data: subModules = [] } = useSubscriptionModules();
   const { data: config } = usePricingConfig();
   const { data: pricingModules = [] } = usePricingModules();
+  const { data: plans = [] } = usePricingPlans();
   const { data: organizations = [] } = useOrganizations();
 
   const [search, setSearch] = useState('');
@@ -140,18 +178,26 @@ export default function AdminBillingPage() {
 
   // Form
   const [formOrgId, setFormOrgId] = useState('');
+  const [formPlanId, setFormPlanId] = useState<string>('');
   const [formUsers, setFormUsers] = useState(1);
   const [formBranches, setFormBranches] = useState(1);
   const [formStatus, setFormStatus] = useState('active');
+  const [formBillingCycle, setFormBillingCycle] = useState('monthly');
   const [formModuleIds, setFormModuleIds] = useState<string[]>([]);
 
   const orgMap = Object.fromEntries(organizations.map((o) => [o.id, o.name]));
+  const planMap = Object.fromEntries(plans.map((p) => [p.id, p]));
   const enabledModules = pricingModules.filter((m) => m.is_enabled);
+  const activePlans = plans.filter((p) => p.is_active);
 
+  const selectedPlan = formPlanId ? planMap[formPlanId] : undefined;
   const selectedModulesForCalc = enabledModules.filter((m) => formModuleIds.includes(m.id));
-  const calculatedPrice = calculatePrice(config, formUsers, formBranches, selectedModulesForCalc);
+  const priceCalc = calculatePrice(config, selectedPlan, formUsers, formBranches, selectedModulesForCalc, formBillingCycle);
 
-  // Orgs that don't have a subscription yet
+  // Enforce plan limits
+  const maxUsers = selectedPlan ? selectedPlan.max_users : Infinity;
+  const maxBranches = selectedPlan ? selectedPlan.max_branches : Infinity;
+
   const orgsWithSub = new Set(subscriptions.map((s) => s.organization_id));
   const availableOrgs = organizations.filter((o) => !orgsWithSub.has(o.id));
 
@@ -160,12 +206,23 @@ export default function AdminBillingPage() {
     return orgName.toLowerCase().includes(search.toLowerCase());
   });
 
+  const handlePlanChange = (planId: string) => {
+    setFormPlanId(planId);
+    const plan = planMap[planId];
+    if (plan) {
+      if (formUsers > plan.max_users) setFormUsers(plan.max_users);
+      if (formBranches > plan.max_branches) setFormBranches(plan.max_branches);
+    }
+  };
+
   const openCreate = () => {
     setEditingSub(null);
     setFormOrgId(availableOrgs[0]?.id || '');
+    setFormPlanId(activePlans[0]?.id || '');
     setFormUsers(1);
     setFormBranches(1);
     setFormStatus('active');
+    setFormBillingCycle('monthly');
     setFormModuleIds([]);
     setDialogOpen(true);
   };
@@ -173,27 +230,47 @@ export default function AdminBillingPage() {
   const openEdit = (sub: Subscription) => {
     setEditingSub(sub);
     setFormOrgId(sub.organization_id);
+    setFormPlanId(sub.plan_id || '');
     setFormUsers(sub.number_of_users);
     setFormBranches(sub.number_of_branches);
     setFormStatus(sub.status);
+    setFormBillingCycle(sub.billing_cycle || 'monthly');
     const moduleIds = subModules.filter((sm) => sm.subscription_id === sub.id).map((sm) => sm.pricing_module_id);
     setFormModuleIds(moduleIds);
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
+    // Validate plan limits
+    if (selectedPlan) {
+      if (formUsers > selectedPlan.max_users) {
+        toast({ title: `This plan allows max ${selectedPlan.max_users} users`, variant: 'destructive' });
+        return;
+      }
+      if (formBranches > selectedPlan.max_branches) {
+        toast({ title: `This plan allows max ${selectedPlan.max_branches} branches`, variant: 'destructive' });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      const price = calculatePrice(config, formUsers, formBranches, enabledModules.filter((m) => formModuleIds.includes(m.id)));
+      const selMods = enabledModules.filter((m) => formModuleIds.includes(m.id));
+      const { monthly } = calculatePrice(config, selectedPlan, formUsers, formBranches, selMods, formBillingCycle);
+
+      const payload = {
+        number_of_users: formUsers,
+        number_of_branches: formBranches,
+        monthly_price: monthly,
+        status: formStatus,
+        billing_cycle: formBillingCycle,
+        plan_id: formPlanId || null,
+      };
 
       if (editingSub) {
-        const { error } = await supabase
-          .from('organization_subscriptions')
-          .update({ number_of_users: formUsers, number_of_branches: formBranches, monthly_price: price, status: formStatus })
-          .eq('id', editingSub.id);
+        const { error } = await supabase.from('organization_subscriptions').update(payload).eq('id', editingSub.id);
         if (error) throw error;
 
-        // Update modules: delete existing, insert new
         await supabase.from('subscription_modules').delete().eq('subscription_id', editingSub.id);
         if (formModuleIds.length > 0) {
           const { error: modErr } = await supabase.from('subscription_modules').insert(
@@ -210,7 +287,7 @@ export default function AdminBillingPage() {
         }
         const { data: newSub, error } = await supabase
           .from('organization_subscriptions')
-          .insert({ organization_id: formOrgId, number_of_users: formUsers, number_of_branches: formBranches, monthly_price: price, status: formStatus })
+          .insert({ organization_id: formOrgId, ...payload })
           .select()
           .single();
         if (error) throw error;
@@ -311,6 +388,8 @@ export default function AdminBillingPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Organization</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Billing</TableHead>
                       <TableHead>Users</TableHead>
                       <TableHead>Branches</TableHead>
                       <TableHead>Modules</TableHead>
@@ -322,16 +401,29 @@ export default function AdminBillingPage() {
                   <TableBody>
                     {filteredSubs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">No subscriptions found</TableCell>
+                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">No subscriptions found</TableCell>
                       </TableRow>
                     ) : (
                       filteredSubs.map((sub) => {
                         const modNames = getSubModuleNames(sub.id);
+                        const plan = sub.plan_id ? planMap[sub.plan_id] : null;
                         return (
                           <TableRow key={sub.id}>
                             <TableCell className="font-medium">{orgMap[sub.organization_id] || sub.organization_id.slice(0, 8)}</TableCell>
-                            <TableCell>{sub.number_of_users}</TableCell>
-                            <TableCell>{sub.number_of_branches}</TableCell>
+                            <TableCell>
+                              {plan ? (
+                                <Badge variant="outline">{plan.name}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">Custom</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={sub.billing_cycle === 'yearly' ? 'default' : 'secondary'} className="text-xs">
+                                {sub.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{sub.number_of_users}{plan ? `/${plan.max_users}` : ''}</TableCell>
+                            <TableCell>{sub.number_of_branches}{plan ? `/${plan.max_branches}` : ''}</TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
                                 {modNames.length === 0 ? (
@@ -352,11 +444,7 @@ export default function AdminBillingPage() {
                                 <Button variant="ghost" size="icon" onClick={() => openEdit(sub)} title="Edit">
                                   <Pencil className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleToggleStatus(sub)}
-                                >
+                                <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(sub)}>
                                   <Badge variant={sub.status === 'active' ? 'secondary' : 'default'} className="cursor-pointer text-xs px-1.5 py-0">
                                     {sub.status === 'active' ? 'Suspend' : 'Activate'}
                                   </Badge>
@@ -377,7 +465,7 @@ export default function AdminBillingPage() {
 
       {/* Create/Edit Subscription Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingSub ? 'Edit Subscription' : 'New Subscription'}</DialogTitle>
           </DialogHeader>
@@ -405,14 +493,79 @@ export default function AdminBillingPage() {
               </div>
             )}
 
+            {/* Plan Selection */}
+            <div className="space-y-2">
+              <Label>Subscription Plan</Label>
+              <Select value={formPlanId} onValueChange={handlePlanChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activePlans.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name} — {formatCurrency(plan.base_price)}/mo (up to {plan.max_users} users, {plan.max_branches} branches)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedPlan && (
+                <p className="text-xs text-muted-foreground">
+                  Limits: max {selectedPlan.max_users} users, max {selectedPlan.max_branches} branches
+                </p>
+              )}
+            </div>
+
+            {/* Billing Cycle */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                Billing Cycle
+              </Label>
+              <Select value={formBillingCycle} onValueChange={setFormBillingCycle}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">
+                    Yearly {config && config.yearly_discount_percent > 0 ? `(${config.yearly_discount_percent}% discount)` : ''}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Number of Users</Label>
-                <Input type="number" min={1} value={formUsers} onChange={(e) => setFormUsers(Number(e.target.value))} />
+                <Input
+                  type="number"
+                  min={1}
+                  max={maxUsers === Infinity ? undefined : maxUsers}
+                  value={formUsers}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setFormUsers(maxUsers !== Infinity ? Math.min(val, maxUsers) : val);
+                  }}
+                />
+                {selectedPlan && (
+                  <p className="text-xs text-muted-foreground">Max: {selectedPlan.max_users}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Number of Branches</Label>
-                <Input type="number" min={1} value={formBranches} onChange={(e) => setFormBranches(Number(e.target.value))} />
+                <Input
+                  type="number"
+                  min={1}
+                  max={maxBranches === Infinity ? undefined : maxBranches}
+                  value={formBranches}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setFormBranches(maxBranches !== Infinity ? Math.min(val, maxBranches) : val);
+                  }}
+                />
+                {selectedPlan && (
+                  <p className="text-xs text-muted-foreground">Max: {selectedPlan.max_branches}</p>
+                )}
               </div>
             </div>
 
@@ -461,8 +614,10 @@ export default function AdminBillingPage() {
               {config && (
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Base Plan</span>
-                    <span>{formatCurrency(config.base_plan_price)}</span>
+                    <span className="text-muted-foreground">
+                      {selectedPlan ? `${selectedPlan.name} Plan` : 'Base Plan'}
+                    </span>
+                    <span>{formatCurrency(selectedPlan ? selectedPlan.base_price : config.base_plan_price)}</span>
                   </div>
                   {formUsers > config.base_users_included && (
                     <div className="flex justify-between">
@@ -487,10 +642,32 @@ export default function AdminBillingPage() {
                     </div>
                   )}
                   <Separator className="my-2" />
-                  <div className="flex justify-between font-bold">
-                    <span>Total Monthly</span>
-                    <span>{formatCurrency(calculatedPrice)}</span>
+                  <div className="flex justify-between font-semibold">
+                    <span>Monthly Total</span>
+                    <span>{formatCurrency(priceCalc.monthly)}</span>
                   </div>
+                  {formBillingCycle === 'yearly' && (
+                    <>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Yearly (12 months)</span>
+                        <span>{formatCurrency(priceCalc.monthly * 12)}</span>
+                      </div>
+                      {priceCalc.discount > 0 && (
+                        <div className="flex justify-between text-green-600 dark:text-green-400">
+                          <span>Yearly Discount ({config.yearly_discount_percent}%)</span>
+                          <span>-{formatCurrency(priceCalc.discount)}</span>
+                        </div>
+                      )}
+                      <Separator className="my-2" />
+                      <div className="flex justify-between font-bold text-base">
+                        <span>Yearly Total</span>
+                        <span>{formatCurrency(priceCalc.total)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Effective monthly: {formatCurrency(priceCalc.total / 12)}
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
