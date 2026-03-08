@@ -784,6 +784,7 @@ export default function POS() {
         payments={paymentSplits}
         onPaymentsChange={setPaymentSplits}
         onConfirm={handleSplitPaymentConfirm}
+        isLoading={createSale.isPending}
       />
 
       {/* Held Orders Dialog */}
