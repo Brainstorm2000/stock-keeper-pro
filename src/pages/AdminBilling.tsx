@@ -137,6 +137,27 @@ function useOrganizations() {
   });
 }
 
+function useOrgCounts() {
+  return useQuery({
+    queryKey: ['admin-org-counts'],
+    queryFn: async () => {
+      const [{ data: profiles }, { data: branches }] = await Promise.all([
+        supabase.from('profiles').select('organization_id'),
+        supabase.from('branches').select('organization_id'),
+      ]);
+      const userCounts: Record<string, number> = {};
+      const branchCounts: Record<string, number> = {};
+      (profiles || []).forEach((p: any) => {
+        if (p.organization_id) userCounts[p.organization_id] = (userCounts[p.organization_id] || 0) + 1;
+      });
+      (branches || []).forEach((b: any) => {
+        if (b.organization_id) branchCounts[b.organization_id] = (branchCounts[b.organization_id] || 0) + 1;
+      });
+      return { userCounts, branchCounts };
+    },
+  });
+}
+
 function calculatePrice(
   config: PricingConfig | undefined,
   plan: PricingPlan | undefined,
@@ -175,6 +196,7 @@ export default function AdminBillingPage() { // eslint-disable-line
   const { data: pricingModules = [] } = usePricingModules();
   const { data: plans = [] } = usePricingPlans();
   const { data: organizations = [] } = useOrganizations();
+  const { data: orgCounts } = useOrgCounts();
 
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -473,8 +495,8 @@ export default function AdminBillingPage() { // eslint-disable-line
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </TableCell>
-                            <TableCell>{sub.number_of_users}{plan ? `/${plan.max_users}` : ''}</TableCell>
-                            <TableCell>{sub.number_of_branches}{plan ? `/${plan.max_branches}` : ''}</TableCell>
+                            <TableCell>{orgCounts?.userCounts[sub.organization_id] ?? 0}/{sub.number_of_users}{plan ? ` (max ${plan.max_users})` : ''}</TableCell>
+                            <TableCell>{orgCounts?.branchCounts[sub.organization_id] ?? 0}/{sub.number_of_branches}{plan ? ` (max ${plan.max_branches})` : ''}</TableCell>
                             <TableCell className="font-medium">{formatCurrency(sub.monthly_price)}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {endDateStr}

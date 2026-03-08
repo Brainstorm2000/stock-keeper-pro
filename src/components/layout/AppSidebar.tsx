@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus, Lock, Loader2, Factory } from 'lucide-react';
+import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus, Lock, Loader2, Factory, CreditCard } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
@@ -129,6 +129,14 @@ export function AppSidebar({ onOpenProfile, onOpenOrgSettings, onOpenPermissions
                   <SidebarMenuButton onClick={onOpenPermissions}>
                     <Lock className="h-4 w-4" />
                     <span>Permissions</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location.pathname === '/subscription'}>
+                    <NavLink to="/subscription" end>
+                      <CreditCard className="h-4 w-4" />
+                      <span>Subscription</span>
+                    </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

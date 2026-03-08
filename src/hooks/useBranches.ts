@@ -88,7 +88,24 @@ export function useCreateBranch() {
   return useMutation({
     mutationFn: async (branch: BranchInput) => {
       if (!organizationId) throw new Error('No organization found');
-      
+
+      // Check subscription branch limit
+      const [{ data: sub }, { count: branchCount }] = await Promise.all([
+        supabase
+          .from('organization_subscriptions')
+          .select('number_of_branches')
+          .eq('organization_id', organizationId)
+          .maybeSingle(),
+        supabase
+          .from('branches')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', organizationId),
+      ]);
+
+      if (sub && branchCount !== null && branchCount >= sub.number_of_branches) {
+        throw new Error('You have reached the maximum number of branches allowed by your subscription plan.');
+      }
+
       const { data, error } = await supabase
         .from('branches')
         .insert({
@@ -99,7 +116,12 @@ export function useCreateBranch() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505' && error.message?.includes('idx_branches_unique_name_per_org')) {
+          throw new Error('A branch with this name already exists in this organization.');
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
@@ -126,7 +148,12 @@ export function useUpdateBranch() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505' && error.message?.includes('idx_branches_unique_name_per_org')) {
+          throw new Error('A branch with this name already exists in this organization.');
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
