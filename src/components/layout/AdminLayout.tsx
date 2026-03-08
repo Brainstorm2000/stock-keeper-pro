@@ -37,7 +37,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-64 border-r bg-sidebar-background text-sidebar-foreground flex flex-col shrink-0 sticky top-0 h-screen">
+      <aside className="w-64 border-r bg-sidebar text-sidebar-foreground flex flex-col shrink-0 sticky top-0 h-screen">
         <div className="p-4 flex items-center gap-3 border-b border-sidebar-border">
           <div className="h-8 w-8 rounded-lg bg-destructive flex items-center justify-center">
             <ShieldAlert className="h-5 w-5 text-destructive-foreground" />
