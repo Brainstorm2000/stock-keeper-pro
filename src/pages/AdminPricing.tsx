@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/currency';
-import { Loader2, Save, Plus, Pencil, Trash2, DollarSign, Users, GitBranch, Package } from 'lucide-react';
+import { Loader2, Save, Plus, Pencil, Trash2, DollarSign, Users, GitBranch, Package, Percent, Crown } from 'lucide-react';
 
 interface PricingConfig {
   id: string;
@@ -23,6 +23,7 @@ interface PricingConfig {
   price_per_extra_user: number;
   base_branches_included: number;
   price_per_extra_branch: number;
+  yearly_discount_percent: number;
 }
 
 interface PricingModule {
@@ -31,6 +32,17 @@ interface PricingModule {
   description: string | null;
   monthly_price: number;
   is_enabled: boolean;
+}
+
+interface PricingPlan {
+  id: string;
+  name: string;
+  description: string | null;
+  max_users: number;
+  max_branches: number;
+  base_price: number;
+  is_active: boolean;
+  sort_order: number;
 }
 
 function usePricingConfig() {
@@ -55,19 +67,34 @@ function usePricingModules() {
   });
 }
 
+function usePricingPlans() {
+  return useQuery({
+    queryKey: ['pricing-plans'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('pricing_plans').select('*').order('sort_order');
+      if (error) throw error;
+      return data as PricingPlan[];
+    },
+  });
+}
+
 export default function AdminPricingPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: config, isLoading: configLoading } = usePricingConfig();
   const { data: modules = [], isLoading: modulesLoading } = usePricingModules();
+  const { data: plans = [], isLoading: plansLoading } = usePricingPlans();
 
+  // Config state
   const [basePlanPrice, setBasePlanPrice] = useState(0);
   const [baseUsers, setBaseUsers] = useState(1);
   const [pricePerUser, setPricePerUser] = useState(0);
   const [baseBranches, setBaseBranches] = useState(1);
   const [pricePerBranch, setPricePerBranch] = useState(0);
+  const [yearlyDiscount, setYearlyDiscount] = useState(0);
   const [savingConfig, setSavingConfig] = useState(false);
 
+  // Module dialog
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<PricingModule | null>(null);
   const [deleteModuleId, setDeleteModuleId] = useState<string | null>(null);
@@ -77,6 +104,19 @@ export default function AdminPricingPage() {
   const [modEnabled, setModEnabled] = useState(true);
   const [savingModule, setSavingModule] = useState(false);
 
+  // Plan dialog
+  const [planDialogOpen, setPlanDialogOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<PricingPlan | null>(null);
+  const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
+  const [planName, setPlanName] = useState('');
+  const [planDesc, setPlanDesc] = useState('');
+  const [planMaxUsers, setPlanMaxUsers] = useState(1);
+  const [planMaxBranches, setPlanMaxBranches] = useState(1);
+  const [planBasePrice, setPlanBasePrice] = useState(0);
+  const [planActive, setPlanActive] = useState(true);
+  const [planSortOrder, setPlanSortOrder] = useState(0);
+  const [savingPlan, setSavingPlan] = useState(false);
+
   useEffect(() => {
     if (config) {
       setBasePlanPrice(config.base_plan_price);
@@ -84,6 +124,7 @@ export default function AdminPricingPage() {
       setPricePerUser(config.price_per_extra_user);
       setBaseBranches(config.base_branches_included);
       setPricePerBranch(config.price_per_extra_branch);
+      setYearlyDiscount(config.yearly_discount_percent);
     }
   }, [config]);
 
@@ -99,6 +140,7 @@ export default function AdminPricingPage() {
           price_per_extra_user: pricePerUser,
           base_branches_included: baseBranches,
           price_per_extra_branch: pricePerBranch,
+          yearly_discount_percent: yearlyDiscount,
         })
         .eq('id', config.id);
       if (error) throw error;
@@ -111,6 +153,7 @@ export default function AdminPricingPage() {
     }
   };
 
+  // Module handlers
   const openCreateModule = () => {
     setEditingModule(null);
     setModName('');
@@ -184,7 +227,80 @@ export default function AdminPricingPage() {
     }
   };
 
-  if (configLoading || modulesLoading) {
+  // Plan handlers
+  const openCreatePlan = () => {
+    setEditingPlan(null);
+    setPlanName('');
+    setPlanDesc('');
+    setPlanMaxUsers(1);
+    setPlanMaxBranches(1);
+    setPlanBasePrice(0);
+    setPlanActive(true);
+    setPlanSortOrder(plans.length);
+    setPlanDialogOpen(true);
+  };
+
+  const openEditPlan = (plan: PricingPlan) => {
+    setEditingPlan(plan);
+    setPlanName(plan.name);
+    setPlanDesc(plan.description || '');
+    setPlanMaxUsers(plan.max_users);
+    setPlanMaxBranches(plan.max_branches);
+    setPlanBasePrice(plan.base_price);
+    setPlanActive(plan.is_active);
+    setPlanSortOrder(plan.sort_order);
+    setPlanDialogOpen(true);
+  };
+
+  const handleSavePlan = async () => {
+    if (!planName.trim()) {
+      toast({ title: 'Plan name is required', variant: 'destructive' });
+      return;
+    }
+    setSavingPlan(true);
+    try {
+      const payload = {
+        name: planName,
+        description: planDesc || null,
+        max_users: planMaxUsers,
+        max_branches: planMaxBranches,
+        base_price: planBasePrice,
+        is_active: planActive,
+        sort_order: planSortOrder,
+      };
+      if (editingPlan) {
+        const { error } = await supabase.from('pricing_plans').update(payload).eq('id', editingPlan.id);
+        if (error) throw error;
+        toast({ title: 'Plan updated' });
+      } else {
+        const { error } = await supabase.from('pricing_plans').insert(payload);
+        if (error) throw error;
+        toast({ title: 'Plan created' });
+      }
+      queryClient.invalidateQueries({ queryKey: ['pricing-plans'] });
+      setPlanDialogOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleDeletePlan = async () => {
+    if (!deletePlanId) return;
+    try {
+      const { error } = await supabase.from('pricing_plans').delete().eq('id', deletePlanId);
+      if (error) throw error;
+      toast({ title: 'Plan deleted' });
+      queryClient.invalidateQueries({ queryKey: ['pricing-plans'] });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setDeletePlanId(null);
+    }
+  };
+
+  if (configLoading || modulesLoading || plansLoading) {
     return (
       <AdminLayout>
         <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
@@ -197,7 +313,7 @@ export default function AdminPricingPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pricing Configuration</h1>
-          <p className="text-muted-foreground">Configure subscription pricing for users, branches, and modules</p>
+          <p className="text-muted-foreground">Configure subscription plans, pricing, and modules</p>
         </div>
 
         {/* Base Plan Pricing */}
@@ -205,15 +321,25 @@ export default function AdminPricingPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
-              Base Plan Pricing
+              Base Pricing & Yearly Discount
             </CardTitle>
-            <CardDescription>Set the base price and included resources for all subscriptions</CardDescription>
+            <CardDescription>Set the base price, per-resource pricing, and yearly subscription discount</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label>Base Plan Price (Monthly)</Label>
                 <Input type="number" min={0} step={0.01} value={basePlanPrice} onChange={(e) => setBasePlanPrice(Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1">
+                  <Percent className="h-3.5 w-3.5" />
+                  Yearly Discount (%)
+                </Label>
+                <Input type="number" min={0} max={100} step={1} value={yearlyDiscount} onChange={(e) => setYearlyDiscount(Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground">
+                  Discount applied when billing yearly. E.g. 20% = pay for ~9.6 months instead of 12.
+                </p>
               </div>
             </div>
 
@@ -253,6 +379,73 @@ export default function AdminPricingPage() {
               {savingConfig ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               Save Pricing Config
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Subscription Plans */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5" />
+                  Subscription Plans
+                </CardTitle>
+                <CardDescription>Define plan tiers with user and branch limits</CardDescription>
+              </div>
+              <Button onClick={openCreatePlan}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Plan
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Max Users</TableHead>
+                  <TableHead>Max Branches</TableHead>
+                  <TableHead>Base Price</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {plans.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No plans configured. Create your first plan.</TableCell>
+                  </TableRow>
+                ) : (
+                  plans.map((plan) => (
+                    <TableRow key={plan.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{plan.name}</p>
+                          {plan.description && <p className="text-xs text-muted-foreground">{plan.description}</p>}
+                        </div>
+                      </TableCell>
+                      <TableCell>{plan.max_users}</TableCell>
+                      <TableCell>{plan.max_branches}</TableCell>
+                      <TableCell>{formatCurrency(plan.base_price)}/mo</TableCell>
+                      <TableCell>
+                        <Badge variant={plan.is_active ? 'default' : 'secondary'}>
+                          {plan.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEditPlan(plan)}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeletePlanId(plan.id)} className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
 
@@ -323,6 +516,56 @@ export default function AdminPricingPage() {
         </Card>
       </div>
 
+      {/* Plan Create/Edit Dialog */}
+      <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingPlan ? 'Edit Plan' : 'Create Plan'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Plan Name</Label>
+              <Input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="e.g. Starter, Professional, Enterprise" />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea value={planDesc} onChange={(e) => setPlanDesc(e.target.value)} rows={2} placeholder="Optional description" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Max Users</Label>
+                <Input type="number" min={1} value={planMaxUsers} onChange={(e) => setPlanMaxUsers(Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Max Branches</Label>
+                <Input type="number" min={1} value={planMaxBranches} onChange={(e) => setPlanMaxBranches(Number(e.target.value))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Base Price (Monthly)</Label>
+                <Input type="number" min={0} step={0.01} value={planBasePrice} onChange={(e) => setPlanBasePrice(Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Sort Order</Label>
+                <Input type="number" min={0} value={planSortOrder} onChange={(e) => setPlanSortOrder(Number(e.target.value))} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <Label>Active</Label>
+              <Switch checked={planActive} onCheckedChange={setPlanActive} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPlanDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSavePlan} disabled={savingPlan}>
+              {savingPlan && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {editingPlan ? 'Save Changes' : 'Create Plan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Module Create/Edit Dialog */}
       <Dialog open={moduleDialogOpen} onOpenChange={setModuleDialogOpen}>
         <DialogContent>
@@ -356,6 +599,20 @@ export default function AdminPricingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Plan Confirmation */}
+      <AlertDialog open={!!deletePlanId} onOpenChange={() => setDeletePlanId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Plan</AlertDialogTitle>
+            <AlertDialogDescription>This will remove this plan. Organizations currently on this plan will need to be reassigned.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePlan} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Module Confirmation */}
       <AlertDialog open={!!deleteModuleId} onOpenChange={() => setDeleteModuleId(null)}>
