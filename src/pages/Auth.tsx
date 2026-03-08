@@ -29,13 +29,13 @@ export default function Auth() {
     if (user) {
       if (isSuperSuperAdmin) {
         navigate('/admin');
+      } else if (isOrgDisabled) {
+        // Stay on auth page - show disabled message
       } else if (hasCompletedOnboarding) {
         navigate('/dashboard');
       }
-      // If hasCompletedOnboarding is false, user stays on /auth
-      // (onboarding is only for super_super_admins)
     }
-  }, [user, hasCompletedOnboarding, isSuperSuperAdmin, navigate]);
+  }, [user, hasCompletedOnboarding, isSuperSuperAdmin, isOrgDisabled, navigate]);
 
   const validateForm = () => {
     try {

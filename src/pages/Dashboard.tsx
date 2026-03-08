@@ -35,7 +35,7 @@ export default function Dashboard() {
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
   
-  const { user, loading: authLoading, isAdmin, isSuperAdmin, isSuperSuperAdmin, hasCompletedOnboarding } = useAuth();
+  const { user, loading: authLoading, isAdmin, isSuperAdmin, isSuperSuperAdmin, hasCompletedOnboarding, isOrgDisabled } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: branches = [] } = useBranches();
   const { data: myBranchAssignments = [] } = useMyBranchAssignments();
