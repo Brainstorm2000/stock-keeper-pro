@@ -94,27 +94,10 @@ export function parseDbError(error: Error, context: string): ParsedError {
   
   // Row-level security policy violations
   if (message.includes('row-level security') || message.includes('rls')) {
-    if (message.includes('insert')) {
-      return {
-        title: 'Permission denied',
-        description: 'You do not have permission to create this item. Please contact your administrator.',
-      };
-    }
-    if (message.includes('update')) {
-      return {
-        title: 'Permission denied',
-        description: 'You do not have permission to update this item. Please contact your administrator.',
-      };
-    }
-    if (message.includes('delete')) {
-      return {
-        title: 'Permission denied',
-        description: 'You do not have permission to delete this item. Please contact your administrator.',
-      };
-    }
     return {
-      title: 'Access denied',
-      description: 'You do not have permission to perform this action. Please contact your administrator.',
+      title: 'Subscription Expired',
+      description:
+        "Your organization's subscription has expired. Please contact the developer to renew your subscription in order to continue using the system.",
     };
   }
   
