@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/currency';
-import { Search, Pencil, Loader2, DollarSign, Building2, Activity, CreditCard, Calendar } from 'lucide-react';
+import { Search, Pencil, Loader2, DollarSign, Building2, Activity, CreditCard, Calendar, AlertTriangle } from 'lucide-react';
+import { format, differenceInDays, addDays } from 'date-fns';
 
 interface Organization {
   id: string;
