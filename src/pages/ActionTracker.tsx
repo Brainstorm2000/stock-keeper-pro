@@ -32,6 +32,7 @@ function ActionTrackerContent() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [commentsTask, setCommentsTask] = useState<{ id: string; title: string } | null>(null);
 
   const { data: tasks = [], isLoading } = useActionTasks();
   const updateTask = useUpdateActionTask();
