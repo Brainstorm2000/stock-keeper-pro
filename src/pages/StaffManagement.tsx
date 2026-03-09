@@ -106,6 +106,7 @@ function StaffContent() {
                 <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
               </label>
               <Button variant="outline" onClick={handleExportCSV}><Download className="mr-2 h-4 w-4" />Export CSV</Button>
+              <Button variant="outline" onClick={() => setBulkExportOpen(true)}><CreditCard className="mr-2 h-4 w-4" />ID Cards</Button>
               <Button onClick={() => setDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Add Staff</Button>
             </div>
           )}
