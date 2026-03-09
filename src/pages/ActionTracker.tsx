@@ -157,6 +157,9 @@ function ActionTrackerContent() {
                         <Button variant="ghost" size="sm" onClick={() => handleMarkComplete(t)}>
                           {t.status === 'completed' ? 'Reopen' : 'Complete'}
                         </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setCommentsTask({ id: t.id, title: t.title })}>
+                          <MessageSquare className="h-3 w-3 mr-1" />Comments
+                        </Button>
                         {canCreate && <Button variant="ghost" size="sm" onClick={() => handleEdit(t)}>Edit</Button>}
                         {canDelete && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteId(t.id)}>Delete</Button>}
                       </div>
