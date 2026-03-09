@@ -25,6 +25,8 @@ function StaffContent() {
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [tasksStaff, setTasksStaff] = useState<Staff | null>(null);
+  const [profileStaff, setProfileStaff] = useState<Staff | null>(null);
+  const [bulkExportOpen, setBulkExportOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
