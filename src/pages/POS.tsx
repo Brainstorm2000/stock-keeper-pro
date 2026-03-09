@@ -233,6 +233,9 @@ export default function POS() {
     setNotes('');
     setUseSplitPayment(false);
     setPaymentSplits([]);
+    setPaymentType('full');
+    setAmountPaid(0);
+    setDueDate('');
   };
 
   const handleCustomerSelect = (customerId: string) => {
