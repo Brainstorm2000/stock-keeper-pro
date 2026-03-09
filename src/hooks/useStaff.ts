@@ -71,9 +71,10 @@ export function useCreateStaff() {
   return useMutation({
     mutationFn: async (input: StaffInput) => {
       if (!organizationId) throw new Error('No organization');
+      const sanitized = sanitizeStaffInput(input);
       const { data, error } = await supabase
         .from('staff')
-        .insert({ ...input, organization_id: organizationId, created_by: user?.id })
+        .insert({ ...sanitized, organization_id: organizationId, created_by: user?.id })
         .select()
         .single();
       if (error) throw error;
