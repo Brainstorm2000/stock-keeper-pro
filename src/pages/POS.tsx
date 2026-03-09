@@ -53,6 +53,9 @@ export default function POS() {
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [useSplitPayment, setUseSplitPayment] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([]);
+  const [paymentType, setPaymentType] = useState<'full' | 'partial' | 'credit'>('full');
+  const [amountPaid, setAmountPaid] = useState<number>(0);
+  const [dueDate, setDueDate] = useState('');
 
   const { user, loading: authLoading, isAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
