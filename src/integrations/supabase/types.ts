@@ -87,6 +87,102 @@ export type Database = {
           },
         ]
       }
+      attendance: {
+        Row: {
+          attendance_date: string
+          branch_id: string | null
+          clock_in_time: string | null
+          clock_out_time: string | null
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          hours_worked: number | null
+          id: string
+          notes: string | null
+          organization_id: string
+          overtime_hours: number | null
+          regular_hours: number | null
+          shift_id: string
+          staff_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_date: string
+          branch_id?: string | null
+          clock_in_time?: string | null
+          clock_out_time?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          hours_worked?: number | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          overtime_hours?: number | null
+          regular_hours?: number | null
+          shift_id: string
+          staff_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          branch_id?: string | null
+          clock_in_time?: string | null
+          clock_out_time?: string | null
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          hours_worked?: number | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          overtime_hours?: number | null
+          regular_hours?: number | null
+          shift_id?: string
+          staff_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bill_of_materials: {
         Row: {
           created_at: string
@@ -1439,6 +1535,79 @@ export type Database = {
           },
           {
             foreignKeyName: "sales_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shifts: {
+        Row: {
+          branch_id: string | null
+          clockin_start_time: string
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          end_time: string
+          grace_period_minutes: number
+          id: string
+          is_active: boolean
+          organization_id: string
+          overtime_start_time: string | null
+          shift_name: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          clockin_start_time: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          end_time: string
+          grace_period_minutes?: number
+          id?: string
+          is_active?: boolean
+          organization_id: string
+          overtime_start_time?: string | null
+          shift_name: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          clockin_start_time?: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          end_time?: string
+          grace_period_minutes?: number
+          id?: string
+          is_active?: boolean
+          organization_id?: string
+          overtime_start_time?: string | null
+          shift_name?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shifts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
