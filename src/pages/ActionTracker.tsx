@@ -174,6 +174,13 @@ function ActionTrackerContent() {
 
       <TaskDialog task={editingTask} open={dialogOpen} onOpenChange={handleDialogClose} />
 
+      <TaskCommentsDialog
+        taskId={commentsTask?.id || null}
+        taskTitle={commentsTask?.title || ''}
+        open={!!commentsTask}
+        onOpenChange={(open) => { if (!open) setCommentsTask(null); }}
+      />
+
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
