@@ -16,121 +16,241 @@ interface StaffIDCardExportProps {
   singleStaff?: Staff;
 }
 
-function renderCardToCanvas(staff: Staff, org: Organization | null, side: 'front' | 'back'): Promise<HTMLCanvasElement> {
+async function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function renderQRToDataURL(value: string, size: number): Promise<string> {
   return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    // CR80 card: 85.6mm x 53.98mm, at 300dpi ≈ 1012 x 638
-    const w = 1012;
-    const h = 638;
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d')!;
-
-    // White bg
-    ctx.fillStyle = '#ffffff';
-    ctx.roundRect(0, 0, w, h, 20);
-    ctx.fill();
-
-    // Border
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 3;
-    ctx.roundRect(0, 0, w, h, 20);
-    ctx.stroke();
-
-    if (side === 'front') {
-      // Header bar
-      ctx.fillStyle = '#1e40af';
-      ctx.fillRect(0, 0, w, 120);
-
-      // Org name
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 36px system-ui';
-      const orgName = org?.name || 'Organization';
-      ctx.fillText(orgName, 30, 55);
-      ctx.font = '20px system-ui';
-      ctx.fillText('Staff Identification Card', 30, 90);
-
-      // Photo placeholder
-      ctx.fillStyle = '#f1f5f9';
-      ctx.fillRect(30, 150, 190, 230);
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(30, 150, 190, 230);
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 72px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText(staff.full_name.charAt(0).toUpperCase(), 125, 295);
-      ctx.textAlign = 'left';
-
-      // Info
-      const x = 260;
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 34px system-ui';
-      ctx.fillText(staff.full_name, x, 200);
-
-      ctx.fillStyle = '#64748b';
-      ctx.font = '24px monospace';
-      if (staff.staff_id) ctx.fillText(`ID: ${staff.staff_id}`, x, 240);
-
-      ctx.font = '26px system-ui';
-      ctx.fillStyle = '#334155';
-      if (staff.role) ctx.fillText(staff.role, x, 285);
-      if (staff.department) { ctx.fillStyle = '#64748b'; ctx.font = '22px system-ui'; ctx.fillText(staff.department, x, 320); }
-      if (staff.branches?.name) { ctx.fillStyle = '#64748b'; ctx.font = '22px system-ui'; ctx.fillText(`📍 ${staff.branches.name}`, x, 355); }
-    } else {
-      // QR code - render SVG to canvas
-      const qrValue = JSON.stringify({ staff_id: staff.id, organization_id: staff.organization_id });
-      const svgNS = 'http://www.w3.org/2000/svg';
-      
-      // Create a temporary container for QR
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      document.body.appendChild(tempDiv);
-      
-      const root = createRoot(tempDiv);
-      root.render(<QRCodeSVG value={qrValue} size={300} level="H" />);
-      
-      setTimeout(() => {
-        const svg = tempDiv.querySelector('svg');
-        if (svg) {
-          const svgData = new XMLSerializer().serializeToString(svg);
-          const img = new Image();
-          img.onload = () => {
-            const qrSize = 300;
-            ctx.drawImage(img, (w - qrSize) / 2, 80, qrSize, qrSize);
-
-            ctx.fillStyle = '#64748b';
-            ctx.font = '22px system-ui';
-            ctx.textAlign = 'center';
-            ctx.fillText('Scan for attendance', w / 2, 420);
-            
-            if (org?.email) {
-              ctx.fillText(`✉ ${org.email}`, w / 2, 470);
-            }
-            if (org?.address) {
-              ctx.font = '20px system-ui';
-              ctx.fillText(org.address.slice(0, 60), w / 2, 510);
-            }
-            ctx.textAlign = 'left';
-            
-            root.unmount();
-            document.body.removeChild(tempDiv);
-            resolve(canvas);
-          };
-          img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
-        } else {
+    const tempDiv = document.createElement('div');
+    tempDiv.style.cssText = 'position:absolute;left:-9999px';
+    document.body.appendChild(tempDiv);
+    const root = createRoot(tempDiv);
+    root.render(<QRCodeSVG value={value} size={size} level="H" />);
+    setTimeout(() => {
+      const svg = tempDiv.querySelector('svg');
+      if (svg) {
+        const data = new XMLSerializer().serializeToString(svg);
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = size; c.height = size;
+          c.getContext('2d')!.drawImage(img, 0, 0, size, size);
           root.unmount();
           document.body.removeChild(tempDiv);
-          resolve(canvas);
-        }
-      }, 100);
-    }
-
-    if (side === 'front') {
-      resolve(canvas);
-    }
+          resolve(c.toDataURL('image/png'));
+        };
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(data)));
+      } else {
+        root.unmount();
+        document.body.removeChild(tempDiv);
+        resolve('');
+      }
+    }, 100);
   });
+}
+
+// Draws the front of the card on a canvas
+async function renderFront(staff: Staff, org: Organization | null): Promise<HTMLCanvasElement> {
+  const w = 1012, h = 638;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 20); ctx.fill();
+
+  // Primary color
+  const primary = '#0d9488'; // teal-600
+
+  // Top-right triangle accent
+  ctx.fillStyle = primary;
+  ctx.beginPath();
+  ctx.moveTo(w - 280, 0);
+  ctx.lineTo(w, 0);
+  ctx.lineTo(w, 280);
+  ctx.closePath();
+  ctx.fill();
+
+  // Bottom-left triangle accent
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  ctx.lineTo(240, h);
+  ctx.lineTo(0, h - 190);
+  ctx.closePath();
+  ctx.fill();
+
+  // Org header
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 28px system-ui';
+  ctx.fillText(org?.name || 'Organization', 30, 50);
+  ctx.fillStyle = '#64748b';
+  ctx.font = '16px system-ui';
+  ctx.fillText('Staff Identification Card', 30, 75);
+
+  // Circular avatar
+  const cx = 130, cy = 280, r = 80;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 3, 0, Math.PI * 2);
+  ctx.fillStyle = primary;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  // Initial
+  ctx.fillStyle = primary;
+  ctx.font = `bold 64px system-ui`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(staff.full_name.charAt(0).toUpperCase(), cx, cy);
+  ctx.restore();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  // Name + role
+  const infoX = 260;
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 36px system-ui';
+  ctx.fillText(staff.full_name, infoX, 200);
+
+  ctx.fillStyle = primary;
+  ctx.font = 'bold 22px system-ui';
+  if (staff.role) ctx.fillText(staff.role, infoX, 235);
+
+  // Details
+  const details: [string, string][] = [];
+  if (staff.staff_id) details.push(['ID', staff.staff_id]);
+  if (staff.department) details.push(['DEPT', staff.department]);
+  if (staff.phone) details.push(['PHONE', staff.phone]);
+  if (staff.email) details.push(['EMAIL', staff.email]);
+
+  let dy = 280;
+  for (const [label, value] of details) {
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 18px system-ui';
+    ctx.fillText(label, infoX, dy);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '18px system-ui';
+    ctx.fillText(`  ${value}`, infoX + ctx.measureText(label).width, dy);
+    dy += 32;
+  }
+
+  // Footer bar
+  ctx.fillStyle = primary + '18';
+  ctx.fillRect(0, h - 50, w, 50);
+  ctx.fillStyle = primary;
+  ctx.font = '18px system-ui';
+  if (staff.branches?.name) ctx.fillText('📍 ' + staff.branches.name, 30, h - 18);
+  if (staff.employment_date) {
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#64748b';
+    ctx.fillText('Since ' + staff.employment_date, w - 30, h - 18);
+    ctx.textAlign = 'left';
+  }
+
+  // Border
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 20); ctx.stroke();
+
+  return canvas;
+}
+
+// Draws the back of the card
+async function renderBack(staff: Staff, org: Organization | null): Promise<HTMLCanvasElement> {
+  const w = 1012, h = 638;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  const primary = '#0d9488';
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 20); ctx.fill();
+
+  // Bottom-right triangle
+  ctx.fillStyle = primary;
+  ctx.beginPath();
+  ctx.moveTo(w, h);
+  ctx.lineTo(w - 240, h);
+  ctx.lineTo(w, h - 190);
+  ctx.closePath();
+  ctx.fill();
+
+  // Terms
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 24px system-ui';
+  ctx.fillText('Terms & Information', 40, 60);
+
+  const orgName = org?.name || 'the organization';
+  const terms = [
+    `This card is property of ${orgName}.`,
+    'Must be worn visibly during work hours.',
+    'Report loss immediately to HR department.',
+    'Not transferable to another person.',
+  ];
+  ctx.fillStyle = '#64748b';
+  ctx.font = '18px system-ui';
+  terms.forEach((t, i) => {
+    ctx.fillText('•  ' + t, 60, 110 + i * 34);
+  });
+
+  // Contact info
+  let cy = 300;
+  if (org?.email) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '18px system-ui';
+    ctx.fillText('✉  ' + org.email, 40, cy);
+    cy += 30;
+  }
+  if (org?.address) {
+    ctx.fillText('📍  ' + org.address.slice(0, 60), 40, cy);
+  }
+
+  // QR code
+  const qrValue = JSON.stringify({ staff_id: staff.id, organization_id: staff.organization_id });
+  const qrDataUrl = await renderQRToDataURL(qrValue, 300);
+  if (qrDataUrl) {
+    const qrImg = await loadImage(qrDataUrl);
+    const qrSize = 200;
+    const qrX = w - qrSize - 60;
+    const qrY = 60;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20);
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Scan for attendance', qrX + qrSize / 2, qrY + qrSize + 25);
+    ctx.textAlign = 'left';
+  }
+
+  // Footer bar with logo + name
+  ctx.fillStyle = primary;
+  ctx.fillRect(0, h - 55, w, 55);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 20px system-ui';
+  ctx.fillText(org?.name || 'Organization', 40, h - 20);
+
+  // Border
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 20); ctx.stroke();
+
+  return canvas;
 }
 
 export function StaffIDCardExport({ open, onOpenChange, singleStaff }: StaffIDCardExportProps) {
@@ -162,64 +282,45 @@ export function StaffIDCardExport({ open, onOpenChange, singleStaff }: StaffIDCa
     setExporting(true);
     try {
       const selected = activeStaff.filter(s => selectedIds.has(s.id));
-      // CR80: 85.6mm x 53.98mm, 2 cards per row, 4 per page
+      const org = organization ?? null;
+
+      // CR80: 85.6mm x 53.98mm
       const cardW = 85.6;
       const cardH = 54;
-      const margin = 10;
-      const gap = 5;
-      
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const marginX = 12;
+      const marginY = 12;
+      const gapX = 6;
+      const gapY = 6;
       const pageW = 210;
       const pageH = 297;
-      
-      let x = margin;
-      let y = margin;
-      let cardsOnPage = 0;
 
+      // Calculate grid
+      const cols = Math.floor((pageW - 2 * marginX + gapX) / (cardW + gapX));
+      const rows = Math.floor((pageH - 2 * marginY + gapY) / (cardH + gapY));
+      const cardsPerPage = cols * rows;
+
+      // Collect all card images: front then back for each staff
+      const cardImages: string[] = [];
       for (const staff of selected) {
-        // Front
-        const frontCanvas = await renderCardToCanvas(staff, organization ?? null, 'front');
-        const frontImg = frontCanvas.toDataURL('image/png');
-        
-        if (y + cardH > pageH - margin) {
-          pdf.addPage();
-          x = margin;
-          y = margin;
-          cardsOnPage = 0;
-        }
-        
-        pdf.addImage(frontImg, 'PNG', x, y, cardW, cardH);
-        
-        // Move to next position
-        if (x + cardW + gap + cardW <= pageW - margin) {
-          x += cardW + gap;
-        } else {
-          x = margin;
-          y += cardH + gap;
-        }
-        cardsOnPage++;
-
-        // Back
-        const backCanvas = await renderCardToCanvas(staff, organization ?? null, 'back');
-        const backImg = backCanvas.toDataURL('image/png');
-        
-        if (y + cardH > pageH - margin) {
-          pdf.addPage();
-          x = margin;
-          y = margin;
-          cardsOnPage = 0;
-        }
-        
-        pdf.addImage(backImg, 'PNG', x, y, cardW, cardH);
-        
-        if (x + cardW + gap + cardW <= pageW - margin) {
-          x += cardW + gap;
-        } else {
-          x = margin;
-          y += cardH + gap;
-        }
-        cardsOnPage++;
+        const front = await renderFront(staff, org);
+        cardImages.push(front.toDataURL('image/png'));
+        const back = await renderBack(staff, org);
+        cardImages.push(back.toDataURL('image/png'));
       }
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      cardImages.forEach((img, i) => {
+        if (i > 0 && i % cardsPerPage === 0) {
+          pdf.addPage();
+        }
+        const posOnPage = i % cardsPerPage;
+        const col = posOnPage % cols;
+        const row = Math.floor(posOnPage / cols);
+        const x = marginX + col * (cardW + gapX);
+        const y = marginY + row * (cardH + gapY);
+        pdf.addImage(img, 'PNG', x, y, cardW, cardH);
+      });
 
       pdf.save(`staff-id-cards-${new Date().toISOString().split('T')[0]}.pdf`);
     } finally {
