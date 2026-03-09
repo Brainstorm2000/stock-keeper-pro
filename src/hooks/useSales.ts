@@ -57,6 +57,10 @@ export interface CreateSaleInput {
   discount_percent: number;
   tax_amount: number;
   total_amount: number;
+  amount_paid?: number;
+  balance_due?: number;
+  payment_status?: string;
+  due_date?: string;
   payment_method: PaymentMethod;
   payment_details?: PaymentDetail[];
   status?: SaleStatus;
