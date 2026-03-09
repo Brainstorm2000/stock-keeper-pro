@@ -309,6 +309,11 @@ export default function POS() {
       ? paymentSplits 
       : undefined;
 
+    // Compute amount_paid and balance_due based on payment type
+    const computedAmountPaid = paymentType === 'full' ? total : paymentType === 'credit' ? 0 : amountPaid;
+    const computedBalance = total - computedAmountPaid;
+    const computedPaymentStatus = computedBalance <= 0 ? 'paid' : computedAmountPaid > 0 ? 'partial' : 'outstanding';
+
     const result = await createSale.mutateAsync({
       organization_id: organization.id,
       branch_id: branchResult.branchId,
@@ -320,6 +325,10 @@ export default function POS() {
       discount_percent: discountPercent,
       tax_amount: taxAmount,
       total_amount: total,
+      amount_paid: computedAmountPaid,
+      balance_due: Math.max(0, computedBalance),
+      payment_status: computedPaymentStatus,
+      due_date: dueDate || undefined,
       payment_method: primaryPaymentMethod,
       payment_details: paymentDetails,
       notes: notes || undefined,
