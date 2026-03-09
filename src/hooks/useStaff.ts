@@ -35,6 +35,20 @@ export interface StaffInput {
   notes?: string | null;
 }
 
+function sanitizeStaffInput(input: StaffInput) {
+  return {
+    ...input,
+    staff_id: input.staff_id || null,
+    email: input.email || null,
+    phone: input.phone || null,
+    role: input.role || null,
+    department: input.department || null,
+    branch_id: input.branch_id || null,
+    employment_date: input.employment_date || null,
+    notes: input.notes || null,
+  };
+}
+
 export function useStaff() {
   return useQuery({
     queryKey: ['staff'],
@@ -57,9 +71,10 @@ export function useCreateStaff() {
   return useMutation({
     mutationFn: async (input: StaffInput) => {
       if (!organizationId) throw new Error('No organization');
+      const sanitized = sanitizeStaffInput(input);
       const { data, error } = await supabase
         .from('staff')
-        .insert({ ...input, organization_id: organizationId, created_by: user?.id })
+        .insert({ ...sanitized, organization_id: organizationId, created_by: user?.id })
         .select()
         .single();
       if (error) throw error;
@@ -82,9 +97,10 @@ export function useUpdateStaff() {
 
   return useMutation({
     mutationFn: async ({ id, ...input }: StaffInput & { id: string }) => {
+      const sanitized = sanitizeStaffInput(input);
       const { data, error } = await supabase
         .from('staff')
-        .update(input)
+        .update(sanitized)
         .eq('id', id)
         .select()
         .single();

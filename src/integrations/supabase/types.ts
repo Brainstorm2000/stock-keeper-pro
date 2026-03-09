@@ -303,6 +303,44 @@ export type Database = {
           },
         ]
       }
+      departments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           created_at: string
@@ -1414,6 +1452,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           department: string | null
+          department_id: string | null
           email: string | null
           employment_date: string | null
           full_name: string
@@ -1423,6 +1462,7 @@ export type Database = {
           organization_id: string
           phone: string | null
           role: string | null
+          role_id: string | null
           staff_id: string | null
           updated_at: string
         }
@@ -1431,6 +1471,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           department?: string | null
+          department_id?: string | null
           email?: string | null
           employment_date?: string | null
           full_name: string
@@ -1440,6 +1481,7 @@ export type Database = {
           organization_id: string
           phone?: string | null
           role?: string | null
+          role_id?: string | null
           staff_id?: string | null
           updated_at?: string
         }
@@ -1448,6 +1490,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           department?: string | null
+          department_id?: string | null
           email?: string | null
           employment_date?: string | null
           full_name?: string
@@ -1457,6 +1500,7 @@ export type Database = {
           organization_id?: string
           phone?: string | null
           role?: string | null
+          role_id?: string | null
           staff_id?: string | null
           updated_at?: string
         }
@@ -1469,7 +1513,59 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "staff_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "staff_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "staff_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_roles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_roles_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
