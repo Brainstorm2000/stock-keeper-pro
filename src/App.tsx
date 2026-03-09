@@ -25,6 +25,7 @@ import AdminPricing from "./pages/AdminPricing";
 import AdminBilling from "./pages/AdminBilling";
 import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
+import Debts from "./pages/Debts";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/action-tracker" element={<ActionTracker />} />
               <Route path="/subscription" element={<Subscription />} />
+              <Route path="/debts" element={<Debts />} />
               <Route path="/admin-login" element={<AdminLogin />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />

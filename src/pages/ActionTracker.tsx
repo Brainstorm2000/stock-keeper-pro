@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, Search, Loader2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Search, Loader2, CheckCircle2, Clock, AlertCircle, MessageSquare } from 'lucide-react';
+import { TaskCommentsDialog } from '@/components/tasks/TaskCommentsDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -31,6 +32,7 @@ function ActionTrackerContent() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [commentsTask, setCommentsTask] = useState<{ id: string; title: string } | null>(null);
 
   const { data: tasks = [], isLoading } = useActionTasks();
   const updateTask = useUpdateActionTask();
@@ -155,6 +157,9 @@ function ActionTrackerContent() {
                         <Button variant="ghost" size="sm" onClick={() => handleMarkComplete(t)}>
                           {t.status === 'completed' ? 'Reopen' : 'Complete'}
                         </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setCommentsTask({ id: t.id, title: t.title })}>
+                          <MessageSquare className="h-3 w-3 mr-1" />Comments
+                        </Button>
                         {canCreate && <Button variant="ghost" size="sm" onClick={() => handleEdit(t)}>Edit</Button>}
                         {canDelete && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteId(t.id)}>Delete</Button>}
                       </div>
@@ -168,6 +173,13 @@ function ActionTrackerContent() {
       </div>
 
       <TaskDialog task={editingTask} open={dialogOpen} onOpenChange={handleDialogClose} />
+
+      <TaskCommentsDialog
+        taskId={commentsTask?.id || null}
+        taskTitle={commentsTask?.title || ''}
+        open={!!commentsTask}
+        onOpenChange={(open) => { if (!open) setCommentsTask(null); }}
+      />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>

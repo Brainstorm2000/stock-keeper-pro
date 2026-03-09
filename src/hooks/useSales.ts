@@ -57,6 +57,10 @@ export interface CreateSaleInput {
   discount_percent: number;
   tax_amount: number;
   total_amount: number;
+  amount_paid?: number;
+  balance_due?: number;
+  payment_status?: string;
+  due_date?: string;
   payment_method: PaymentMethod;
   payment_details?: PaymentDetail[];
   status?: SaleStatus;
@@ -161,6 +165,10 @@ export function useCreateSale() {
           discount_percent: input.discount_percent,
           tax_amount: input.tax_amount,
           total_amount: input.total_amount,
+          amount_paid: input.amount_paid ?? input.total_amount,
+          balance_due: input.balance_due ?? 0,
+          payment_status: input.payment_status ?? 'paid',
+          due_date: input.due_date || null,
           payment_method: input.payment_method,
           payment_details: input.payment_details ? JSON.parse(JSON.stringify(input.payment_details)) : null,
           status: input.status || 'completed',

@@ -53,6 +53,9 @@ export default function POS() {
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [useSplitPayment, setUseSplitPayment] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([]);
+  const [paymentType, setPaymentType] = useState<'full' | 'partial' | 'credit'>('full');
+  const [amountPaid, setAmountPaid] = useState<number>(0);
+  const [dueDate, setDueDate] = useState('');
 
   const { user, loading: authLoading, isAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
@@ -230,6 +233,9 @@ export default function POS() {
     setNotes('');
     setUseSplitPayment(false);
     setPaymentSplits([]);
+    setPaymentType('full');
+    setAmountPaid(0);
+    setDueDate('');
   };
 
   const handleCustomerSelect = (customerId: string) => {
@@ -303,6 +309,11 @@ export default function POS() {
       ? paymentSplits 
       : undefined;
 
+    // Compute amount_paid and balance_due based on payment type
+    const computedAmountPaid = paymentType === 'full' ? total : paymentType === 'credit' ? 0 : amountPaid;
+    const computedBalance = total - computedAmountPaid;
+    const computedPaymentStatus = computedBalance <= 0 ? 'paid' : computedAmountPaid > 0 ? 'partial' : 'outstanding';
+
     const result = await createSale.mutateAsync({
       organization_id: organization.id,
       branch_id: branchResult.branchId,
@@ -314,6 +325,10 @@ export default function POS() {
       discount_percent: discountPercent,
       tax_amount: taxAmount,
       total_amount: total,
+      amount_paid: computedAmountPaid,
+      balance_due: Math.max(0, computedBalance),
+      payment_status: computedPaymentStatus,
+      due_date: dueDate || undefined,
       payment_method: primaryPaymentMethod,
       payment_details: paymentDetails,
       notes: notes || undefined,
@@ -729,6 +744,53 @@ export default function POS() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Payment Type Selection */}
+            <div className="space-y-2">
+              <Label>Payment Type</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['full', 'partial', 'credit'] as const).map((type) => (
+                  <Button
+                    key={type}
+                    type="button"
+                    variant={paymentType === type ? 'default' : 'outline'}
+                    className="capitalize"
+                    onClick={() => {
+                      setPaymentType(type);
+                      if (type === 'full') setAmountPaid(total);
+                      else if (type === 'credit') setAmountPaid(0);
+                    }}
+                  >
+                    {type === 'full' ? 'Full Payment' : type === 'partial' ? 'Partial' : 'Credit Sale'}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {paymentType === 'partial' && (
+              <div className="space-y-2">
+                <Label>Amount Paying Now</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max={total}
+                  step="0.01"
+                  value={amountPaid || ''}
+                  onChange={e => setAmountPaid(Number(e.target.value))}
+                  placeholder="Enter amount"
+                />
+                {amountPaid > 0 && amountPaid < total && (
+                  <p className="text-sm text-muted-foreground">Balance due: {formatCurrency(total - amountPaid)}</p>
+                )}
+              </div>
+            )}
+
+            {(paymentType === 'partial' || paymentType === 'credit') && (
+              <div className="space-y-2">
+                <Label>Due Date (optional)</Label>
+                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
               </div>
             )}
 
