@@ -15,6 +15,7 @@ import Expenses from "./pages/Expenses";
 import Production from "./pages/Production";
 import Reports from "./pages/Reports";
 import StaffManagement from "./pages/StaffManagement";
+import Attendance from "./pages/Attendance";
 import ActionTracker from "./pages/ActionTracker";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/production" element={<Production />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/staff" element={<StaffManagement />} />
+              <Route path="/attendance" element={<Attendance />} />
               <Route path="/action-tracker" element={<ActionTracker />} />
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/admin-login" element={<AdminLogin />} />

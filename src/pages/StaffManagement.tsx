@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, Upload, Download, UserCheck, UserX, Loader2 } from 'lucide-react';
+import { Plus, Search, Upload, Download, UserCheck, UserX, Loader2, QrCode, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -8,6 +8,8 @@ import { useStaff, useDeleteStaff, type Staff } from '@/hooks/useStaff';
 import { useBranches } from '@/hooks/useBranches';
 import { StaffDialog } from '@/components/staff/StaffDialog';
 import { StaffTasksDialog } from '@/components/staff/StaffTasksDialog';
+import { StaffProfileDialog } from '@/components/staff/StaffProfileDialog';
+import { StaffIDCardExport } from '@/components/staff/StaffIDCardExport';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +25,8 @@ function StaffContent() {
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [tasksStaff, setTasksStaff] = useState<Staff | null>(null);
+  const [profileStaff, setProfileStaff] = useState<Staff | null>(null);
+  const [bulkExportOpen, setBulkExportOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
@@ -102,6 +106,7 @@ function StaffContent() {
                 <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
               </label>
               <Button variant="outline" onClick={handleExportCSV}><Download className="mr-2 h-4 w-4" />Export CSV</Button>
+              <Button variant="outline" onClick={() => setBulkExportOpen(true)}><CreditCard className="mr-2 h-4 w-4" />ID Cards</Button>
               <Button onClick={() => setDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Add Staff</Button>
             </div>
           )}
@@ -168,6 +173,9 @@ function StaffContent() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => setProfileStaff(s)}>
+                          <QrCode className="h-3.5 w-3.5 mr-1" />Profile
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => setTasksStaff(s)}>Tasks</Button>
                         {canCreate && <Button variant="ghost" size="sm" onClick={() => handleEdit(s)}>Edit</Button>}
                         {canDelete && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteId(s.id)}>Delete</Button>}
@@ -183,6 +191,8 @@ function StaffContent() {
 
       <StaffDialog staff={editingStaff} open={dialogOpen} onOpenChange={handleDialogClose} />
       <StaffTasksDialog staff={tasksStaff} open={!!tasksStaff} onOpenChange={open => { if (!open) setTasksStaff(null); }} />
+      <StaffProfileDialog staff={profileStaff} open={!!profileStaff} onOpenChange={open => { if (!open) setProfileStaff(null); }} />
+      <StaffIDCardExport open={bulkExportOpen} onOpenChange={setBulkExportOpen} />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
