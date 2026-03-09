@@ -183,6 +183,18 @@ export function useClockIn() {
       toast({ title: 'Clock-in successful' });
     },
     onError: (error: Error) => {
+      const userFacingMessages = [
+        'No organization',
+        'Shift not found',
+        'Already clocked in for today',
+        'Clock-in not allowed before',
+      ];
+
+      if (userFacingMessages.some((msg) => error.message?.includes(msg))) {
+        toast({ title: 'Failed to clock in', description: error.message, variant: 'destructive' });
+        return;
+      }
+
       const { title, description } = parseDbError(error, 'clock in');
       toast({ title, description, variant: 'destructive' });
     },
@@ -238,6 +250,13 @@ export function useClockOut() {
       toast({ title: 'Clock-out successful' });
     },
     onError: (error: Error) => {
+      const userFacingMessages = ['No active clock-in found for today'];
+
+      if (userFacingMessages.some((msg) => error.message?.includes(msg))) {
+        toast({ title: 'Failed to clock out', description: error.message, variant: 'destructive' });
+        return;
+      }
+
       const { title, description } = parseDbError(error, 'clock out');
       toast({ title, description, variant: 'destructive' });
     },
