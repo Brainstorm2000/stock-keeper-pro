@@ -35,6 +35,20 @@ export interface StaffInput {
   notes?: string | null;
 }
 
+function sanitizeStaffInput(input: StaffInput) {
+  return {
+    ...input,
+    staff_id: input.staff_id || null,
+    email: input.email || null,
+    phone: input.phone || null,
+    role: input.role || null,
+    department: input.department || null,
+    branch_id: input.branch_id || null,
+    employment_date: input.employment_date || null,
+    notes: input.notes || null,
+  };
+}
+
 export function useStaff() {
   return useQuery({
     queryKey: ['staff'],
