@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, Search, Loader2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Search, Loader2, CheckCircle2, Clock, AlertCircle, MessageSquare } from 'lucide-react';
+import { TaskCommentsDialog } from '@/components/tasks/TaskCommentsDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
