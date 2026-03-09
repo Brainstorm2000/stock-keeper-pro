@@ -191,6 +191,8 @@ function StaffContent() {
 
       <StaffDialog staff={editingStaff} open={dialogOpen} onOpenChange={handleDialogClose} />
       <StaffTasksDialog staff={tasksStaff} open={!!tasksStaff} onOpenChange={open => { if (!open) setTasksStaff(null); }} />
+      <StaffProfileDialog staff={profileStaff} open={!!profileStaff} onOpenChange={open => { if (!open) setProfileStaff(null); }} />
+      <StaffIDCardExport open={bulkExportOpen} onOpenChange={setBulkExportOpen} />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
