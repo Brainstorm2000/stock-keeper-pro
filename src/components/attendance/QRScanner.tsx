@@ -21,79 +21,103 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-function playSuccessBell() {
+// Helper to create a loud tone with compressor for maximum volume
+function makeLoudTone(ctx: AudioContext, dest: AudioNode, freq: number, type: OscillatorType, startTime: number, duration: number, volume = 1) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+  osc.connect(gain);
+  gain.connect(dest);
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
+// Clock-IN sound: bright ascending welcome chime (intro feel)
+function playClockInSound() {
   try {
     const ctx = new AudioContext();
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -10;
+    compressor.knee.value = 0;
+    compressor.ratio.value = 20;
+    compressor.attack.value = 0;
+    compressor.release.value = 0.05;
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = 1;
+    compressor.connect(masterGain);
+    masterGain.connect(ctx.destination);
     const now = ctx.currentTime;
 
-    // Bell 1 — bright ding
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.value = 1200;
-    gain1.gain.setValueAtTime(0.6, now);
-    gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.4);
+    // Ascending 5-note welcome chime: C5 → E5 → G5 → C6 → E6
+    const notes = [523, 659, 784, 1047, 1319];
+    notes.forEach((freq, i) => {
+      makeLoudTone(ctx, compressor, freq, 'sine', now + i * 0.12, 0.35, 1);
+      // Add harmonic overtone for brightness
+      makeLoudTone(ctx, compressor, freq * 2, 'sine', now + i * 0.12, 0.2, 0.3);
+    });
+    // Final sustained chord
+    makeLoudTone(ctx, compressor, 1047, 'sine', now + 0.5, 0.8, 0.8);
+    makeLoudTone(ctx, compressor, 1319, 'sine', now + 0.5, 0.8, 0.6);
+    makeLoudTone(ctx, compressor, 1568, 'sine', now + 0.5, 0.8, 0.4);
 
-    // Bell 2 — higher octave follow-up
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.value = 1600;
-    gain2.gain.setValueAtTime(0.5, now + 0.15);
-    gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(now + 0.15);
-    osc2.stop(now + 0.55);
-
-    // Bell 3 — final chime
-    const osc3 = ctx.createOscillator();
-    const gain3 = ctx.createGain();
-    osc3.type = 'sine';
-    osc3.frequency.value = 2000;
-    gain3.gain.setValueAtTime(0.45, now + 0.3);
-    gain3.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
-    osc3.connect(gain3);
-    gain3.connect(ctx.destination);
-    osc3.start(now + 0.3);
-    osc3.stop(now + 0.8);
-
-    setTimeout(() => ctx.close(), 1000);
+    setTimeout(() => ctx.close(), 2000);
   } catch {}
 }
 
+// Clock-OUT sound: warm descending farewell chime (outro feel)
+function playClockOutSound() {
+  try {
+    const ctx = new AudioContext();
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -10;
+    compressor.knee.value = 0;
+    compressor.ratio.value = 20;
+    compressor.attack.value = 0;
+    compressor.release.value = 0.05;
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = 1;
+    compressor.connect(masterGain);
+    masterGain.connect(ctx.destination);
+    const now = ctx.currentTime;
+
+    // Descending farewell: G5 → E5 → C5 → G4 with warmth
+    const notes = [784, 659, 523, 392];
+    notes.forEach((freq, i) => {
+      makeLoudTone(ctx, compressor, freq, 'triangle', now + i * 0.18, 0.5, 1);
+      makeLoudTone(ctx, compressor, freq * 1.5, 'sine', now + i * 0.18, 0.3, 0.2);
+    });
+    // Final low chord
+    makeLoudTone(ctx, compressor, 261, 'triangle', now + 0.72, 1.0, 0.7);
+    makeLoudTone(ctx, compressor, 392, 'triangle', now + 0.72, 1.0, 0.5);
+
+    setTimeout(() => ctx.close(), 2500);
+  } catch {}
+}
+
+// Error sound: harsh dissonant buzz
 function playErrorBell() {
   try {
     const ctx = new AudioContext();
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -10;
+    compressor.knee.value = 0;
+    compressor.ratio.value = 20;
+    compressor.attack.value = 0;
+    compressor.release.value = 0.05;
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = 1;
+    compressor.connect(masterGain);
+    masterGain.connect(ctx.destination);
     const now = ctx.currentTime;
 
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sawtooth';
-    osc1.frequency.value = 250;
-    gain1.gain.setValueAtTime(0.5, now);
-    gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.5);
+    makeLoudTone(ctx, compressor, 200, 'sawtooth', now, 0.5, 1);
+    makeLoudTone(ctx, compressor, 150, 'sawtooth', now + 0.2, 0.5, 1);
+    makeLoudTone(ctx, compressor, 100, 'square', now + 0.4, 0.4, 0.8);
 
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sawtooth';
-    osc2.frequency.value = 180;
-    gain2.gain.setValueAtTime(0.5, now + 0.25);
-    gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(now + 0.25);
-    osc2.stop(now + 0.7);
-
-    setTimeout(() => ctx.close(), 1000);
+    setTimeout(() => ctx.close(), 1500);
   } catch {}
 }
 
