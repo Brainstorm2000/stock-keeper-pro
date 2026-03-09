@@ -50,7 +50,7 @@ export function StaffQRCode({ staffId, organizationId, staffName, staffCode }: S
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-3">
         <div ref={qrRef} className="p-3 bg-white rounded-lg">
-          <QRCodeSVG value={qrValue} size={180} level="H" />
+          <QRCodeSVG value={qrValue} size={240} level="M" includeMargin />
         </div>
         <p className="text-xs text-muted-foreground text-center">{staffName}</p>
         <Button variant="outline" size="sm" onClick={handleDownload}>
