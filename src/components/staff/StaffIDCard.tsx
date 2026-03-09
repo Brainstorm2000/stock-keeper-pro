@@ -131,8 +131,9 @@ export const StaffIDCardBack = forwardRef<HTMLDivElement, StaffIDCardProps>(
           <div className="p-1.5 bg-white rounded border">
             <QRCodeSVG
               value={JSON.stringify({ staff_id: staff.id, organization_id: staff.organization_id })}
-              size={80}
-              level="H"
+              size={160}
+              level="M"
+              includeMargin
             />
           </div>
           <p className="text-[7px] text-muted-foreground">Scan for attendance</p>
