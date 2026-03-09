@@ -220,7 +220,7 @@ export function QRScanner() {
           branchId: staffMember.branch_id,
           departmentId: staffMember.department_id,
         });
-        playSuccessBell();
+        playClockInSound();
         setResult({ type: 'success', message: `Clock-in successful for ${staffMember.full_name}` });
         setProcessing(false);
         setTimeout(() => setResult(null), 5000);
