@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, Upload, Download, UserCheck, UserX, Loader2 } from 'lucide-react';
+import { Plus, Search, Upload, Download, UserCheck, UserX, Loader2, QrCode, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -8,6 +8,8 @@ import { useStaff, useDeleteStaff, type Staff } from '@/hooks/useStaff';
 import { useBranches } from '@/hooks/useBranches';
 import { StaffDialog } from '@/components/staff/StaffDialog';
 import { StaffTasksDialog } from '@/components/staff/StaffTasksDialog';
+import { StaffProfileDialog } from '@/components/staff/StaffProfileDialog';
+import { StaffIDCardExport } from '@/components/staff/StaffIDCardExport';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
