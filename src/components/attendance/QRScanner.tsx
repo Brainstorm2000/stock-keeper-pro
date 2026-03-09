@@ -158,7 +158,7 @@ export function QRScanner() {
         staffId: pendingClockOut.staffId,
         shiftId: pendingClockOut.shiftId,
       });
-      playSuccessBell();
+        playClockOutSound();
       setResult({ type: 'success', message: `Clock-out successful for ${pendingClockOut.staffName}` });
     } catch (err: any) {
       playErrorBell();
