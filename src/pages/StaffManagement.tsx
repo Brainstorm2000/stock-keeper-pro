@@ -173,6 +173,9 @@ function StaffContent() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => setProfileStaff(s)}>
+                          <QrCode className="h-3.5 w-3.5 mr-1" />Profile
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => setTasksStaff(s)}>Tasks</Button>
                         {canCreate && <Button variant="ghost" size="sm" onClick={() => handleEdit(s)}>Edit</Button>}
                         {canDelete && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteId(s.id)}>Delete</Button>}
