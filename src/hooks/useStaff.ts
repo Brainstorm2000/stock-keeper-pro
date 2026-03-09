@@ -82,9 +82,10 @@ export function useUpdateStaff() {
 
   return useMutation({
     mutationFn: async ({ id, ...input }: StaffInput & { id: string }) => {
+      const sanitized = sanitizeStaffInput(input);
       const { data, error } = await supabase
         .from('staff')
-        .update(input)
+        .update(sanitized)
         .eq('id', id)
         .select()
         .single();
