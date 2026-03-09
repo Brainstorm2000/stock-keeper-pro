@@ -747,6 +747,53 @@ export default function POS() {
               </div>
             )}
 
+            {/* Payment Type Selection */}
+            <div className="space-y-2">
+              <Label>Payment Type</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['full', 'partial', 'credit'] as const).map((type) => (
+                  <Button
+                    key={type}
+                    type="button"
+                    variant={paymentType === type ? 'default' : 'outline'}
+                    className="capitalize"
+                    onClick={() => {
+                      setPaymentType(type);
+                      if (type === 'full') setAmountPaid(total);
+                      else if (type === 'credit') setAmountPaid(0);
+                    }}
+                  >
+                    {type === 'full' ? 'Full Payment' : type === 'partial' ? 'Partial' : 'Credit Sale'}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {paymentType === 'partial' && (
+              <div className="space-y-2">
+                <Label>Amount Paying Now</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max={total}
+                  step="0.01"
+                  value={amountPaid || ''}
+                  onChange={e => setAmountPaid(Number(e.target.value))}
+                  placeholder="Enter amount"
+                />
+                {amountPaid > 0 && amountPaid < total && (
+                  <p className="text-sm text-muted-foreground">Balance due: {formatCurrency(total - amountPaid)}</p>
+                )}
+              </div>
+            )}
+
+            {(paymentType === 'partial' || paymentType === 'credit') && (
+              <div className="space-y-2">
+                <Label>Due Date (optional)</Label>
+                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Notes</Label>
               <Textarea
