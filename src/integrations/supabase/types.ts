@@ -399,6 +399,54 @@ export type Database = {
           },
         ]
       }
+      debt_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          organization_id: string
+          paid_by: string | null
+          payment_method: string
+          sale_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          paid_by?: string | null
+          payment_method?: string
+          sale_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          paid_by?: string | null
+          payment_method?: string
+          sale_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debt_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debt_payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           created_at: string
@@ -1456,6 +1504,8 @@ export type Database = {
       }
       sales: {
         Row: {
+          amount_paid: number
+          balance_due: number
           branch_id: string | null
           created_at: string
           created_by: string | null
@@ -1464,11 +1514,13 @@ export type Database = {
           customer_phone: string | null
           discount_amount: number
           discount_percent: number
+          due_date: string | null
           id: string
           notes: string | null
           organization_id: string
           payment_details: Json | null
           payment_method: Database["public"]["Enums"]["payment_method"]
+          payment_status: string
           sale_number: string
           status: Database["public"]["Enums"]["sale_status"]
           subtotal: number
@@ -1477,6 +1529,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_paid?: number
+          balance_due?: number
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -1485,11 +1539,13 @@ export type Database = {
           customer_phone?: string | null
           discount_amount?: number
           discount_percent?: number
+          due_date?: string | null
           id?: string
           notes?: string | null
           organization_id: string
           payment_details?: Json | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
+          payment_status?: string
           sale_number: string
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal?: number
@@ -1498,6 +1554,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_paid?: number
+          balance_due?: number
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -1506,11 +1564,13 @@ export type Database = {
           customer_phone?: string | null
           discount_amount?: number
           discount_percent?: number
+          due_date?: string | null
           id?: string
           notes?: string | null
           organization_id?: string
           payment_details?: Json | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
+          payment_status?: string
           sale_number?: string
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal?: number
@@ -1865,6 +1925,51 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_comments: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          organization_id: string
+          task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "action_tasks"
             referencedColumns: ["id"]
           },
         ]
