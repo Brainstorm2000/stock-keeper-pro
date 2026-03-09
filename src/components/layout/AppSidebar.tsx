@@ -38,6 +38,7 @@ const navItems: NavItem[] = [
   { href: '/expenses', label: 'Expenses', icon: Wallet, module: 'expenses' },
   { href: '/production', label: 'Production', icon: Factory, module: 'production' },
   { href: '/staff', label: 'Staff', icon: Users2, module: 'staff' as AppModule },
+  { href: '/attendance', label: 'Attendance', icon: ScanLine, module: 'staff' as AppModule },
   { href: '/action-tracker', label: 'Action Tracker', icon: ClipboardList, module: 'tasks' as AppModule },
   { href: '/reports', label: 'Reports', icon: BarChart3, module: 'reports' },
 ];
