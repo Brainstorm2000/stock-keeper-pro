@@ -348,6 +348,7 @@ export function useUpdatePurchase() {
         product_id: item.product_id,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
+        selling_price: item.selling_price || 0,
         total_cost: item.quantity * item.unit_cost,
       }));
 
