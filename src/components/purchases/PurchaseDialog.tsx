@@ -314,7 +314,17 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                             step="any"
                             value={item.unit_cost}
                             onChange={(e) => updateCartItem(item.product_id, 'unit_cost', e.target.value === '' ? 0 : Number(e.target.value))}
-                            className="w-28"
+                            className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={item.selling_price}
+                            onChange={(e) => updateCartItem(item.product_id, 'selling_price', e.target.value === '' ? 0 : Number(e.target.value))}
+                            className="w-24"
                           />
                         </TableCell>
                         <TableCell className="text-right font-medium">
