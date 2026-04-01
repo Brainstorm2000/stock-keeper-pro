@@ -139,7 +139,17 @@ function ActionTrackerContent() {
                 ) : filtered.map(t => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium max-w-[200px] truncate">{t.title}</TableCell>
-                    <TableCell>{t.staff?.full_name || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {t.staff?.full_name && (
+                          <Badge variant="outline" className="text-xs">{t.staff.full_name}</Badge>
+                        )}
+                        {t.action_task_staff?.map(ats => ats.staff && (
+                          <Badge key={ats.staff_id} variant="outline" className="text-xs">{ats.staff.full_name}</Badge>
+                        ))}
+                        {!t.staff?.full_name && (!t.action_task_staff || t.action_task_staff.length === 0) && '-'}
+                      </div>
+                    </TableCell>
                     <TableCell className="hidden sm:table-cell">{t.branches?.name || '-'}</TableCell>
                     <TableCell>
                       <Badge className={priorityColors[t.priority]}>{t.priority}</Badge>
