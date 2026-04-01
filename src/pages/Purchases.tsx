@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Plus, Trash2, Eye, Package, Filter, DollarSign, CheckCircle2, Clock, AlertCircle, Pencil } from 'lucide-react';
+import { Plus, Trash2, Eye, Package, Filter, DollarSign, CheckCircle2, Clock, AlertCircle, Pencil, RotateCcw } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ModuleAccessGuard, useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth';
 import { PurchaseDialog } from '@/components/purchases/PurchaseDialog';
 import { PurchaseDetailsDialog } from '@/components/purchases/PurchaseDetailsDialog';
 import { EditPurchaseDialog } from '@/components/purchases/EditPurchaseDialog';
+import { PurchaseReturnDialog } from '@/components/purchases/PurchaseReturnDialog';
 
 export default function Purchases() {
   const { isAdmin } = useAuth();
