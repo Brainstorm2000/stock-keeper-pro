@@ -41,7 +41,7 @@ export function useActionTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('action_tasks')
-        .select('*, staff(id, full_name), branches(id, name)')
+        .select('*, staff(id, full_name), branches(id, name), action_task_staff(staff_id, staff(id, full_name))')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as ActionTask[];
