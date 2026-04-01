@@ -286,6 +286,14 @@ export default function Purchases() {
           onOpenChange={(open) => !open && setEditDialogPurchase(null)}
         />
       )}
+
+      {returnDialogPurchase && (
+        <PurchaseReturnDialog
+          purchase={returnDialogPurchase}
+          open={!!returnDialogPurchase}
+          onOpenChange={(open) => !open && setReturnDialogPurchase(null)}
+        />
+      )}
       </ModuleAccessGuard>
     </DashboardLayout>
   );
