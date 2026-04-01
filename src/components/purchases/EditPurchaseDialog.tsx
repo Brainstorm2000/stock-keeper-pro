@@ -297,8 +297,9 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead className="w-[120px]">Quantity</TableHead>
-                      <TableHead className="w-[140px]">Unit Cost</TableHead>
+                      <TableHead className="w-[100px]">Quantity</TableHead>
+                      <TableHead className="w-[120px]">Cost Price</TableHead>
+                      <TableHead className="w-[120px]">Sell Price</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
