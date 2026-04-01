@@ -58,6 +58,7 @@ export interface PurchaseItemInput {
   product_id: string;
   quantity: number;
   unit_cost: number;
+  selling_price: number;
 }
 
 export interface PurchaseInput {
