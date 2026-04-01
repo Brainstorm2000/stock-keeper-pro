@@ -21,6 +21,7 @@ export interface ActionTask {
   updated_at: string;
   staff?: { id: string; full_name: string } | null;
   branches?: { id: string; name: string } | null;
+  action_task_staff?: { staff_id: string; staff?: { id: string; full_name: string } }[];
 }
 
 export interface ActionTaskInput {
@@ -40,7 +41,7 @@ export function useActionTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('action_tasks')
-        .select('*, staff(id, full_name), branches(id, name)')
+        .select('*, staff(id, full_name), branches(id, name), action_task_staff(staff_id, staff(id, full_name))')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as ActionTask[];
@@ -78,7 +79,7 @@ export function useCreateActionTask() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return data as { id: string };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['action-tasks'] });

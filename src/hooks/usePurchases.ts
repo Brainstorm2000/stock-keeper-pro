@@ -58,6 +58,7 @@ export interface PurchaseItemInput {
   product_id: string;
   quantity: number;
   unit_cost: number;
+  selling_price: number;
 }
 
 export interface PurchaseInput {
@@ -153,6 +154,7 @@ export function useCreatePurchase() {
         product_id: item.product_id,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
+        selling_price: item.selling_price || 0,
         total_cost: item.quantity * item.unit_cost,
       }));
 
@@ -176,10 +178,14 @@ export function useCreatePurchase() {
         const previousStock = Number(product.current_stock);
         const newStock = previousStock + item.quantity;
 
-        // Update product stock
+        // Update product stock and prices
+        const updateData: any = { current_stock: newStock };
+        if (item.unit_cost > 0) updateData.cost_price = item.unit_cost;
+        if (item.selling_price > 0) updateData.selling_price = item.selling_price;
+
         const { error: updateError } = await supabase
           .from('products')
-          .update({ current_stock: newStock })
+          .update(updateData)
           .eq('id', item.product_id);
 
         if (updateError) throw updateError;
@@ -342,6 +348,7 @@ export function useUpdatePurchase() {
         product_id: item.product_id,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
+        selling_price: item.selling_price || 0,
         total_cost: item.quantity * item.unit_cost,
       }));
 
@@ -364,9 +371,13 @@ export function useUpdatePurchase() {
         const previousStock = Number(product.current_stock);
         const newStock = previousStock + item.quantity;
 
+        const updateData: any = { current_stock: newStock };
+        if (item.unit_cost > 0) updateData.cost_price = item.unit_cost;
+        if (item.selling_price > 0) updateData.selling_price = item.selling_price;
+
         const { error: updateError } = await supabase
           .from('products')
-          .update({ current_stock: newStock })
+          .update(updateData)
           .eq('id', item.product_id);
 
         if (updateError) throw updateError;

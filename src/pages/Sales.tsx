@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, Eye, Calendar, Printer, Edit2, Trash2 } from 'lucide-react';
+import { Search, Loader2, Eye, Calendar, Printer, Edit2, Trash2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
 import { useSales, useSaleWithItems, useUpdateSale, useDeleteSale, type Sale, type PaymentMethod, type SaleStatus } from '@/hooks/useSales';
 import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
+import { SaleReturnDialog } from '@/components/sales/SaleReturnDialog';
 import { format } from 'date-fns';
  import { formatCurrency } from '@/lib/currency';
 
@@ -69,6 +70,7 @@ export default function Sales() {
     notes: '',
   });
   const [deleteConfirmSale, setDeleteConfirmSale] = useState<Sale | null>(null);
+  const [returnSale, setReturnSale] = useState<Sale | null>(null);
 
   const { user, loading: authLoading, hasCompletedOnboarding } = useAuth();
   const { canEdit, canDelete } = useModuleAccess('sales');
@@ -337,6 +339,16 @@ export default function Sales() {
                             <Edit2 className="h-4 w-4" />
                           </Button>
                         )}
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Return Items"
+                            onClick={() => setReturnSale(sale)}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
                         {canDelete && (
                           <Button
                             variant="ghost"
@@ -582,6 +594,14 @@ export default function Sales() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {returnSale && (
+        <SaleReturnDialog
+          sale={returnSale}
+          open={!!returnSale}
+          onOpenChange={(open) => { if (!open) setReturnSale(null); }}
+        />
+      )}
       </ModuleAccessGuard>
     </DashboardLayout>
   );

@@ -89,12 +89,13 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
         product,
         quantity: 1,
         unit_cost: Number(product.cost_price) || 0,
+        selling_price: Number(product.selling_price) || 0,
       }]);
     }
     setSearchQuery('');
   };
 
-  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost', value: number) => {
+  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost' | 'selling_price', value: number) => {
     setCart(cart.map(item =>
       item.product_id === productId
         ? { ...item, [field]: value }
@@ -279,8 +280,9 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead className="w-[120px]">Quantity</TableHead>
-                      <TableHead className="w-[140px]">Unit Cost</TableHead>
+                      <TableHead className="w-[100px]">Quantity</TableHead>
+                      <TableHead className="w-[120px]">Cost Price</TableHead>
+                      <TableHead className="w-[120px]">Sell Price</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
@@ -312,7 +314,17 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                             step="any"
                             value={item.unit_cost}
                             onChange={(e) => updateCartItem(item.product_id, 'unit_cost', e.target.value === '' ? 0 : Number(e.target.value))}
-                            className="w-28"
+                            className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={item.selling_price}
+                            onChange={(e) => updateCartItem(item.product_id, 'selling_price', e.target.value === '' ? 0 : Number(e.target.value))}
+                            className="w-24"
                           />
                         </TableCell>
                         <TableCell className="text-right font-medium">
