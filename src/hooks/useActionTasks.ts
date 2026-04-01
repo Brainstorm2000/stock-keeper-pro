@@ -21,6 +21,7 @@ export interface ActionTask {
   updated_at: string;
   staff?: { id: string; full_name: string } | null;
   branches?: { id: string; name: string } | null;
+  action_task_staff?: { staff_id: string; staff?: { id: string; full_name: string } }[];
 }
 
 export interface ActionTaskInput {
