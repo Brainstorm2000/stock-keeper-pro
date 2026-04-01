@@ -25,6 +25,7 @@ export default function Purchases() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsDialogPurchase, setDetailsDialogPurchase] = useState<Purchase | null>(null);
   const [editDialogPurchase, setEditDialogPurchase] = useState<Purchase | null>(null);
+  const [returnDialogPurchase, setReturnDialogPurchase] = useState<Purchase | null>(null);
 
   const { data: branches = [] } = useBranches();
   const { data: purchases = [], isLoading } = usePurchases(selectedBranch || undefined);
