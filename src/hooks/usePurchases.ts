@@ -371,9 +371,13 @@ export function useUpdatePurchase() {
         const previousStock = Number(product.current_stock);
         const newStock = previousStock + item.quantity;
 
+        const updateData: any = { current_stock: newStock };
+        if (item.unit_cost > 0) updateData.cost_price = item.unit_cost;
+        if (item.selling_price > 0) updateData.selling_price = item.selling_price;
+
         const { error: updateError } = await supabase
           .from('products')
-          .update({ current_stock: newStock })
+          .update(updateData)
           .eq('id', item.product_id);
 
         if (updateError) throw updateError;
