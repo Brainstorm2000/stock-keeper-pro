@@ -339,6 +339,16 @@ export default function Sales() {
                             <Edit2 className="h-4 w-4" />
                           </Button>
                         )}
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Return Items"
+                            onClick={() => setReturnSale(sale)}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
                         {canDelete && (
                           <Button
                             variant="ghost"
