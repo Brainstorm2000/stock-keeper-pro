@@ -70,6 +70,7 @@ export default function Sales() {
     notes: '',
   });
   const [deleteConfirmSale, setDeleteConfirmSale] = useState<Sale | null>(null);
+  const [returnSale, setReturnSale] = useState<Sale | null>(null);
 
   const { user, loading: authLoading, hasCompletedOnboarding } = useAuth();
   const { canEdit, canDelete } = useModuleAccess('sales');
