@@ -89,12 +89,13 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
         product,
         quantity: 1,
         unit_cost: Number(product.cost_price) || 0,
+        selling_price: Number(product.selling_price) || 0,
       }]);
     }
     setSearchQuery('');
   };
 
-  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost', value: number) => {
+  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost' | 'selling_price', value: number) => {
     setCart(cart.map(item =>
       item.product_id === productId
         ? { ...item, [field]: value }
