@@ -594,6 +594,14 @@ export default function Sales() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {returnSale && (
+        <SaleReturnDialog
+          sale={returnSale}
+          open={!!returnSale}
+          onOpenChange={(open) => { if (!open) setReturnSale(null); }}
+        />
+      )}
       </ModuleAccessGuard>
     </DashboardLayout>
   );
