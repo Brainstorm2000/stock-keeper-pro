@@ -58,6 +58,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
           } as Product,
           quantity: Number(item.quantity),
           unit_cost: Number(item.unit_cost),
+          selling_price: Number((item as any).selling_price) || 0,
         }));
       setCart(initialCart);
     }
