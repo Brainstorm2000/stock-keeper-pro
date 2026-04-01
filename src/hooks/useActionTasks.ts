@@ -79,7 +79,7 @@ export function useCreateActionTask() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return data as { id: string };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['action-tasks'] });
