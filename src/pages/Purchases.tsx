@@ -220,6 +220,16 @@ export default function Purchases() {
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                               )}
+                              {canEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Return Items"
+                                  onClick={() => setReturnDialogPurchase(purchase)}
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                              )}
                               {canDelete && (
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
