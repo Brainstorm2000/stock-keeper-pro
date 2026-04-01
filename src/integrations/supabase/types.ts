@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_task_staff: {
+        Row: {
+          created_at: string
+          id: string
+          staff_id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          staff_id: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          staff_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_task_staff_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_task_staff_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "action_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       action_tasks: {
         Row: {
           branch_id: string | null
@@ -1183,6 +1219,7 @@ export type Database = {
           product_id: string
           purchase_id: string
           quantity: number
+          selling_price: number
           total_cost: number
           unit_cost: number
         }
@@ -1192,6 +1229,7 @@ export type Database = {
           product_id: string
           purchase_id: string
           quantity: number
+          selling_price?: number
           total_cost: number
           unit_cost: number
         }
@@ -1201,6 +1239,7 @@ export type Database = {
           product_id?: string
           purchase_id?: string
           quantity?: number
+          selling_price?: number
           total_cost?: number
           unit_cost?: number
         }
@@ -1214,6 +1253,118 @@ export type Database = {
           },
           {
             foreignKeyName: "purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_return_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          return_id: string
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity: number
+          return_id: string
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          return_id?: string
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_returns: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          purchase_id: string
+          reason: string | null
+          return_date: string
+          return_number: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          purchase_id: string
+          reason?: string | null
+          return_date?: string
+          return_number: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          purchase_id?: string
+          reason?: string | null
+          return_date?: string
+          return_number?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_returns_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_returns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_returns_purchase_id_fkey"
             columns: ["purchase_id"]
             isOneToOne: false
             referencedRelation: "purchases"
@@ -1495,6 +1646,121 @@ export type Database = {
           },
           {
             foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_return_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          return_id: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity: number
+          return_id: string
+          total_price?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          return_id?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_return_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "sale_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_returns: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          reason: string | null
+          refund_method: string
+          return_date: string
+          return_number: string
+          sale_id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          reason?: string | null
+          refund_method?: string
+          return_date?: string
+          return_number: string
+          sale_id: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          reason?: string | null
+          refund_method?: string
+          return_date?: string
+          return_number?: string
+          sale_id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_returns_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_returns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_returns_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
@@ -2249,7 +2515,12 @@ export type Database = {
     }
     Functions: {
       generate_purchase_number: { Args: { org_id: string }; Returns: string }
+      generate_purchase_return_number: {
+        Args: { org_id: string }
+        Returns: string
+      }
       generate_sale_number: { Args: { org_id: string }; Returns: string }
+      generate_sale_return_number: { Args: { org_id: string }; Returns: string }
       generate_work_order_number: { Args: { org_id: string }; Returns: string }
       get_module_access: {
         Args: {
