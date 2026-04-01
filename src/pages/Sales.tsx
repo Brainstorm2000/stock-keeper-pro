@@ -27,6 +27,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
 import { useSales, useSaleWithItems, useUpdateSale, useDeleteSale, type Sale, type PaymentMethod, type SaleStatus } from '@/hooks/useSales';
 import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
+import { SaleReturnDialog } from '@/components/sales/SaleReturnDialog';
 import { format } from 'date-fns';
  import { formatCurrency } from '@/lib/currency';
 
