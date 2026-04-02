@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 import { useCreatePurchaseReturn } from '@/hooks/usePurchaseReturns';
 import { useOrganization } from '@/hooks/useOrganization';
-import type { Purchase, PurchaseItem } from '@/hooks/usePurchases';
+import type { Purchase } from '@/hooks/usePurchases';
 import { formatCurrency } from '@/lib/currency';
 
 interface PurchaseReturnDialogProps {
@@ -34,24 +34,20 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ReturnItem[]>([]);
 
-  const initItems = () => {
-    if (!purchase?.purchase_items) return;
-    setItems(purchase.purchase_items.map(pi => ({
-      product_id: pi.product_id,
-      product_name: pi.products?.name || 'Unknown',
-      max_quantity: pi.quantity,
-      quantity: pi.quantity,
-      unit_cost: pi.unit_cost,
-      selected: false,
-    })));
-    setReason('');
-    setNotes('');
-  };
-
-  const handleOpenChange = (v: boolean) => {
-    if (v) initItems();
-    onOpenChange(v);
-  };
+  useEffect(() => {
+    if (open && purchase?.purchase_items) {
+      setItems(purchase.purchase_items.map(pi => ({
+        product_id: pi.product_id,
+        product_name: pi.products?.name || 'Unknown',
+        max_quantity: pi.quantity,
+        quantity: pi.quantity,
+        unit_cost: pi.unit_cost,
+        selected: false,
+      })));
+      setReason('');
+      setNotes('');
+    }
+  }, [open, purchase]);
 
   const selectedItems = items.filter(i => i.selected && i.quantity > 0);
   const totalReturn = selectedItems.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
@@ -74,7 +70,7 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Return Items — {purchase?.purchase_number}</DialogTitle>
@@ -104,7 +100,7 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
                       checked={item.selected}
                       onCheckedChange={c => {
                         const newItems = [...items];
-                        newItems[idx].selected = !!c;
+                        newItems[idx] = { ...newItems[idx], selected: !!c };
                         setItems(newItems);
                       }}
                     />
@@ -118,7 +114,10 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
                       value={item.quantity}
                       onChange={e => {
                         const newItems = [...items];
-                        newItems[idx].quantity = Math.min(item.max_quantity, Math.max(1, Number(e.target.value) || 1));
+                        newItems[idx] = {
+                          ...newItems[idx],
+                          quantity: Math.min(item.max_quantity, Math.max(1, Number(e.target.value) || 1)),
+                        };
                         setItems(newItems);
                       }}
                       className="w-20"
