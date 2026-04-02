@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus, Lock, Loader2, Factory, CreditCard, BarChart3, Users2, ClipboardList, ScanLine, BadgeDollarSign } from 'lucide-react';
+import { LogOut, User, Shield, Crown, Building2, Settings, LayoutDashboard, ShoppingCart, Receipt, Wallet, PackagePlus, Lock, Loader2, Factory, CreditCard, BarChart3, Users2, ClipboardList, ScanLine, BadgeDollarSign, RotateCcw } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
