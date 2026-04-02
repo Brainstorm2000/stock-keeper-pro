@@ -26,6 +26,7 @@ import AdminBilling from "./pages/AdminBilling";
 import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 import Debts from "./pages/Debts";
+import Returns from "./pages/Returns";
 
 const queryClient = new QueryClient();
 
