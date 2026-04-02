@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
   { href: '/sales', label: 'Sales', icon: Receipt, module: 'sales' },
   { href: '/purchases', label: 'Purchases', icon: PackagePlus, module: 'purchases' },
   { href: '/debts', label: 'Debts', icon: BadgeDollarSign, module: 'sales' },
+  { href: '/returns', label: 'Returns', icon: RotateCcw, module: 'sales' },
   { href: '/expenses', label: 'Expenses', icon: Wallet, module: 'expenses' },
   { href: '/production', label: 'Production', icon: Factory, module: 'production' },
   { href: '/staff', label: 'Staff', icon: Users2, module: 'staff' as AppModule },

@@ -54,6 +54,7 @@ const App = () => (
               <Route path="/action-tracker" element={<ActionTracker />} />
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/debts" element={<Debts />} />
+              <Route path="/returns" element={<Returns />} />
               <Route path="/admin-login" element={<AdminLogin />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />
