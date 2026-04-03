@@ -301,10 +301,7 @@ export default function Sales() {
                   </TableCell>
                 </TableRow>
               ) : (
-                (() => {
-                const { paginatedItems, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filteredSales);
-                return (<>
-                {paginatedItems.map((sale) => (
+                paginatedSales.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-mono font-medium">{sale.sale_number}</TableCell>
                     <TableCell>{format(new Date(sale.created_at), 'MMM dd, yyyy HH:mm')}</TableCell>
@@ -374,6 +371,7 @@ export default function Sales() {
               )}
             </TableBody>
           </Table>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
         </Card>
       </div>
 
