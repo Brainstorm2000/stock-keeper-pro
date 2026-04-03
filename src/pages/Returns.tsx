@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { format } from 'date-fns';
 import { RotateCcw, Undo2, Search, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -36,6 +38,9 @@ export default function Returns() {
     r.purchases?.purchase_number?.toLowerCase().includes(search.toLowerCase()) ||
     r.reason?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const { paginatedItems: paginatedSaleReturns, currentPage: srPage, totalPages: srTotalPages, totalItems: srTotalItems, pageSize: srPageSize, goToPage: srGoToPage } = usePagination(filteredSaleReturns);
+  const { paginatedItems: paginatedPurchaseReturns, currentPage: prPage, totalPages: prTotalPages, totalItems: prTotalItems, pageSize: prPageSize, goToPage: prGoToPage } = usePagination(filteredPurchaseReturns);
 
   const totalSaleReturns = saleReturns.reduce((s, r) => s + Number(r.total_amount), 0);
   const totalPurchaseReturns = purchaseReturns.reduce((s, r) => s + Number(r.total_amount), 0);
@@ -123,7 +128,7 @@ export default function Returns() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredSaleReturns.map(ret => (
+                          {paginatedSaleReturns.map(ret => (
                             <TableRow key={ret.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetailReturn(ret); setDetailType('sale'); }}>
                               <TableCell className="font-medium">{ret.return_number}</TableCell>
                               <TableCell>{ret.sales?.sale_number || '—'}</TableCell>
@@ -148,6 +153,7 @@ export default function Returns() {
                           ))}
                         </TableBody>
                       </Table>
+                      <TablePagination currentPage={srPage} totalPages={srTotalPages} totalItems={srTotalItems} pageSize={srPageSize} onPageChange={srGoToPage} />
                     </div>
                   )}
                 </CardContent>
@@ -178,7 +184,7 @@ export default function Returns() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredPurchaseReturns.map(ret => (
+                          {paginatedPurchaseReturns.map(ret => (
                             <TableRow key={ret.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetailReturn(ret); setDetailType('purchase'); }}>
                               <TableCell className="font-medium">{ret.return_number}</TableCell>
                               <TableCell>{ret.purchases?.purchase_number || '—'}</TableCell>
@@ -202,6 +208,7 @@ export default function Returns() {
                           ))}
                         </TableBody>
                       </Table>
+                      <TablePagination currentPage={prPage} totalPages={prTotalPages} totalItems={prTotalItems} pageSize={prPageSize} onPageChange={prGoToPage} />
                     </div>
                   )}
                 </CardContent>

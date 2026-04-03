@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { Plus, Search, Loader2, CheckCircle2, Clock, AlertCircle, MessageSquare } from 'lucide-react';
 import { TaskCommentsDialog } from '@/components/tasks/TaskCommentsDialog';
 import { Button } from '@/components/ui/button';
@@ -46,6 +48,8 @@ function ActionTrackerContent() {
     const matchPriority = priorityFilter === 'all' || t.priority === priorityFilter;
     return matchSearch && matchStatus && matchPriority;
   });
+
+  const { paginatedItems: paginatedTasks, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filtered);
 
   const handleEdit = (t: ActionTask) => { setEditingTask(t); setDialogOpen(true); };
   const handleDialogClose = (open: boolean) => { setDialogOpen(open); if (!open) setEditingTask(null); };
@@ -136,7 +140,7 @@ function ActionTrackerContent() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No tasks found</TableCell></TableRow>
-                ) : filtered.map(t => (
+                ) : paginatedTasks.map(t => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium max-w-[200px] truncate">{t.title}</TableCell>
                     <TableCell>
@@ -178,6 +182,7 @@ function ActionTrackerContent() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
           </div>
         )}
       </div>

@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Trash2, Pencil, Upload, Tags, Calendar, Loader2, FileText, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -88,6 +90,8 @@ export default function Expenses() {
       return matchesSearch && matchesCategory && matchesBranch;
     });
   }, [expenses, searchQuery, filterCategory, filterBranch]);
+
+  const { paginatedItems: paginatedExpenses, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filteredExpenses);
 
   // Calculate totals
   const totalExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
@@ -310,7 +314,7 @@ export default function Expenses() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredExpenses.map((expense) => (
+                paginatedExpenses.map((expense) => (
                   <TableRow key={expense.id}>
                     <TableCell>{format(new Date(expense.expense_date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>
@@ -367,6 +371,7 @@ export default function Expenses() {
               )}
             </TableBody>
           </Table>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
         </Card>
       </div>
 

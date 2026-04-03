@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { useNavigate } from 'react-router-dom';
 import { Search, Loader2, Eye, Calendar, Printer, Edit2, Trash2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -107,7 +109,9 @@ export default function Sales() {
       
       return matchesSearch && matchesStatus && matchesPayment && matchesBranch && matchesStartDate && matchesEndDate;
     });
-  }, [sales, searchQuery, filterStatus, filterPayment, filterBranch, startDate, endDate]);
+   }, [sales, searchQuery, filterStatus, filterPayment, filterBranch, startDate, endDate]);
+
+  const { paginatedItems: paginatedSales, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filteredSales);
 
   // Calculate totals
   const totalSales = filteredSales.reduce((sum, s) => sum + Number(s.total_amount), 0);
@@ -297,7 +301,7 @@ export default function Sales() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredSales.map((sale) => (
+                paginatedSales.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-mono font-medium">{sale.sale_number}</TableCell>
                     <TableCell>{format(new Date(sale.created_at), 'MMM dd, yyyy HH:mm')}</TableCell>
@@ -367,6 +371,7 @@ export default function Sales() {
               )}
             </TableBody>
           </Table>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
         </Card>
       </div>
 

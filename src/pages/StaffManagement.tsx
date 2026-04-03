@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { Plus, Search, Upload, Download, UserCheck, UserX, Loader2, QrCode, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +50,8 @@ function StaffContent() {
     const matchBranch = branchFilter === 'all' || s.branch_id === branchFilter;
     return matchSearch && matchStatus && matchBranch;
   });
+
+  const { paginatedItems: paginatedStaff, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filtered);
 
   const handleEdit = (s: Staff) => { setEditingStaff(s); setDialogOpen(true); };
   const handleDialogClose = (open: boolean) => { setDialogOpen(open); if (!open) setEditingStaff(null); };
@@ -157,7 +161,7 @@ function StaffContent() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No staff found</TableCell></TableRow>
-                ) : filtered.map(s => (
+                ) : paginatedStaff.map(s => (
                   <TableRow key={s.id}>
                     <TableCell className="font-mono text-xs">{s.staff_id || '-'}</TableCell>
                     <TableCell className="font-medium">{s.full_name}</TableCell>
@@ -185,6 +189,7 @@ function StaffContent() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
           </div>
         )}
       </div>

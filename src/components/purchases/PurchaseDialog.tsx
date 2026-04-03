@@ -95,7 +95,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
     setSearchQuery('');
   };
 
-  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost' | 'selling_price', value: number) => {
+  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost' | 'selling_price', value: number | string) => {
     setCart(cart.map(item =>
       item.product_id === productId
         ? { ...item, [field]: value }
@@ -303,7 +303,8 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                             type="number"
                             min="1"
                             value={item.quantity}
-                            onChange={(e) => updateCartItem(item.product_id, 'quantity', Number(e.target.value) || 1)}
+                            onChange={(e) => updateCartItem(item.product_id, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
+                            onBlur={(e) => { if (!e.target.value || Number(e.target.value) < 1) updateCartItem(item.product_id, 'quantity', 1); }}
                             className="w-20"
                           />
                         </TableCell>

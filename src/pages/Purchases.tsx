@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { format } from 'date-fns';
 import { Plus, Trash2, Eye, Package, Filter, DollarSign, CheckCircle2, Clock, AlertCircle, Pencil, RotateCcw } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -35,6 +37,8 @@ export default function Purchases() {
     if (statusFilter !== 'all' && p.payment_status !== statusFilter) return false;
     return true;
   });
+
+  const { paginatedItems: paginatedPurchases, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filteredPurchases);
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-NG', {
@@ -183,7 +187,7 @@ export default function Purchases() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredPurchases.map(purchase => (
+                    paginatedPurchases.map(purchase => (
                       <TableRow key={purchase.id} className="group">
                         <TableCell className="font-medium">
                           {purchase.purchase_number}
@@ -264,6 +268,7 @@ export default function Purchases() {
                   )}
                 </TableBody>
               </Table>
+              <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
             </div>
           </CardContent>
         </Card>
