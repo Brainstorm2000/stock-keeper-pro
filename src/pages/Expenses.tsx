@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Trash2, Pencil, Upload, Tags, Calendar, Loader2, FileText, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
