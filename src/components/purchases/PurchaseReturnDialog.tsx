@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
-import { useCreatePurchaseReturn } from '@/hooks/usePurchaseReturns';
+import { useCreatePurchaseReturn, useAlreadyReturnedPurchaseQuantities } from '@/hooks/usePurchaseReturns';
 import { useOrganization } from '@/hooks/useOrganization';
 import type { Purchase } from '@/hooks/usePurchases';
 import { formatCurrency } from '@/lib/currency';
