@@ -314,7 +314,7 @@ export default function Expenses() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredExpenses.length === 0 ? null : paginatedExpenses.map((expense) => (
+                paginatedExpenses.map((expense) => (
                   <TableRow key={expense.id}>
                     <TableCell>{format(new Date(expense.expense_date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>
