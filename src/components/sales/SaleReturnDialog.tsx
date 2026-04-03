@@ -47,14 +47,18 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
         .eq('sale_id', sale.id)
         .then(({ data }) => {
           if (data) {
-            setItems(data.map((si: any) => ({
-              product_id: si.product_id,
-              product_name: si.products?.name || 'Unknown',
-              max_quantity: si.quantity,
-              quantity: si.quantity,
-              unit_price: si.unit_price,
-              selected: false,
-            })));
+            setItems(data.map((si: any) => {
+              const alreadyReturnedQty = alreadyReturned[si.product_id] || 0;
+              const maxReturnable = Math.max(0, si.quantity - alreadyReturnedQty);
+              return {
+                product_id: si.product_id,
+                product_name: si.products?.name || 'Unknown',
+                max_quantity: maxReturnable,
+                quantity: maxReturnable,
+                unit_price: si.unit_price,
+                selected: false,
+              };
+            }).filter((i: ReturnItem) => i.max_quantity > 0));
           }
         });
       setReason('');
