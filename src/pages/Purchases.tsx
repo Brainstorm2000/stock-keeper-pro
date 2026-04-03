@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { format } from 'date-fns';
 import { Plus, Trash2, Eye, Package, Filter, DollarSign, CheckCircle2, Clock, AlertCircle, Pencil, RotateCcw } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
