@@ -164,7 +164,7 @@ export default function Debts() {
                 ) : debtSales.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No outstanding debts</TableCell></TableRow>
                 ) : (
-                  debtSales.map((sale: any) => (
+                  paginatedDebts.map((sale: any) => (
                     <TableRow key={sale.id}>
                       <TableCell className="font-mono">{sale.sale_number}</TableCell>
                       <TableCell>{format(new Date(sale.created_at), 'MMM dd, yyyy')}</TableCell>
@@ -197,6 +197,7 @@ export default function Debts() {
                 )}
               </TableBody>
             </Table>
+            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
           </Card>
         </div>
 

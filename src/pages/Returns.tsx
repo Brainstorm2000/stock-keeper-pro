@@ -39,6 +39,9 @@ export default function Returns() {
     r.reason?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const { paginatedItems: paginatedSaleReturns, currentPage: srPage, totalPages: srTotalPages, totalItems: srTotalItems, pageSize: srPageSize, goToPage: srGoToPage } = usePagination(filteredSaleReturns);
+  const { paginatedItems: paginatedPurchaseReturns, currentPage: prPage, totalPages: prTotalPages, totalItems: prTotalItems, pageSize: prPageSize, goToPage: prGoToPage } = usePagination(filteredPurchaseReturns);
+
   const totalSaleReturns = saleReturns.reduce((s, r) => s + Number(r.total_amount), 0);
   const totalPurchaseReturns = purchaseReturns.reduce((s, r) => s + Number(r.total_amount), 0);
 
