@@ -91,6 +91,8 @@ export default function Expenses() {
     });
   }, [expenses, searchQuery, filterCategory, filterBranch]);
 
+  const { paginatedItems: paginatedExpenses, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filteredExpenses);
+
   // Calculate totals
   const totalExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
