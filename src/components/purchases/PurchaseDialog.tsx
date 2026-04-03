@@ -95,7 +95,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
     setSearchQuery('');
   };
 
-  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost' | 'selling_price', value: number) => {
+  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost' | 'selling_price', value: number | string) => {
     setCart(cart.map(item =>
       item.product_id === productId
         ? { ...item, [field]: value }
