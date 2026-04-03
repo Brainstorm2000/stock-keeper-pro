@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { Plus, Search, Loader2, CheckCircle2, Clock, AlertCircle, MessageSquare } from 'lucide-react';
 import { TaskCommentsDialog } from '@/components/tasks/TaskCommentsDialog';
 import { Button } from '@/components/ui/button';
