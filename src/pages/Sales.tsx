@@ -109,7 +109,9 @@ export default function Sales() {
       
       return matchesSearch && matchesStatus && matchesPayment && matchesBranch && matchesStartDate && matchesEndDate;
     });
-  }, [sales, searchQuery, filterStatus, filterPayment, filterBranch, startDate, endDate]);
+   }, [sales, searchQuery, filterStatus, filterPayment, filterBranch, startDate, endDate]);
+
+  const { paginatedItems: paginatedSales, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filteredSales);
 
   // Calculate totals
   const totalSales = filteredSales.reduce((sum, s) => sum + Number(s.total_amount), 0);
