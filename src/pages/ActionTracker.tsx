@@ -49,6 +49,8 @@ function ActionTrackerContent() {
     return matchSearch && matchStatus && matchPriority;
   });
 
+  const { paginatedItems: paginatedTasks, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filtered);
+
   const handleEdit = (t: ActionTask) => { setEditingTask(t); setDialogOpen(true); };
   const handleDialogClose = (open: boolean) => { setDialogOpen(open); if (!open) setEditingTask(null); };
 

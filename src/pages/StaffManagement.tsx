@@ -51,6 +51,8 @@ function StaffContent() {
     return matchSearch && matchStatus && matchBranch;
   });
 
+  const { paginatedItems: paginatedStaff, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filtered);
+
   const handleEdit = (s: Staff) => { setEditingStaff(s); setDialogOpen(true); };
   const handleDialogClose = (open: boolean) => { setDialogOpen(open); if (!open) setEditingStaff(null); };
 
