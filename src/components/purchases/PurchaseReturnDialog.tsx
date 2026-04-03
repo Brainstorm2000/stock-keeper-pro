@@ -30,6 +30,7 @@ interface ReturnItem {
 export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseReturnDialogProps) {
   const { data: organization } = useOrganization();
   const createReturn = useCreatePurchaseReturn();
+  const { data: alreadyReturned = {} } = useAlreadyReturnedPurchaseQuantities(purchase?.id);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ReturnItem[]>([]);
