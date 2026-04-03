@@ -187,7 +187,7 @@ export default function Purchases() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredPurchases.length === 0 ? paginatedPurchases : paginatedPurchases).map(purchase => (
+                    paginatedPurchases.map(purchase => (
                       <TableRow key={purchase.id} className="group">
                         <TableCell className="font-medium">
                           {purchase.purchase_number}
@@ -268,6 +268,7 @@ export default function Purchases() {
                   )}
                 </TableBody>
               </Table>
+              <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
             </div>
           </CardContent>
         </Card>
