@@ -187,7 +187,7 @@ export default function Purchases() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredPurchases.map(purchase => (
+                    filteredPurchases.length === 0 ? paginatedPurchases : paginatedPurchases).map(purchase => (
                       <TableRow key={purchase.id} className="group">
                         <TableCell className="font-medium">
                           {purchase.purchase_number}
