@@ -32,6 +32,7 @@ interface ReturnItem {
 export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogProps) {
   const { data: organization } = useOrganization();
   const createReturn = useCreateSaleReturn();
+  const { data: alreadyReturned = {} } = useAlreadyReturnedQuantities(sale?.id);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [refundMethod, setRefundMethod] = useState('cash');
