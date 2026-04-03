@@ -299,7 +299,10 @@ export default function Sales() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredSales.map((sale) => (
+                (() => {
+                const { paginatedItems, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filteredSales);
+                return (<>
+                {paginatedItems.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-mono font-medium">{sale.sale_number}</TableCell>
                     <TableCell>{format(new Date(sale.created_at), 'MMM dd, yyyy HH:mm')}</TableCell>
