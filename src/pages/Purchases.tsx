@@ -38,6 +38,8 @@ export default function Purchases() {
     return true;
   });
 
+  const { paginatedItems: paginatedPurchases, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filteredPurchases);
+
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
