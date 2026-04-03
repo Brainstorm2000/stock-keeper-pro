@@ -192,6 +192,7 @@ export function useCreatePurchaseReturn() {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-returned-quantities'] });
       toast({ title: 'Purchase return recorded' });
     },
     onError: (error: Error) => {
