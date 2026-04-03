@@ -128,7 +128,7 @@ export default function Returns() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredSaleReturns.map(ret => (
+                          {paginatedSaleReturns.map(ret => (
                             <TableRow key={ret.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetailReturn(ret); setDetailType('sale'); }}>
                               <TableCell className="font-medium">{ret.return_number}</TableCell>
                               <TableCell>{ret.sales?.sale_number || '—'}</TableCell>
@@ -153,6 +153,7 @@ export default function Returns() {
                           ))}
                         </TableBody>
                       </Table>
+                      <TablePagination currentPage={srPage} totalPages={srTotalPages} totalItems={srTotalItems} pageSize={srPageSize} onPageChange={srGoToPage} />
                     </div>
                   )}
                 </CardContent>
