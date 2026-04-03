@@ -184,7 +184,7 @@ export default function Returns() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredPurchaseReturns.map(ret => (
+                          {paginatedPurchaseReturns.map(ret => (
                             <TableRow key={ret.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetailReturn(ret); setDetailType('purchase'); }}>
                               <TableCell className="font-medium">{ret.return_number}</TableCell>
                               <TableCell>{ret.purchases?.purchase_number || '—'}</TableCell>
@@ -208,6 +208,7 @@ export default function Returns() {
                           ))}
                         </TableBody>
                       </Table>
+                      <TablePagination currentPage={prPage} totalPages={prTotalPages} totalItems={prTotalItems} pageSize={prPageSize} onPageChange={prGoToPage} />
                     </div>
                   )}
                 </CardContent>
