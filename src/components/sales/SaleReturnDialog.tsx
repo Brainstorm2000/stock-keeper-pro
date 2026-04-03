@@ -65,7 +65,7 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
       setNotes('');
       setRefundMethod('cash');
     }
-  }, [open, sale]);
+  }, [open, sale, alreadyReturned]);
 
   const selectedItems = items.filter(i => i.selected && i.quantity > 0);
   const totalReturn = selectedItems.reduce((s, i) => s + i.quantity * i.unit_price, 0);
