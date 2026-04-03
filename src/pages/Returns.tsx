@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { RotateCcw, Package, Eye, Search, Filter } from 'lucide-react';
+import { RotateCcw, Undo2, Search, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,17 +8,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useSaleReturns, type SaleReturn } from '@/hooks/useSaleReturns';
-import { usePurchaseReturns, type PurchaseReturn } from '@/hooks/usePurchaseReturns';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useSaleReturns, useUndoSaleReturn, type SaleReturn } from '@/hooks/useSaleReturns';
+import { usePurchaseReturns, useUndoPurchaseReturn, type PurchaseReturn } from '@/hooks/usePurchaseReturns';
 import { formatCurrency } from '@/lib/currency';
 
 export default function Returns() {
   const { data: saleReturns = [], isLoading: saleLoading } = useSaleReturns();
   const { data: purchaseReturns = [], isLoading: purchaseLoading } = usePurchaseReturns();
+  const undoSaleReturn = useUndoSaleReturn();
+  const undoPurchaseReturn = useUndoPurchaseReturn();
   const [search, setSearch] = useState('');
   const [detailReturn, setDetailReturn] = useState<SaleReturn | PurchaseReturn | null>(null);
   const [detailType, setDetailType] = useState<'sale' | 'purchase'>('sale');
+  const [undoConfirm, setUndoConfirm] = useState<{ ret: SaleReturn | PurchaseReturn; type: 'sale' | 'purchase' } | null>(null);
 
   const filteredSaleReturns = saleReturns.filter(r =>
     r.return_number.toLowerCase().includes(search.toLowerCase()) ||
@@ -35,10 +40,18 @@ export default function Returns() {
   const totalSaleReturns = saleReturns.reduce((s, r) => s + Number(r.total_amount), 0);
   const totalPurchaseReturns = purchaseReturns.reduce((s, r) => s + Number(r.total_amount), 0);
 
-  const viewDetail = (ret: SaleReturn | PurchaseReturn, type: 'sale' | 'purchase') => {
-    setDetailReturn(ret);
-    setDetailType(type);
+  const handleUndo = async () => {
+    if (!undoConfirm) return;
+    if (undoConfirm.type === 'sale') {
+      await undoSaleReturn.mutateAsync(undoConfirm.ret as SaleReturn);
+    } else {
+      await undoPurchaseReturn.mutateAsync(undoConfirm.ret as PurchaseReturn);
+    }
+    setUndoConfirm(null);
+    setDetailReturn(null);
   };
+
+  const isUndoing = undoSaleReturn.isPending || undoPurchaseReturn.isPending;
 
   return (
     <ModuleAccessGuard module="sales" minLevel="view">
@@ -51,7 +64,6 @@ export default function Returns() {
             <p className="text-muted-foreground">View all sales and purchase returns</p>
           </div>
 
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-6">
@@ -75,15 +87,9 @@ export default function Returns() {
             </Card>
           </div>
 
-          {/* Search */}
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search returns..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-10"
-            />
+            <Input placeholder="Search returns..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
           </div>
 
           <Tabs defaultValue="sales" className="space-y-4">
@@ -94,9 +100,7 @@ export default function Returns() {
 
             <TabsContent value="sales">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Sale Returns</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-lg">Sale Returns</CardTitle></CardHeader>
                 <CardContent>
                   {saleLoading ? (
                     <div className="text-center py-8 text-muted-foreground">Loading...</div>
@@ -115,27 +119,31 @@ export default function Returns() {
                             <TableHead>Reason</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
                             <TableHead>Items</TableHead>
+                            <TableHead className="w-[80px]">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {filteredSaleReturns.map(ret => (
-                            <TableRow
-                              key={ret.id}
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => viewDetail(ret, 'sale')}
-                            >
+                            <TableRow key={ret.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetailReturn(ret); setDetailType('sale'); }}>
                               <TableCell className="font-medium">{ret.return_number}</TableCell>
                               <TableCell>{ret.sales?.sale_number || '—'}</TableCell>
                               <TableCell>{format(new Date(ret.return_date), 'MMM d, yyyy')}</TableCell>
                               <TableCell>{ret.branches?.name || '—'}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="capitalize">
-                                  {ret.refund_method?.replace('_', ' ')}
-                                </Badge>
-                              </TableCell>
+                              <TableCell><Badge variant="outline" className="capitalize">{ret.refund_method?.replace('_', ' ')}</Badge></TableCell>
                               <TableCell className="max-w-[200px] truncate">{ret.reason || '—'}</TableCell>
                               <TableCell className="text-right font-medium">{formatCurrency(ret.total_amount)}</TableCell>
                               <TableCell>{ret.sale_return_items?.length || 0} items</TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  title="Undo return"
+                                  onClick={e => { e.stopPropagation(); setUndoConfirm({ ret, type: 'sale' }); }}
+                                >
+                                  <Undo2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -148,9 +156,7 @@ export default function Returns() {
 
             <TabsContent value="purchases">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Purchase Returns</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-lg">Purchase Returns</CardTitle></CardHeader>
                 <CardContent>
                   {purchaseLoading ? (
                     <div className="text-center py-8 text-muted-foreground">Loading...</div>
@@ -168,15 +174,12 @@ export default function Returns() {
                             <TableHead>Reason</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
                             <TableHead>Items</TableHead>
+                            <TableHead className="w-[80px]">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {filteredPurchaseReturns.map(ret => (
-                            <TableRow
-                              key={ret.id}
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => viewDetail(ret, 'purchase')}
-                            >
+                            <TableRow key={ret.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetailReturn(ret); setDetailType('purchase'); }}>
                               <TableCell className="font-medium">{ret.return_number}</TableCell>
                               <TableCell>{ret.purchases?.purchase_number || '—'}</TableCell>
                               <TableCell>{format(new Date(ret.return_date), 'MMM d, yyyy')}</TableCell>
@@ -184,6 +187,17 @@ export default function Returns() {
                               <TableCell className="max-w-[200px] truncate">{ret.reason || '—'}</TableCell>
                               <TableCell className="text-right font-medium">{formatCurrency(ret.total_amount)}</TableCell>
                               <TableCell>{ret.purchase_return_items?.length || 0} items</TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  title="Undo return"
+                                  onClick={e => { e.stopPropagation(); setUndoConfirm({ ret, type: 'purchase' }); }}
+                                >
+                                  <Undo2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -217,9 +231,7 @@ export default function Returns() {
                     <span className="ml-2">{format(new Date(detailReturn.return_date), 'MMM d, yyyy')}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">
-                      {detailType === 'sale' ? 'Sale' : 'Purchase'} #:
-                    </span>
+                    <span className="text-muted-foreground">{detailType === 'sale' ? 'Sale' : 'Purchase'} #:</span>
                     <span className="ml-2">
                       {detailType === 'sale'
                         ? (detailReturn as SaleReturn).sales?.sale_number
@@ -279,13 +291,39 @@ export default function Returns() {
                   </Table>
                 </div>
 
-                <div className="text-right text-lg font-bold border-t pt-3">
-                  Total: {formatCurrency(detailReturn.total_amount)}
+                <div className="flex items-center justify-between border-t pt-3">
+                  <div className="text-lg font-bold">Total: {formatCurrency(detailReturn.total_amount)}</div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setUndoConfirm({ ret: detailReturn, type: detailType })}
+                  >
+                    <Undo2 className="h-4 w-4 mr-2" /> Undo Return
+                  </Button>
                 </div>
               </div>
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Undo Confirmation */}
+        <AlertDialog open={!!undoConfirm} onOpenChange={() => setUndoConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Undo this return?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will reverse the stock changes and permanently delete the return record
+                ({undoConfirm?.ret.return_number}). This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isUndoing}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleUndo} disabled={isUndoing} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {isUndoing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Undoing...</> : 'Yes, Undo Return'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DashboardLayout>
     </ModuleAccessGuard>
   );

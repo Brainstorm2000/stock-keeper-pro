@@ -45,6 +45,74 @@ export function usePurchaseReturns() {
   });
 }
 
+export function useAlreadyReturnedPurchaseQuantities(purchaseId: string | undefined) {
+  return useQuery({
+    queryKey: ['purchase-returned-quantities', purchaseId],
+    enabled: !!purchaseId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('purchase_return_items')
+        .select('product_id, quantity, purchase_returns!inner(purchase_id)')
+        .eq('purchase_returns.purchase_id', purchaseId!);
+      if (error) throw error;
+      const map: Record<string, number> = {};
+      for (const item of (data || [])) {
+        map[item.product_id] = (map[item.product_id] || 0) + Number(item.quantity);
+      }
+      return map;
+    },
+  });
+}
+
+export function useUndoPurchaseReturn() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (ret: PurchaseReturn) => {
+      // Reverse stock: re-add items that were deducted
+      for (const item of (ret.purchase_return_items || [])) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('current_stock')
+          .eq('id', item.product_id)
+          .single();
+
+        if (product) {
+          const prev = Number(product.current_stock);
+          const newStock = prev + item.quantity;
+          await supabase.from('products').update({ current_stock: newStock }).eq('id', item.product_id);
+          await supabase.from('stock_history').insert({
+            product_id: item.product_id,
+            previous_stock: prev,
+            new_stock: newStock,
+            change_amount: item.quantity,
+            change_type: 'purchase_return',
+            notes: `Undo purchase return ${ret.return_number}`,
+            changed_by: user?.id,
+          });
+        }
+      }
+      await supabase.from('purchase_return_items').delete().eq('return_id', ret.id);
+      const { error } = await supabase.from('purchase_returns').delete().eq('id', ret.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-returns'] });
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-returned-quantities'] });
+      toast({ title: 'Purchase return undone successfully' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'undo purchase return');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
 export function useCreatePurchaseReturn() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -124,6 +192,7 @@ export function useCreatePurchaseReturn() {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-returned-quantities'] });
       toast({ title: 'Purchase return recorded' });
     },
     onError: (error: Error) => {

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
-import { useCreateSaleReturn } from '@/hooks/useSaleReturns';
+import { useCreateSaleReturn, useAlreadyReturnedQuantities } from '@/hooks/useSaleReturns';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/currency';
@@ -32,6 +32,7 @@ interface ReturnItem {
 export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogProps) {
   const { data: organization } = useOrganization();
   const createReturn = useCreateSaleReturn();
+  const { data: alreadyReturned = {} } = useAlreadyReturnedQuantities(sale?.id);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [refundMethod, setRefundMethod] = useState('cash');
@@ -46,21 +47,25 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
         .eq('sale_id', sale.id)
         .then(({ data }) => {
           if (data) {
-            setItems(data.map((si: any) => ({
-              product_id: si.product_id,
-              product_name: si.products?.name || 'Unknown',
-              max_quantity: si.quantity,
-              quantity: si.quantity,
-              unit_price: si.unit_price,
-              selected: false,
-            })));
+            setItems(data.map((si: any) => {
+              const alreadyReturnedQty = alreadyReturned[si.product_id] || 0;
+              const maxReturnable = Math.max(0, si.quantity - alreadyReturnedQty);
+              return {
+                product_id: si.product_id,
+                product_name: si.products?.name || 'Unknown',
+                max_quantity: maxReturnable,
+                quantity: maxReturnable,
+                unit_price: si.unit_price,
+                selected: false,
+              };
+            }).filter((i: ReturnItem) => i.max_quantity > 0));
           }
         });
       setReason('');
       setNotes('');
       setRefundMethod('cash');
     }
-  }, [open, sale]);
+  }, [open, sale, alreadyReturned]);
 
   const selectedItems = items.filter(i => i.selected && i.quantity > 0);
   const totalReturn = selectedItems.reduce((s, i) => s + i.quantity * i.unit_price, 0);

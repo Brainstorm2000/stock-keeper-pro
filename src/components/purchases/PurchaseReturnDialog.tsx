@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
-import { useCreatePurchaseReturn } from '@/hooks/usePurchaseReturns';
+import { useCreatePurchaseReturn, useAlreadyReturnedPurchaseQuantities } from '@/hooks/usePurchaseReturns';
 import { useOrganization } from '@/hooks/useOrganization';
 import type { Purchase } from '@/hooks/usePurchases';
 import { formatCurrency } from '@/lib/currency';
@@ -30,24 +30,29 @@ interface ReturnItem {
 export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseReturnDialogProps) {
   const { data: organization } = useOrganization();
   const createReturn = useCreatePurchaseReturn();
+  const { data: alreadyReturned = {} } = useAlreadyReturnedPurchaseQuantities(purchase?.id);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ReturnItem[]>([]);
 
   useEffect(() => {
     if (open && purchase?.purchase_items) {
-      setItems(purchase.purchase_items.map(pi => ({
-        product_id: pi.product_id,
-        product_name: pi.products?.name || 'Unknown',
-        max_quantity: pi.quantity,
-        quantity: pi.quantity,
-        unit_cost: pi.unit_cost,
-        selected: false,
-      })));
+      setItems(purchase.purchase_items.map(pi => {
+        const alreadyReturnedQty = alreadyReturned[pi.product_id] || 0;
+        const maxReturnable = Math.max(0, pi.quantity - alreadyReturnedQty);
+        return {
+          product_id: pi.product_id,
+          product_name: pi.products?.name || 'Unknown',
+          max_quantity: maxReturnable,
+          quantity: maxReturnable,
+          unit_cost: pi.unit_cost,
+          selected: false,
+        };
+      }).filter(i => i.max_quantity > 0));
       setReason('');
       setNotes('');
     }
-  }, [open, purchase]);
+  }, [open, purchase, alreadyReturned]);
 
   const selectedItems = items.filter(i => i.selected && i.quantity > 0);
   const totalReturn = selectedItems.reduce((s, i) => s + i.quantity * i.unit_cost, 0);

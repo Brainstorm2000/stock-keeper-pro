@@ -46,6 +46,75 @@ export function useSaleReturns() {
   });
 }
 
+export function useAlreadyReturnedQuantities(saleId: string | undefined) {
+  return useQuery({
+    queryKey: ['sale-returned-quantities', saleId],
+    enabled: !!saleId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sale_return_items')
+        .select('product_id, quantity, sale_returns!inner(sale_id)')
+        .eq('sale_returns.sale_id', saleId!);
+      if (error) throw error;
+      const map: Record<string, number> = {};
+      for (const item of (data || [])) {
+        map[item.product_id] = (map[item.product_id] || 0) + Number(item.quantity);
+      }
+      return map;
+    },
+  });
+}
+
+export function useUndoSaleReturn() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (ret: SaleReturn) => {
+      // Reverse stock for each returned item
+      for (const item of (ret.sale_return_items || [])) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('current_stock, item_type')
+          .eq('id', item.product_id)
+          .single();
+
+        if (product && product.item_type === 'product') {
+          const prev = Number(product.current_stock);
+          const newStock = Math.max(0, prev - item.quantity);
+          await supabase.from('products').update({ current_stock: newStock }).eq('id', item.product_id);
+          await supabase.from('stock_history').insert({
+            product_id: item.product_id,
+            previous_stock: prev,
+            new_stock: newStock,
+            change_amount: -item.quantity,
+            change_type: 'sale_return',
+            notes: `Undo sale return ${ret.return_number}`,
+            changed_by: user?.id,
+          });
+        }
+      }
+      // Delete return items then return
+      await supabase.from('sale_return_items').delete().eq('return_id', ret.id);
+      const { error } = await supabase.from('sale_returns').delete().eq('id', ret.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sale-returns'] });
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['sale-returned-quantities'] });
+      toast({ title: 'Sale return undone successfully' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'undo sale return');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
 export function useCreateSaleReturn() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -127,6 +196,7 @@ export function useCreateSaleReturn() {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['sale-returned-quantities'] });
       toast({ title: 'Sale return recorded' });
     },
     onError: (error: Error) => {
