@@ -196,6 +196,7 @@ export function useCreateSaleReturn() {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['sale-returned-quantities'] });
       toast({ title: 'Sale return recorded' });
     },
     onError: (error: Error) => {
