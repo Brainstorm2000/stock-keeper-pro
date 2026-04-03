@@ -161,7 +161,7 @@ function StaffContent() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No staff found</TableCell></TableRow>
-                ) : filtered.map(s => (
+                ) : paginatedStaff.map(s => (
                   <TableRow key={s.id}>
                     <TableCell className="font-mono text-xs">{s.staff_id || '-'}</TableCell>
                     <TableCell className="font-medium">{s.full_name}</TableCell>
@@ -189,6 +189,7 @@ function StaffContent() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
           </div>
         )}
       </div>

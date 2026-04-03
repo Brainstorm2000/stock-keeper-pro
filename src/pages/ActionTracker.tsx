@@ -140,7 +140,7 @@ function ActionTrackerContent() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No tasks found</TableCell></TableRow>
-                ) : filtered.map(t => (
+                ) : paginatedTasks.map(t => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium max-w-[200px] truncate">{t.title}</TableCell>
                     <TableCell>
@@ -182,6 +182,7 @@ function ActionTrackerContent() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
           </div>
         )}
       </div>

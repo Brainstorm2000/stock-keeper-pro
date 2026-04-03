@@ -371,6 +371,7 @@ export default function Expenses() {
               )}
             </TableBody>
           </Table>
+          <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
         </Card>
       </div>
 
