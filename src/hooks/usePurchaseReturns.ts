@@ -94,6 +94,23 @@ export function useUndoPurchaseReturn() {
           });
         }
       }
+      // Reverse balance adjustment on purchases
+      const { data: purchase } = await supabase
+        .from('purchases')
+        .select('total_amount, amount_paid, payment_status')
+        .eq('id', ret.purchase_id)
+        .single();
+
+      if (purchase && (purchase.payment_status === 'partial' || purchase.payment_status === 'pending' || purchase.payment_status === 'paid')) {
+        const newTotal = Number(purchase.total_amount) + ret.total_amount;
+        const newBalance = newTotal - Number(purchase.amount_paid);
+        const newStatus = newBalance <= 0 ? 'paid' : Number(purchase.amount_paid) > 0 ? 'partial' : 'pending';
+        await supabase.from('purchases').update({
+          total_amount: newTotal,
+          payment_status: newStatus,
+        }).eq('id', ret.purchase_id);
+      }
+
       await supabase.from('purchase_return_items').delete().eq('return_id', ret.id);
       const { error } = await supabase.from('purchase_returns').delete().eq('id', ret.id);
       if (error) throw error;
@@ -183,6 +200,23 @@ export function useCreatePurchaseReturn() {
             changed_by: user?.id,
           });
         }
+      }
+
+      // Adjust purchase balance: reduce total_amount by return amount
+      const { data: purchase } = await supabase
+        .from('purchases')
+        .select('total_amount, amount_paid, payment_status')
+        .eq('id', input.purchase_id)
+        .single();
+
+      if (purchase && (purchase.payment_status === 'partial' || purchase.payment_status === 'pending')) {
+        const newTotal = Math.max(0, Number(purchase.total_amount) - totalAmount);
+        const newBalance = newTotal - Number(purchase.amount_paid);
+        const newStatus = newBalance <= 0 ? 'paid' : Number(purchase.amount_paid) > 0 ? 'partial' : 'pending';
+        await supabase.from('purchases').update({
+          total_amount: newTotal,
+          payment_status: newStatus,
+        }).eq('id', input.purchase_id);
       }
 
       return ret;
