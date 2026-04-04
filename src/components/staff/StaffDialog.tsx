@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,9 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateStaff, useUpdateStaff, type Staff, type StaffInput } from '@/hooks/useStaff';
 import { useBranches } from '@/hooks/useBranches';
+import { useDepartments } from '@/hooks/useDepartments';
+import { useStaffPositions, useCreateStaffPosition, useCreateDepartment } from '@/hooks/useStaffPositions';
+import { Plus } from 'lucide-react';
 
 interface StaffDialogProps {
   staff: Staff | null;
@@ -21,7 +24,16 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
   const createStaff = useCreateStaff();
   const updateStaff = useUpdateStaff();
   const { data: branches = [] } = useBranches();
+  const { data: departments = [] } = useDepartments();
+  const { data: positions = [] } = useStaffPositions();
+  const createPosition = useCreateStaffPosition();
+  const createDepartment = useCreateDepartment();
   const isActive = watch('is_active') ?? true;
+
+  const [newPosition, setNewPosition] = useState('');
+  const [showNewPosition, setShowNewPosition] = useState(false);
+  const [newDepartment, setNewDepartment] = useState('');
+  const [showNewDepartment, setShowNewDepartment] = useState(false);
 
   useEffect(() => {
     if (staff) {
@@ -40,6 +52,10 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
     } else {
       reset({ full_name: '', is_active: true });
     }
+    setShowNewPosition(false);
+    setShowNewDepartment(false);
+    setNewPosition('');
+    setNewDepartment('');
   }, [staff, open, reset]);
 
   const onSubmit = async (data: StaffInput) => {
@@ -49,6 +65,22 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
       await createStaff.mutateAsync(data);
     }
     onOpenChange(false);
+  };
+
+  const handleAddPosition = async () => {
+    if (!newPosition.trim()) return;
+    await createPosition.mutateAsync(newPosition.trim());
+    setValue('role', newPosition.trim());
+    setNewPosition('');
+    setShowNewPosition(false);
+  };
+
+  const handleAddDepartment = async () => {
+    if (!newDepartment.trim()) return;
+    await createDepartment.mutateAsync(newDepartment.trim());
+    setValue('department', newDepartment.trim());
+    setNewDepartment('');
+    setShowNewDepartment(false);
   };
 
   return (
@@ -81,12 +113,48 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Role / Position</Label>
-              <Input {...register('role')} />
+              <div className="flex items-center justify-between">
+                <Label>Role / Position</Label>
+                <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setShowNewPosition(!showNewPosition)}>
+                  <Plus className="h-3 w-3 mr-1" />New
+                </Button>
+              </div>
+              {showNewPosition ? (
+                <div className="flex gap-1">
+                  <Input value={newPosition} onChange={e => setNewPosition(e.target.value)} placeholder="Position name" className="text-sm" />
+                  <Button type="button" size="sm" onClick={handleAddPosition} disabled={createPosition.isPending}>Add</Button>
+                </div>
+              ) : (
+                <Select value={watch('role') || 'none'} onValueChange={v => setValue('role', v === 'none' ? null : v)}>
+                  <SelectTrigger><SelectValue placeholder="Select position" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No position</SelectItem>
+                    {positions.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>Department</Label>
-              <Input {...register('department')} />
+              <div className="flex items-center justify-between">
+                <Label>Department</Label>
+                <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setShowNewDepartment(!showNewDepartment)}>
+                  <Plus className="h-3 w-3 mr-1" />New
+                </Button>
+              </div>
+              {showNewDepartment ? (
+                <div className="flex gap-1">
+                  <Input value={newDepartment} onChange={e => setNewDepartment(e.target.value)} placeholder="Department name" className="text-sm" />
+                  <Button type="button" size="sm" onClick={handleAddDepartment} disabled={createDepartment.isPending}>Add</Button>
+                </div>
+              ) : (
+                <Select value={watch('department') || 'none'} onValueChange={v => setValue('department', v === 'none' ? null : v)}>
+                  <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No department</SelectItem>
+                    {departments.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

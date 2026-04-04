@@ -95,6 +95,25 @@ export function useUndoSaleReturn() {
           });
         }
       }
+
+      // Reverse balance adjustment on outstanding/partial sales
+      const { data: sale } = await supabase
+        .from('sales')
+        .select('total_amount, amount_paid, balance_due, payment_status')
+        .eq('id', ret.sale_id)
+        .single();
+
+      if (sale && (sale.payment_status === 'partial' || sale.payment_status === 'outstanding' || sale.payment_status === 'paid')) {
+        const newTotal = Number(sale.total_amount) + ret.total_amount;
+        const newBalance = newTotal - Number(sale.amount_paid);
+        const newStatus = newBalance <= 0 ? 'paid' : Number(sale.amount_paid) > 0 ? 'partial' : 'outstanding';
+        await supabase.from('sales').update({
+          total_amount: newTotal,
+          balance_due: Math.max(0, newBalance),
+          payment_status: newStatus,
+        }).eq('id', ret.sale_id);
+      }
+
       // Delete return items then return
       await supabase.from('sale_return_items').delete().eq('return_id', ret.id);
       const { error } = await supabase.from('sale_returns').delete().eq('id', ret.id);
@@ -103,6 +122,7 @@ export function useUndoSaleReturn() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sale-returns'] });
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['outstanding-sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       queryClient.invalidateQueries({ queryKey: ['sale-returned-quantities'] });
@@ -189,14 +209,34 @@ export function useCreateSaleReturn() {
         }
       }
 
+      // Adjust outstanding balance: reduce total_amount by return amount
+      const { data: sale } = await supabase
+        .from('sales')
+        .select('total_amount, amount_paid, balance_due, payment_status')
+        .eq('id', input.sale_id)
+        .single();
+
+      if (sale && (sale.payment_status === 'partial' || sale.payment_status === 'outstanding')) {
+        const newTotal = Math.max(0, Number(sale.total_amount) - totalAmount);
+        const newBalance = Math.max(0, newTotal - Number(sale.amount_paid));
+        const newStatus = newBalance <= 0 ? 'paid' : Number(sale.amount_paid) > 0 ? 'partial' : 'outstanding';
+        await supabase.from('sales').update({
+          total_amount: newTotal,
+          balance_due: newBalance,
+          payment_status: newStatus,
+        }).eq('id', input.sale_id);
+      }
+
       return ret;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sale-returns'] });
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['outstanding-sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       queryClient.invalidateQueries({ queryKey: ['sale-returned-quantities'] });
+      queryClient.invalidateQueries({ queryKey: ['debt-payments'] });
       toast({ title: 'Sale return recorded' });
     },
     onError: (error: Error) => {
