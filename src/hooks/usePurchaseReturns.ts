@@ -202,6 +202,23 @@ export function useCreatePurchaseReturn() {
         }
       }
 
+      // Adjust purchase balance: reduce total_amount by return amount
+      const { data: purchase } = await supabase
+        .from('purchases')
+        .select('total_amount, amount_paid, payment_status')
+        .eq('id', input.purchase_id)
+        .single();
+
+      if (purchase && (purchase.payment_status === 'partial' || purchase.payment_status === 'pending')) {
+        const newTotal = Math.max(0, Number(purchase.total_amount) - totalAmount);
+        const newBalance = newTotal - Number(purchase.amount_paid);
+        const newStatus = newBalance <= 0 ? 'paid' : Number(purchase.amount_paid) > 0 ? 'partial' : 'pending';
+        await supabase.from('purchases').update({
+          total_amount: newTotal,
+          payment_status: newStatus,
+        }).eq('id', input.purchase_id);
+      }
+
       return ret;
     },
     onSuccess: () => {
