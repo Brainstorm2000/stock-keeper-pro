@@ -212,7 +212,7 @@ export function QRScanner() {
       const { data: staffMember, error: staffErr } = await supabase
         .from('staff')
         .select('id, full_name, branch_id, department_id')
-        .eq('id', parsed.staff_id)
+        .eq('id', staffId)
         .eq('organization_id', organizationId)
         .single();
 
