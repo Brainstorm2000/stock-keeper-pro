@@ -14,10 +14,8 @@ interface StaffQRCodeProps {
 export function StaffQRCode({ staffId, organizationId, staffName, staffCode }: StaffQRCodeProps) {
   const qrRef = useRef<HTMLDivElement>(null);
 
-  const qrValue = JSON.stringify({
-    staff_id: staffId,
-    organization_id: organizationId,
-  });
+  // Simple string format: ATT:<staffId>:<organizationId>
+  const qrValue = `ATT:${staffId}:${organizationId}`;
 
   const handleDownload = () => {
     const svg = qrRef.current?.querySelector('svg');

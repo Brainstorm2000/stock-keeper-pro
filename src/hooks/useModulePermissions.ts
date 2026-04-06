@@ -4,22 +4,38 @@ import { useAuth } from '@/lib/auth';
 import { toast } from '@/hooks/use-toast';
 
 export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production' | 'reports' | 'staff' | 'tasks';
-export type ModuleAccessLevel = 'none' | 'view' | 'create' | 'full';
+export type CrudPermission = 'view' | 'create' | 'edit' | 'delete';
 export type AppRole = 'admin' | 'user' | 'super_admin' | 'super_super_admin';
+
+// Keep legacy type for backward compat in guards
+export type ModuleAccessLevel = 'none' | 'view' | 'create' | 'full';
+
+export interface ModuleCrudPermissions {
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}
 
 export interface RoleModulePermission {
   id: string;
   organization_id: string;
   role: AppRole;
   module: AppModule;
-  access_level: ModuleAccessLevel;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
 }
 
 export interface UserModulePermission {
   id: string;
   user_id: string;
   module: AppModule;
-  access_level: ModuleAccessLevel;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
 }
 
 export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses', 'production', 'reports', 'staff', 'tasks'];
@@ -35,6 +51,14 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   tasks: 'Action Tracker',
 };
 
+export const CRUD_LABELS: Record<CrudPermission, string> = {
+  view: 'View',
+  create: 'Create',
+  edit: 'Edit',
+  delete: 'Delete',
+};
+
+// Legacy labels kept for any remaining references
 export const ACCESS_LEVEL_LABELS: Record<ModuleAccessLevel, string> = {
   none: 'No Access',
   view: 'View Only',
@@ -65,6 +89,9 @@ export function useOrgModules() {
   });
 }
 
+const FULL_CRUD: ModuleCrudPermissions = { can_view: true, can_create: true, can_edit: true, can_delete: true };
+const NO_CRUD: ModuleCrudPermissions = { can_view: false, can_create: false, can_edit: false, can_delete: false };
+
 // Hook to get the current user's module access
 export function useMyModuleAccess() {
   const { user, isSuperAdmin } = useAuth();
@@ -77,31 +104,17 @@ export function useMyModuleAccess() {
 
       // Super admins have full access to everything
       if (isSuperAdmin) {
-        const access: Record<AppModule, ModuleAccessLevel> = {
-          pos: 'full',
-          sales: 'full',
-          purchases: 'full',
-          expenses: 'full',
-          production: 'full',
-          reports: 'full',
-          staff: 'full',
-          tasks: 'full',
-        };
-        // Even super admins respect org-level module disablement
-        if (orgModules) {
-          ALL_MODULES.forEach((mod) => {
-            if (orgModules[mod] === false) {
-              access[mod] = 'none';
-            }
-          });
-        }
+        const access: Record<AppModule, ModuleCrudPermissions> = {} as any;
+        ALL_MODULES.forEach((mod) => {
+          access[mod] = orgModules?.[mod] === false ? { ...NO_CRUD } : { ...FULL_CRUD };
+        });
         return access;
       }
 
       // Fetch user-specific overrides
       const { data: userPerms, error: userError } = await supabase
         .from('user_module_permissions')
-        .select('module, access_level')
+        .select('module, can_view, can_create, can_edit, can_delete')
         .eq('user_id', user.id);
 
       if (userError) throw userError;
@@ -109,37 +122,41 @@ export function useMyModuleAccess() {
       // Fetch role-based permissions
       const { data: rolePerms, error: roleError } = await supabase
         .from('role_module_permissions')
-        .select('module, access_level');
+        .select('module, can_view, can_create, can_edit, can_delete');
 
       if (roleError) throw roleError;
 
-      // Build access map - user overrides take precedence
-      const access: Record<AppModule, ModuleAccessLevel> = {
-        pos: 'none',
-        sales: 'none',
-        purchases: 'none',
-        expenses: 'none',
-        production: 'none',
-        reports: 'none',
-        staff: 'none',
-        tasks: 'none',
-      };
+      // Build access map
+      const access: Record<AppModule, ModuleCrudPermissions> = {} as any;
+      ALL_MODULES.forEach((mod) => {
+        access[mod] = { ...NO_CRUD };
+      });
 
       // Apply role-based permissions first
       rolePerms?.forEach((perm) => {
-        access[perm.module as AppModule] = perm.access_level as ModuleAccessLevel;
+        access[perm.module as AppModule] = {
+          can_view: perm.can_view,
+          can_create: perm.can_create,
+          can_edit: perm.can_edit,
+          can_delete: perm.can_delete,
+        };
       });
 
       // Apply user-specific overrides
       userPerms?.forEach((perm) => {
-        access[perm.module as AppModule] = perm.access_level as ModuleAccessLevel;
+        access[perm.module as AppModule] = {
+          can_view: perm.can_view,
+          can_create: perm.can_create,
+          can_edit: perm.can_edit,
+          can_delete: perm.can_delete,
+        };
       });
 
       // Override with org-level module disablement
       if (orgModules) {
         ALL_MODULES.forEach((mod) => {
           if (orgModules[mod] === false) {
-            access[mod] = 'none';
+            access[mod] = { ...NO_CRUD };
           }
         });
       }
@@ -150,18 +167,26 @@ export function useMyModuleAccess() {
   });
 }
 
-// Helper to check if user has at least a certain access level
+// Helper to check if user has a specific CRUD permission
 export function hasAccess(
-  moduleAccess: Record<AppModule, ModuleAccessLevel> | null | undefined,
+  moduleAccess: Record<AppModule, ModuleCrudPermissions> | null | undefined,
   module: AppModule,
-  minLevel: ModuleAccessLevel
+  minLevel: ModuleAccessLevel | CrudPermission
 ): boolean {
   if (!moduleAccess) return false;
-  
-  const userLevel = moduleAccess[module];
-  const levels: ModuleAccessLevel[] = ['none', 'view', 'create', 'full'];
-  
-  return levels.indexOf(userLevel) >= levels.indexOf(minLevel);
+  const perms = moduleAccess[module];
+  if (!perms) return false;
+
+  // Support both legacy levels and new CRUD permissions
+  switch (minLevel) {
+    case 'none': return true;
+    case 'view': return perms.can_view;
+    case 'create': return perms.can_create;
+    case 'edit': return perms.can_edit;
+    case 'delete': return perms.can_delete;
+    case 'full': return perms.can_view && perms.can_create && perms.can_edit && perms.can_delete;
+    default: return false;
+  }
 }
 
 // Hook to fetch role module permissions for the organization
@@ -210,11 +235,11 @@ export function useUpsertRoleModulePermission() {
     mutationFn: async ({ 
       role, 
       module, 
-      accessLevel 
+      permissions 
     }: { 
       role: AppRole; 
       module: AppModule; 
-      accessLevel: ModuleAccessLevel 
+      permissions: ModuleCrudPermissions;
     }) => {
       if (!organizationId) throw new Error('No organization');
 
@@ -224,7 +249,7 @@ export function useUpsertRoleModulePermission() {
           organization_id: organizationId,
           role,
           module,
-          access_level: accessLevel,
+          ...permissions,
         }, {
           onConflict: 'organization_id,role,module',
         });
@@ -233,6 +258,7 @@ export function useUpsertRoleModulePermission() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['role-module-permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['my-module-access'] });
       toast({ title: 'Permission updated' });
     },
     onError: (error) => {
@@ -249,14 +275,13 @@ export function useUpsertUserModulePermission() {
     mutationFn: async ({ 
       userId, 
       module, 
-      accessLevel 
+      permissions 
     }: { 
       userId: string; 
       module: AppModule; 
-      accessLevel: ModuleAccessLevel | null; // null = remove override
+      permissions: ModuleCrudPermissions | null; // null = remove override
     }) => {
-      if (accessLevel === null) {
-        // Remove the override
+      if (permissions === null) {
         const { error } = await supabase
           .from('user_module_permissions')
           .delete()
@@ -270,7 +295,7 @@ export function useUpsertUserModulePermission() {
           .upsert({
             user_id: userId,
             module,
-            access_level: accessLevel,
+            ...permissions,
           }, {
             onConflict: 'user_id,module',
           });

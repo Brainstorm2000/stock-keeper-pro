@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldX, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useMyModuleAccess, hasAccess, AppModule, ModuleAccessLevel, MODULE_LABELS } from '@/hooks/useModulePermissions';
+import { useMyModuleAccess, hasAccess, AppModule, ModuleAccessLevel, CrudPermission, MODULE_LABELS, ModuleCrudPermissions } from '@/hooks/useModulePermissions';
 import { useAuth } from '@/lib/auth';
 
 interface ModuleAccessGuardProps {
   module: AppModule;
-  minLevel?: ModuleAccessLevel;
+  minLevel?: ModuleAccessLevel | CrudPermission;
   children: ReactNode;
   fallback?: ReactNode;
 }
@@ -23,7 +23,6 @@ export function ModuleAccessGuard({
   const { data: moduleAccess, isLoading } = useMyModuleAccess();
   const navigate = useNavigate();
 
-  // Still loading
   if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -32,7 +31,6 @@ export function ModuleAccessGuard({
     );
   }
 
-  // Check access
   const hasRequiredAccess = hasAccess(moduleAccess, module, minLevel);
 
   if (!hasRequiredAccess) {
@@ -70,14 +68,11 @@ export function ModuleAccessGuard({
 export function useModuleAccess(module: AppModule) {
   const { data: moduleAccess, isLoading } = useMyModuleAccess();
 
-  const accessLevel = moduleAccess?.[module] || 'none';
-
   return {
     isLoading,
     canView: hasAccess(moduleAccess, module, 'view'),
     canCreate: hasAccess(moduleAccess, module, 'create'),
-    canEdit: hasAccess(moduleAccess, module, 'full'),
-    canDelete: hasAccess(moduleAccess, module, 'full'),
-    accessLevel,
+    canEdit: hasAccess(moduleAccess, module, 'edit'),
+    canDelete: hasAccess(moduleAccess, module, 'delete'),
   };
 }
