@@ -1566,7 +1566,10 @@ export type Database = {
       }
       role_module_permissions: {
         Row: {
-          access_level: Database["public"]["Enums"]["module_access_level"]
+          can_create: boolean
+          can_delete: boolean
+          can_edit: boolean
+          can_view: boolean
           created_at: string
           id: string
           module: Database["public"]["Enums"]["app_module"]
@@ -1575,7 +1578,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          access_level?: Database["public"]["Enums"]["module_access_level"]
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
           created_at?: string
           id?: string
           module: Database["public"]["Enums"]["app_module"]
@@ -1584,7 +1590,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          access_level?: Database["public"]["Enums"]["module_access_level"]
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
           created_at?: string
           id?: string
           module?: Database["public"]["Enums"]["app_module"]
@@ -2347,7 +2356,10 @@ export type Database = {
       }
       user_module_permissions: {
         Row: {
-          access_level: Database["public"]["Enums"]["module_access_level"]
+          can_create: boolean
+          can_delete: boolean
+          can_edit: boolean
+          can_view: boolean
           created_at: string
           id: string
           module: Database["public"]["Enums"]["app_module"]
@@ -2355,7 +2367,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          access_level: Database["public"]["Enums"]["module_access_level"]
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
           created_at?: string
           id?: string
           module: Database["public"]["Enums"]["app_module"]
@@ -2363,7 +2378,10 @@ export type Database = {
           user_id: string
         }
         Update: {
-          access_level?: Database["public"]["Enums"]["module_access_level"]
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
           created_at?: string
           id?: string
           module?: Database["public"]["Enums"]["app_module"]
@@ -2560,13 +2578,6 @@ export type Database = {
       generate_sale_number: { Args: { org_id: string }; Returns: string }
       generate_sale_return_number: { Args: { org_id: string }; Returns: string }
       generate_work_order_number: { Args: { org_id: string }; Returns: string }
-      get_module_access: {
-        Args: {
-          _module: Database["public"]["Enums"]["app_module"]
-          _user_id: string
-        }
-        Returns: Database["public"]["Enums"]["module_access_level"]
-      }
       get_user_organization: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -2577,10 +2588,10 @@ export type Database = {
         Args: { _branch_id: string; _user_id: string }
         Returns: boolean
       }
-      has_module_access: {
+      has_module_permission: {
         Args: {
-          _min_level: Database["public"]["Enums"]["module_access_level"]
           _module: Database["public"]["Enums"]["app_module"]
+          _permission: string
           _user_id: string
         }
         Returns: boolean
