@@ -185,11 +185,27 @@ export function QRScanner() {
     await stopScanning();
 
     try {
-      const parsed = JSON.parse(decodedText);
-      if (!parsed.staff_id || !parsed.organization_id) {
-        throw new Error('Invalid QR code');
+      // Support both new simple format (ATT:staffId:orgId) and legacy JSON
+      let staffId: string;
+      let orgId: string;
+      
+      if (decodedText.startsWith('ATT:')) {
+        const parts = decodedText.split(':');
+        if (parts.length !== 3) throw new Error('Invalid QR code');
+        staffId = parts[1];
+        orgId = parts[2];
+      } else {
+        try {
+          const parsed = JSON.parse(decodedText);
+          if (!parsed.staff_id || !parsed.organization_id) throw new Error('Invalid QR code');
+          staffId = parsed.staff_id;
+          orgId = parsed.organization_id;
+        } catch {
+          throw new Error('Invalid QR code');
+        }
       }
-      if (parsed.organization_id !== organizationId) {
+      
+      if (orgId !== organizationId) {
         throw new Error('Staff not found in your organization');
       }
 
