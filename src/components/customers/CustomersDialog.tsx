@@ -255,6 +255,18 @@ export function CustomersDialog() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="debt_limit">Debt Limit (0 = no limit)</Label>
+                  <Input
+                    id="debt_limit"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.debt_limit || ''}
+                    onChange={(e) => setFormData({ ...formData, debt_limit: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    placeholder="0 = unlimited"
+                  />
+                </div>
+                <div>
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea
                     id="notes"
