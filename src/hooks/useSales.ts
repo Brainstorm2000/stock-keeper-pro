@@ -52,6 +52,7 @@ export interface CreateSaleInput {
   customer_id?: string;
   customer_name?: string;
   customer_phone?: string;
+  sale_date?: string;
   subtotal: number;
   discount_amount: number;
   discount_percent: number;
