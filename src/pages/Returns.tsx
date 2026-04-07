@@ -59,7 +59,7 @@ export default function Returns() {
   const isUndoing = undoSaleReturn.isPending || undoPurchaseReturn.isPending;
 
   return (
-    <ModuleAccessGuard module="sales" minLevel="view">
+    <ModuleAccessGuard module="returns" minLevel="view">
       <DashboardLayout>
         <div className="space-y-6">
           <div>

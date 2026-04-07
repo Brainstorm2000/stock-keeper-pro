@@ -56,6 +56,7 @@ export default function POS() {
   const [paymentType, setPaymentType] = useState<'full' | 'partial' | 'credit'>('full');
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [dueDate, setDueDate] = useState('');
+  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
 
   const { user, loading: authLoading, isAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
@@ -320,6 +321,7 @@ export default function POS() {
       customer_id: selectedCustomerId && selectedCustomerId !== 'none' ? selectedCustomerId : undefined,
       customer_name: customerName || undefined,
       customer_phone: customerPhone || undefined,
+      sale_date: saleDate || undefined,
       subtotal,
       discount_amount: discountValue,
       discount_percent: discountPercent,
@@ -639,6 +641,16 @@ export default function POS() {
           </DialogHeader>
           
           <div className="space-y-4">
+            {/* Sale Date */}
+            <div className="space-y-2">
+              <Label>Sale Date</Label>
+              <Input
+                type="date"
+                value={saleDate}
+                onChange={(e) => setSaleDate(e.target.value)}
+              />
+            </div>
+
             {/* Customer Selection */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">

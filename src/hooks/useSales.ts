@@ -52,6 +52,7 @@ export interface CreateSaleInput {
   customer_id?: string;
   customer_name?: string;
   customer_phone?: string;
+  sale_date?: string;
   subtotal: number;
   discount_amount: number;
   discount_percent: number;
@@ -174,6 +175,7 @@ export function useCreateSale() {
           status: input.status || 'completed',
           notes: input.notes || null,
           created_by: user?.id,
+          ...(input.sale_date ? { created_at: new Date(input.sale_date).toISOString() } : {}),
         })
         .select()
         .single();

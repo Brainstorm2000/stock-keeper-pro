@@ -76,6 +76,7 @@ export default function Sales() {
 
   const { user, loading: authLoading, hasCompletedOnboarding } = useAuth();
   const { canEdit, canDelete } = useModuleAccess('sales');
+  const { canEdit: canReturnEdit } = useModuleAccess('returns');
   const { data: sales = [], isLoading: salesLoading } = useSales();
   const { data: branches = [] } = useBranches();
   const { data: organization } = useOrganization();
@@ -343,7 +344,7 @@ export default function Sales() {
                             <Edit2 className="h-4 w-4" />
                           </Button>
                         )}
-                        {canEdit && (
+                        {canEdit && canReturnEdit && (
                           <Button
                             variant="ghost"
                             size="icon"

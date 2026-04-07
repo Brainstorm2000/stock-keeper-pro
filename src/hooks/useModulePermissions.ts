@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/hooks/use-toast';
 
-export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production' | 'reports' | 'staff' | 'tasks';
+export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production' | 'reports' | 'staff' | 'tasks' | 'debts' | 'returns';
 export type CrudPermission = 'view' | 'create' | 'edit' | 'delete';
 export type AppRole = 'admin' | 'user' | 'super_admin' | 'super_super_admin';
 
@@ -38,7 +38,7 @@ export interface UserModulePermission {
   can_delete: boolean;
 }
 
-export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses', 'production', 'reports', 'staff', 'tasks'];
+export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses', 'production', 'reports', 'staff', 'tasks', 'debts', 'returns'];
 
 export const MODULE_LABELS: Record<AppModule, string> = {
   pos: 'Point of Sale',
@@ -49,6 +49,8 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   reports: 'Reports',
   staff: 'Staff Management',
   tasks: 'Action Tracker',
+  debts: 'Debts',
+  returns: 'Returns',
 };
 
 export const CRUD_LABELS: Record<CrudPermission, string> = {

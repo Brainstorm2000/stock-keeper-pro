@@ -2627,6 +2627,8 @@ export type Database = {
         | "reports"
         | "staff"
         | "tasks"
+        | "debts"
+        | "returns"
       app_role: "admin" | "user" | "super_admin" | "super_super_admin"
       item_type: "product" | "service"
       module_access_level: "none" | "view" | "create" | "full"
@@ -2778,6 +2780,8 @@ export const Constants = {
         "reports",
         "staff",
         "tasks",
+        "debts",
+        "returns",
       ],
       app_role: ["admin", "user", "super_admin", "super_super_admin"],
       item_type: ["product", "service"],
