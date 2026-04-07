@@ -22,6 +22,7 @@ import { PurchaseReturnDialog } from '@/components/purchases/PurchaseReturnDialo
 export default function Purchases() {
   const { isAdmin } = useAuth();
   const { canCreate, canEdit, canDelete } = useModuleAccess('purchases');
+  const { canEdit: canReturnEdit } = useModuleAccess('returns');
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -224,7 +225,7 @@ export default function Purchases() {
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                               )}
-                              {canEdit && (
+                              {canEdit && canReturnEdit && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
