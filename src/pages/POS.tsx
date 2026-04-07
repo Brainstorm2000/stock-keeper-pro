@@ -295,6 +295,14 @@ export default function POS() {
       return;
     }
 
+    const isWalkIn = !selectedCustomerId || selectedCustomerId === 'none';
+
+    // Block walk-in partial/credit sales
+    if (isWalkIn && (paymentType === 'partial' || paymentType === 'credit')) {
+      toast({ title: 'Walk-in customers cannot have partial or credit sales', description: 'Please select a registered customer first.', variant: 'destructive' });
+      return;
+    }
+
     const branchResult = resolveTransactionBranch();
     if (branchResult.ok === false) {
       toast({ title: branchResult.message, variant: 'destructive' });
@@ -314,6 +322,31 @@ export default function POS() {
     const computedAmountPaid = paymentType === 'full' ? total : paymentType === 'credit' ? 0 : amountPaid;
     const computedBalance = total - computedAmountPaid;
     const computedPaymentStatus = computedBalance <= 0 ? 'paid' : computedAmountPaid > 0 ? 'partial' : 'outstanding';
+
+    // Enforce debt limit for registered customers
+    if (!isWalkIn && computedBalance > 0) {
+      const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+      if (selectedCustomer && Number(selectedCustomer.debt_limit) > 0) {
+        // Get existing outstanding balance for this customer
+        const { data: outstandingSales } = await supabase
+          .from('sales')
+          .select('balance_due')
+          .eq('customer_id', selectedCustomerId)
+          .in('payment_status', ['outstanding', 'partial']);
+        
+        const existingDebt = (outstandingSales || []).reduce((sum, s) => sum + Number(s.balance_due), 0);
+        const totalDebtAfterSale = existingDebt + computedBalance;
+
+        if (totalDebtAfterSale > Number(selectedCustomer.debt_limit)) {
+          toast({ 
+            title: 'Debt limit exceeded', 
+            description: `Customer's debt limit is ${formatCurrency(Number(selectedCustomer.debt_limit))}. Current outstanding: ${formatCurrency(existingDebt)}. This sale would add ${formatCurrency(computedBalance)}.`,
+            variant: 'destructive' 
+          });
+          return;
+        }
+      }
+    }
 
     const result = await createSale.mutateAsync({
       organization_id: organization.id,
