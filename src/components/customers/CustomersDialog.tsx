@@ -56,6 +56,7 @@ export function CustomersDialog() {
     phone: '',
     address: '',
     notes: '',
+    debt_limit: 0,
   });
 
   const filteredCustomers = customers.filter(c =>
@@ -65,7 +66,7 @@ export function CustomersDialog() {
   );
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', phone: '', address: '', notes: '' });
+    setFormData({ name: '', email: '', phone: '', address: '', notes: '', debt_limit: 0 });
     setEditingCustomer(null);
   };
 
@@ -77,6 +78,7 @@ export function CustomersDialog() {
       phone: customer.phone || '',
       address: customer.address || '',
       notes: customer.notes || '',
+      debt_limit: customer.debt_limit || 0,
     });
     setFormOpen(true);
   };
