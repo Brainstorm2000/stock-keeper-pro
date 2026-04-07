@@ -20,6 +20,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useCustomers, type Customer } from '@/hooks/useCustomers';
 import { useAuth } from '@/lib/auth';
 import { useCreateSale, useSaleWithItems, useHeldOrders, useCreateHeldOrder, useDeleteHeldOrder, type SaleItem, type PaymentMethod, type Sale, type PaymentDetail } from '@/hooks/useSales';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
  import { formatCurrency } from '@/lib/currency';
