@@ -175,6 +175,7 @@ export function useCreateSale() {
           status: input.status || 'completed',
           notes: input.notes || null,
           created_by: user?.id,
+          ...(input.sale_date ? { created_at: new Date(input.sale_date).toISOString() } : {}),
         })
         .select()
         .single();
