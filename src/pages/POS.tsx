@@ -321,6 +321,7 @@ export default function POS() {
       customer_id: selectedCustomerId && selectedCustomerId !== 'none' ? selectedCustomerId : undefined,
       customer_name: customerName || undefined,
       customer_phone: customerPhone || undefined,
+      sale_date: saleDate || undefined,
       subtotal,
       discount_amount: discountValue,
       discount_percent: discountPercent,
