@@ -1,0 +1,1 @@
+ALTER TABLE public.customers ADD COLUMN debt_limit numeric NOT NULL DEFAULT 0;

@@ -393,6 +393,7 @@ export type Database = {
           address: string | null
           created_at: string
           created_by: string | null
+          debt_limit: number
           email: string | null
           id: string
           name: string
@@ -405,6 +406,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           created_by?: string | null
+          debt_limit?: number
           email?: string | null
           id?: string
           name: string
@@ -417,6 +419,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           created_by?: string | null
+          debt_limit?: number
           email?: string | null
           id?: string
           name?: string
