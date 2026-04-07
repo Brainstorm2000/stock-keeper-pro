@@ -56,6 +56,7 @@ export function CustomersDialog() {
     phone: '',
     address: '',
     notes: '',
+    debt_limit: 0,
   });
 
   const filteredCustomers = customers.filter(c =>
@@ -65,7 +66,7 @@ export function CustomersDialog() {
   );
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', phone: '', address: '', notes: '' });
+    setFormData({ name: '', email: '', phone: '', address: '', notes: '', debt_limit: 0 });
     setEditingCustomer(null);
   };
 
@@ -77,6 +78,7 @@ export function CustomersDialog() {
       phone: customer.phone || '',
       address: customer.address || '',
       notes: customer.notes || '',
+      debt_limit: customer.debt_limit || 0,
     });
     setFormOpen(true);
   };
@@ -250,6 +252,18 @@ export function CustomersDialog() {
                     id="address"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="debt_limit">Debt Limit (0 = no limit)</Label>
+                  <Input
+                    id="debt_limit"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.debt_limit || ''}
+                    onChange={(e) => setFormData({ ...formData, debt_limit: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    placeholder="0 = unlimited"
                   />
                 </div>
                 <div>

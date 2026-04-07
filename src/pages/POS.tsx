@@ -20,6 +20,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useCustomers, type Customer } from '@/hooks/useCustomers';
 import { useAuth } from '@/lib/auth';
 import { useCreateSale, useSaleWithItems, useHeldOrders, useCreateHeldOrder, useDeleteHeldOrder, type SaleItem, type PaymentMethod, type Sale, type PaymentDetail } from '@/hooks/useSales';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
  import { formatCurrency } from '@/lib/currency';
@@ -295,6 +296,14 @@ export default function POS() {
       return;
     }
 
+    const isWalkIn = !selectedCustomerId || selectedCustomerId === 'none';
+
+    // Block walk-in partial/credit sales
+    if (isWalkIn && (paymentType === 'partial' || paymentType === 'credit')) {
+      toast({ title: 'Walk-in customers cannot have partial or credit sales', description: 'Please select a registered customer first.', variant: 'destructive' });
+      return;
+    }
+
     const branchResult = resolveTransactionBranch();
     if (branchResult.ok === false) {
       toast({ title: branchResult.message, variant: 'destructive' });
@@ -314,6 +323,31 @@ export default function POS() {
     const computedAmountPaid = paymentType === 'full' ? total : paymentType === 'credit' ? 0 : amountPaid;
     const computedBalance = total - computedAmountPaid;
     const computedPaymentStatus = computedBalance <= 0 ? 'paid' : computedAmountPaid > 0 ? 'partial' : 'outstanding';
+
+    // Enforce debt limit for registered customers
+    if (!isWalkIn && computedBalance > 0) {
+      const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+      if (selectedCustomer && Number(selectedCustomer.debt_limit) > 0) {
+        // Get existing outstanding balance for this customer
+        const { data: outstandingSales } = await supabase
+          .from('sales')
+          .select('balance_due')
+          .eq('customer_id', selectedCustomerId)
+          .in('payment_status', ['outstanding', 'partial']);
+        
+        const existingDebt = (outstandingSales || []).reduce((sum, s) => sum + Number(s.balance_due), 0);
+        const totalDebtAfterSale = existingDebt + computedBalance;
+
+        if (totalDebtAfterSale > Number(selectedCustomer.debt_limit)) {
+          toast({ 
+            title: 'Debt limit exceeded', 
+            description: `Customer's debt limit is ${formatCurrency(Number(selectedCustomer.debt_limit))}. Current outstanding: ${formatCurrency(existingDebt)}. This sale would add ${formatCurrency(computedBalance)}.`,
+            variant: 'destructive' 
+          });
+          return;
+        }
+      }
+    }
 
     const result = await createSale.mutateAsync({
       organization_id: organization.id,
@@ -762,23 +796,34 @@ export default function POS() {
             {/* Payment Type Selection */}
             <div className="space-y-2">
               <Label>Payment Type</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['full', 'partial', 'credit'] as const).map((type) => (
-                  <Button
-                    key={type}
-                    type="button"
-                    variant={paymentType === type ? 'default' : 'outline'}
-                    className="capitalize"
-                    onClick={() => {
-                      setPaymentType(type);
-                      if (type === 'full') setAmountPaid(total);
-                      else if (type === 'credit') setAmountPaid(0);
-                    }}
-                  >
-                    {type === 'full' ? 'Full Payment' : type === 'partial' ? 'Partial' : 'Credit Sale'}
-                  </Button>
-                ))}
-              </div>
+              {(() => {
+                const isWalkIn = !selectedCustomerId || selectedCustomerId === 'none';
+                return (
+                  <>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['full', 'partial', 'credit'] as const).map((type) => (
+                        <Button
+                          key={type}
+                          type="button"
+                          variant={paymentType === type ? 'default' : 'outline'}
+                          className="capitalize"
+                          disabled={isWalkIn && (type === 'partial' || type === 'credit')}
+                          onClick={() => {
+                            setPaymentType(type);
+                            if (type === 'full') setAmountPaid(total);
+                            else if (type === 'credit') setAmountPaid(0);
+                          }}
+                        >
+                          {type === 'full' ? 'Full Payment' : type === 'partial' ? 'Partial' : 'Credit Sale'}
+                        </Button>
+                      ))}
+                    </div>
+                    {isWalkIn && (
+                      <p className="text-xs text-muted-foreground">Select a registered customer for partial or credit sales</p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {paymentType === 'partial' && (

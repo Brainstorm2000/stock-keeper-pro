@@ -12,6 +12,7 @@ export interface Customer {
   phone: string | null;
   address: string | null;
   notes: string | null;
+  debt_limit: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -23,6 +24,7 @@ export interface CustomerInput {
   phone?: string;
   address?: string;
   notes?: string;
+  debt_limit?: number;
 }
 
 export function useCustomers() {
