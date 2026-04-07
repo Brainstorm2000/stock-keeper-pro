@@ -796,23 +796,34 @@ export default function POS() {
             {/* Payment Type Selection */}
             <div className="space-y-2">
               <Label>Payment Type</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['full', 'partial', 'credit'] as const).map((type) => (
-                  <Button
-                    key={type}
-                    type="button"
-                    variant={paymentType === type ? 'default' : 'outline'}
-                    className="capitalize"
-                    onClick={() => {
-                      setPaymentType(type);
-                      if (type === 'full') setAmountPaid(total);
-                      else if (type === 'credit') setAmountPaid(0);
-                    }}
-                  >
-                    {type === 'full' ? 'Full Payment' : type === 'partial' ? 'Partial' : 'Credit Sale'}
-                  </Button>
-                ))}
-              </div>
+              {(() => {
+                const isWalkIn = !selectedCustomerId || selectedCustomerId === 'none';
+                return (
+                  <>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['full', 'partial', 'credit'] as const).map((type) => (
+                        <Button
+                          key={type}
+                          type="button"
+                          variant={paymentType === type ? 'default' : 'outline'}
+                          className="capitalize"
+                          disabled={isWalkIn && (type === 'partial' || type === 'credit')}
+                          onClick={() => {
+                            setPaymentType(type);
+                            if (type === 'full') setAmountPaid(total);
+                            else if (type === 'credit') setAmountPaid(0);
+                          }}
+                        >
+                          {type === 'full' ? 'Full Payment' : type === 'partial' ? 'Partial' : 'Credit Sale'}
+                        </Button>
+                      ))}
+                    </div>
+                    {isWalkIn && (
+                      <p className="text-xs text-muted-foreground">Select a registered customer for partial or credit sales</p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {paymentType === 'partial' && (
