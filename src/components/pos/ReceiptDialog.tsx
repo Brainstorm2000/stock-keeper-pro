@@ -34,13 +34,14 @@ export function ReceiptDialog({
     const printWindow = window.open('', '_blank', 'width=250,height=600');
     if (!printWindow) return;
 
-    const receiptHTML = receiptRef.current.innerHTML;
-
-    printWindow.document.write(`
+    // Build print document via DOM APIs (no innerHTML injection of dynamic data).
+    const doc = printWindow.document;
+    doc.open();
+    doc.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt - ${sale?.sale_number || ''}</title>
+          <title>Receipt</title>
           <style>
             * {
               margin: 0;
@@ -102,24 +103,27 @@ export function ReceiptDialog({
             }
           </style>
         </head>
-        <body>
-          ${receiptHTML}
-          <script>
-            window.onload = function() {
-              window.print();
-              window.onafterprint = function() {
-                window.close();
-              };
-              setTimeout(function() {
-                window.close();
-              }, 2000);
-            };
-          </script>
-        </body>
+        <body></body>
       </html>
     `);
+    doc.close();
 
-    printWindow.document.close();
+    // Set the title safely (no string interpolation into HTML).
+    if (sale?.sale_number) {
+      doc.title = `Receipt - ${sale.sale_number}`;
+    }
+
+    // Clone the rendered receipt nodes (already escaped by React) into the
+    // print window — this avoids any innerHTML re-parsing of dynamic data.
+    const clone = receiptRef.current.cloneNode(true) as HTMLElement;
+    doc.body.appendChild(doc.importNode(clone, true));
+
+    // Trigger print after styles apply.
+    printWindow.setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.setTimeout(() => printWindow.close(), 2000);
+    }, 100);
   };
 
   if (!sale) return null;

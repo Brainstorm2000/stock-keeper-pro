@@ -2581,6 +2581,13 @@ export type Database = {
       generate_sale_number: { Args: { org_id: string }; Returns: string }
       generate_sale_return_number: { Args: { org_id: string }; Returns: string }
       generate_work_order_number: { Args: { org_id: string }; Returns: string }
+      get_org_user_names: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
       get_user_organization: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
