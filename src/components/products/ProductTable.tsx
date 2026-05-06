@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Pencil, Trash2, Minus, Search } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Minus, Search, History } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { StatusBadge, getStockStatus } from './StatusBadge';
 import { StockUpdateDialog } from './StockUpdateDialog';
+import { PriceHistoryDialog } from './PriceHistoryDialog';
 import type { Product } from '@/hooks/useProducts';
 import { useAuth } from '@/lib/auth';
 
@@ -27,6 +28,7 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
   const [categoryTab, setCategoryTab] = useState<'all' | 'sellable' | 'consumable'>('all');
   const [stockUpdateProduct, setStockUpdateProduct] = useState<Product | null>(null);
   const [stockUpdateType, setStockUpdateType] = useState<'increase' | 'decrease'>('increase');
+  const [priceHistoryProduct, setPriceHistoryProduct] = useState<Product | null>(null);
   const { isAdmin } = useAuth();
 
   const filteredProducts = products.filter(product => {
@@ -171,6 +173,10 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
                     <Pencil className="mr-2 h-4 w-4" />
                     Edit
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPriceHistoryProduct(product)}>
+                    <History className="mr-2 h-4 w-4" />
+                    Price History
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(product.id)}
                     className="text-destructive"
@@ -269,6 +275,12 @@ export function ProductTable({ products, onEdit, onDelete, isLoading, showBranch
           onOpenChange={(open) => !open && setStockUpdateProduct(null)}
         />
       )}
+
+      <PriceHistoryDialog
+        product={priceHistoryProduct}
+        open={!!priceHistoryProduct}
+        onOpenChange={(open) => !open && setPriceHistoryProduct(null)}
+      />
     </>
   );
 }
