@@ -919,6 +919,48 @@ export type Database = {
         }
         Relationships: []
       }
+      product_price_history: {
+        Row: {
+          change_type: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_cost_price: number
+          new_selling_price: number
+          notes: string | null
+          organization_id: string
+          previous_cost_price: number
+          previous_selling_price: number
+          product_id: string
+        }
+        Insert: {
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_cost_price?: number
+          new_selling_price?: number
+          notes?: string | null
+          organization_id: string
+          previous_cost_price?: number
+          previous_selling_price?: number
+          product_id: string
+        }
+        Update: {
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_cost_price?: number
+          new_selling_price?: number
+          notes?: string | null
+          organization_id?: string
+          previous_cost_price?: number
+          previous_selling_price?: number
+          product_id?: string
+        }
+        Relationships: []
+      }
       production_fields: {
         Row: {
           created_at: string
