@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Search, Plus, Pencil, Trash2, UserCheck, UserX, Loader2, Users, Building2, Activity } from 'lucide-react';
+import { adminCreateAuthUser } from '@/lib/admin-auth-client';
 
 interface AdminUser {
   id: string;
@@ -35,12 +36,25 @@ function useAdminAllUsers() {
   return useQuery({
     queryKey: ['admin-all-users'],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('admin-manage-users', {
-        body: { action: 'list_all_users' },
+      const { data: profiles, error: pErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (pErr) throw pErr;
+
+      const { data: roles, error: rErr } = await supabase
+        .from('user_roles')
+        .select('user_id, role, organization_id');
+      if (rErr) throw rErr;
+
+      const users: AdminUser[] = (profiles || []).map((p: any) => {
+        const userRole = (roles || []).find((r: any) => r.user_id === p.user_id);
+        return {
+          ...p,
+          role: userRole?.role || 'user',
+        } as AdminUser;
       });
-      if (res.error) throw res.error;
-      return (res.data?.users || []) as AdminUser[];
+      return users;
     },
   });
 }
@@ -109,18 +123,22 @@ export default function AdminUsersPage() {
     setSaving(true);
     try {
       if (editingUser) {
-        const res = await supabase.functions.invoke('admin-manage-users', {
-          body: {
-            action: 'update_user',
-            user_id: editingUser.user_id,
-            full_name: formName,
+        const newOrgId = formOrgId === 'none' ? null : formOrgId;
+        const { error: profileErr } = await supabase
+          .from('profiles')
+          .update({
+            full_name: formName || null,
             email: formEmail,
-            organization_id: formOrgId === 'none' ? null : formOrgId,
-            role: formRole,
-          },
-        });
-        if (res.error) throw res.error;
-        if (res.data?.error) throw new Error(res.data.error);
+            organization_id: newOrgId,
+          })
+          .eq('user_id', editingUser.user_id);
+        if (profileErr) throw profileErr;
+
+        const { error: roleErr } = await supabase
+          .from('user_roles')
+          .update({ role: formRole as any, organization_id: newOrgId })
+          .eq('user_id', editingUser.user_id);
+        if (roleErr) throw roleErr;
         toast({ title: 'User updated' });
       } else {
         if (!formEmail || !formPassword) {
@@ -128,18 +146,22 @@ export default function AdminUsersPage() {
           setSaving(false);
           return;
         }
-        const res = await supabase.functions.invoke('admin-manage-users', {
-          body: {
-            action: 'create_user',
-            email: formEmail,
-            password: formPassword,
-            full_name: formName,
-            organization_id: formOrgId === 'none' ? null : formOrgId,
-            role: formRole,
-          },
+        const newOrgId = formOrgId === 'none' ? null : formOrgId;
+        const newUserId = await adminCreateAuthUser(formEmail, formPassword);
+        const { error: profileErr } = await supabase.from('profiles').insert({
+          user_id: newUserId,
+          email: formEmail,
+          full_name: formName || null,
+          organization_id: newOrgId,
+          is_active: true,
         });
-        if (res.error) throw res.error;
-        if (res.data?.error) throw new Error(res.data.error);
+        if (profileErr) throw profileErr;
+        const { error: roleErr } = await supabase.from('user_roles').insert({
+          user_id: newUserId,
+          role: formRole as any,
+          organization_id: newOrgId,
+        });
+        if (roleErr) throw roleErr;
         toast({ title: 'User created' });
       }
       queryClient.invalidateQueries({ queryKey: ['admin-all-users'] });
@@ -153,15 +175,11 @@ export default function AdminUsersPage() {
 
   const handleToggleActive = async (user: AdminUser) => {
     try {
-      const res = await supabase.functions.invoke('admin-manage-users', {
-        body: {
-          action: 'update_user',
-          user_id: user.user_id,
-          is_active: !user.is_active,
-        },
-      });
-      if (res.error) throw res.error;
-      if (res.data?.error) throw new Error(res.data.error);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: !user.is_active })
+        .eq('user_id', user.user_id);
+      if (error) throw error;
       toast({ title: user.is_active ? 'User deactivated' : 'User activated' });
       queryClient.invalidateQueries({ queryKey: ['admin-all-users'] });
     } catch (err: any) {
@@ -172,11 +190,19 @@ export default function AdminUsersPage() {
   const handleDelete = async () => {
     if (!deleteUserId) return;
     try {
-      const res = await supabase.functions.invoke('admin-manage-users', {
-        body: { action: 'delete_user', user_id: deleteUserId },
-      });
-      if (res.error) throw res.error;
-      if (res.data?.error) throw new Error(res.data.error);
+      // Remove role + profile. The underlying auth.users record is left in
+      // place (auth admin APIs are server-only); the user can no longer
+      // access the app because they have no profile/role in any org.
+      const { error: roleErr } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', deleteUserId);
+      if (roleErr) throw roleErr;
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', deleteUserId);
+      if (profileErr) throw profileErr;
       toast({ title: 'User deleted' });
       queryClient.invalidateQueries({ queryKey: ['admin-all-users'] });
     } catch (err: any) {
