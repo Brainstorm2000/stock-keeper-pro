@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
+import { adminCreateAuthUser } from '@/lib/admin-auth-client';
 
 export interface Organization {
   id: string;
@@ -102,20 +103,26 @@ export function useCreateOrganization() {
 
       if (orgError) throw orgError;
 
-      // 2. Create the org's super_admin user via edge function
-      const { data: adminResult, error: adminError } = await supabase.functions.invoke('admin-manage-users', {
-        body: {
-          action: 'create_user',
-          email: adminEmail,
-          password: adminPassword,
-          full_name: adminFullName,
-          organization_id: org.id,
-          role: 'super_admin',
-        },
-      });
+      // 2. Create the org's super_admin user via a temporary auth client
+      // (so the current super_super_admin's session is unaffected).
+      const newUserId = await adminCreateAuthUser(adminEmail, adminPassword);
 
-      if (adminError) throw new Error(adminError.message || 'Failed to create admin user');
-      if (adminResult?.error) throw new Error(adminResult.error);
+      // Insert profile + role for the new admin (allowed by super_super_admin policies).
+      const { error: profileInsertError } = await supabase.from('profiles').insert({
+        user_id: newUserId,
+        email: adminEmail,
+        full_name: adminFullName || null,
+        organization_id: org.id,
+        is_active: true,
+      });
+      if (profileInsertError) throw profileInsertError;
+
+      const { error: roleInsertError } = await supabase.from('user_roles').insert({
+        user_id: newUserId,
+        role: 'super_admin',
+        organization_id: org.id,
+      });
+      if (roleInsertError) throw roleInsertError;
 
       // 3. Ensure super_super_admin has a profile (idempotent — skip if exists)
       const { data: existingProfile } = await supabase
