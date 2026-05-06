@@ -89,12 +89,10 @@ export function useWorkOrders() {
       let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, full_name, email')
-          .in('user_id', userIds);
+          .rpc('get_org_user_names', { _user_ids: userIds });
         if (profiles) {
-          profilesMap = profiles.reduce((acc, p) => {
-            acc[p.user_id] = { full_name: p.full_name, email: p.email };
+          profilesMap = (profiles as Array<{ user_id: string; full_name: string | null }>).reduce((acc, p) => {
+            acc[p.user_id] = { full_name: p.full_name, email: null };
             return acc;
           }, {} as Record<string, { full_name: string | null; email: string | null }>);
         }
