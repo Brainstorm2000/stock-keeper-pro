@@ -336,6 +336,7 @@ export function useCompleteWorkOrder() {
 
   return useMutation({
     mutationFn: async (workOrder: WorkOrder) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       const { data: product } = await supabase
         .from('products')
         .select('current_stock')
@@ -359,7 +360,7 @@ export function useCompleteWorkOrder() {
           change_amount: Number(workOrder.quantity),
           change_type: 'production',
           notes: `Produced via ${workOrder.work_order_number}`,
-          changed_by: user?.id,
+          changed_by: actorId,
         });
         assertNoError(insertHistoryError, 'Failed to write stock history for production');
       }
@@ -411,6 +412,7 @@ export function useRecordDamage() {
 
   return useMutation({
     mutationFn: async ({ productId, quantity, notes }: { productId: string; quantity: number; notes?: string }) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       const { data: product } = await supabase
         .from('products')
         .select('current_stock')
@@ -432,7 +434,7 @@ export function useRecordDamage() {
         change_amount: -quantity,
         change_type: 'damage',
         notes: notes || 'Finished goods damage recorded',
-        changed_by: user?.id,
+        changed_by: actorId,
       });
       assertNoError(insertDamageHistoryError, 'Failed to write damage stock history');
     },
