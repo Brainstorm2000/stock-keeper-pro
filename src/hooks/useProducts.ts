@@ -159,6 +159,8 @@ export function useCreateProduct() {
 
   return useMutation({
     mutationFn: async (product: ProductInput & { organization_id: string }) => {
+      if (!user?.id) throw new Error('You must be signed in to create products.');
+
       const { data, error } = await supabase
         .from('products')
         .insert({
@@ -261,6 +263,8 @@ export function useUpdateStock() {
       changeType: 'increase' | 'decrease' | 'adjustment';
       notes?: string;
     }) => {
+      if (!user?.id) throw new Error('You must be signed in to update stock.');
+
       // Update product stock
       const { error: updateError } = await supabase
         .from('products')
