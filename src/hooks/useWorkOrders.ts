@@ -65,9 +65,16 @@ const assertNoError = (error: { message: string } | null, context: string) => {
   }
 };
 
+const requireAuthenticatedUserId = (userId: string | undefined) => {
+  if (!userId) throw new Error('You must be signed in to perform this action.');
+  return userId;
+};
+
 export function useWorkOrders() {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ['work-orders'],
+    queryKey: ['work-orders', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('work_orders')
@@ -100,7 +107,14 @@ export function useWorkOrders() {
 
       return data.map(wo => ({
         ...wo,
-        created_by_user: wo.created_by ? profilesMap[wo.created_by] || null : null,
+        created_by_user: wo.created_by
+          ? profilesMap[wo.created_by] || (wo.created_by === user?.id
+            ? {
+                full_name: (user?.user_metadata?.full_name as string | undefined) || (user?.user_metadata?.name as string | undefined) || null,
+                email: user?.email ?? null,
+              }
+            : null)
+          : null,
       })) as WorkOrder[];
     },
   });
@@ -113,6 +127,7 @@ export function useCreateWorkOrder() {
 
   return useMutation({
     mutationFn: async (input: WorkOrderInput) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       if (!organizationId) throw new Error('No organization');
 
       const { data: woNumber } = await supabase.rpc('generate_work_order_number', { org_id: organizationId });
@@ -164,7 +179,7 @@ export function useCreateWorkOrder() {
           total_cost: totalCost,
           cost_per_unit: costPerUnit,
           notes: input.notes,
-          created_by: user?.id,
+          created_by: actorId,
         })
         .select()
         .single();
@@ -273,6 +288,7 @@ export function useApproveWorkOrder() {
 
   return useMutation({
     mutationFn: async (workOrder: WorkOrder) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       const materials = workOrder.work_order_materials || [];
       for (const mat of materials) {
         const currentStock = mat.raw_materials?.current_stock || 0;
@@ -300,7 +316,7 @@ export function useApproveWorkOrder() {
           reference_type: 'work_order',
           reference_id: workOrder.id,
           notes: `Deducted for ${workOrder.work_order_number}`,
-          changed_by: user?.id,
+          changed_by: actorId,
         });
         assertNoError(insertHistoryError, 'Failed to write raw material stock history');
       }
@@ -329,6 +345,7 @@ export function useCompleteWorkOrder() {
 
   return useMutation({
     mutationFn: async (workOrder: WorkOrder) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       const { data: product } = await supabase
         .from('products')
         .select('current_stock')
@@ -352,7 +369,7 @@ export function useCompleteWorkOrder() {
           change_amount: Number(workOrder.quantity),
           change_type: 'production',
           notes: `Produced via ${workOrder.work_order_number}`,
-          changed_by: user?.id,
+          changed_by: actorId,
         });
         assertNoError(insertHistoryError, 'Failed to write stock history for production');
       }
@@ -404,6 +421,7 @@ export function useRecordDamage() {
 
   return useMutation({
     mutationFn: async ({ productId, quantity, notes }: { productId: string; quantity: number; notes?: string }) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       const { data: product } = await supabase
         .from('products')
         .select('current_stock')
@@ -425,7 +443,7 @@ export function useRecordDamage() {
         change_amount: -quantity,
         change_type: 'damage',
         notes: notes || 'Finished goods damage recorded',
-        changed_by: user?.id,
+        changed_by: actorId,
       });
       assertNoError(insertDamageHistoryError, 'Failed to write damage stock history');
     },
@@ -448,6 +466,7 @@ export function useRecordWaste() {
 
   return useMutation({
     mutationFn: async ({ materialId, quantity, notes }: { materialId: string; quantity: number; notes?: string }) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       const { data: material } = await supabase
         .from('raw_materials')
         .select('current_stock')
@@ -469,7 +488,7 @@ export function useRecordWaste() {
         change_amount: -quantity,
         change_type: 'waste',
         notes: notes || 'Raw material waste recorded',
-        changed_by: user?.id,
+        changed_by: actorId,
       });
       assertNoError(insertWasteHistoryError, 'Failed to write raw material waste history');
     },

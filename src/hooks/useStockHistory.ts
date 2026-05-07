@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth';
 
 export interface StockHistoryEntry {
   id: string;
@@ -31,8 +32,10 @@ export interface StockTrend {
 }
 
 export function useStockHistory(productId?: string, limit = 50, category?: 'sellable' | 'consumable') {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ['stock-history', productId, limit, category],
+    queryKey: ['stock-history', productId, limit, category, user?.id],
     queryFn: async () => {
       let query = supabase
         .from('stock_history')
@@ -75,7 +78,14 @@ export function useStockHistory(productId?: string, limit = 50, category?: 'sell
       // Add user profile info
       return filtered.map(entry => ({
         ...entry,
-        changed_by_user: entry.changed_by ? profilesMap[entry.changed_by] || null : null,
+        changed_by_user: entry.changed_by
+          ? profilesMap[entry.changed_by] || (entry.changed_by === user?.id
+            ? {
+                full_name: (user?.user_metadata?.full_name as string | undefined) || (user?.user_metadata?.name as string | undefined) || null,
+                email: user?.email ?? null,
+              }
+            : null)
+          : null,
       })) as StockHistoryEntry[];
     },
   });
