@@ -65,6 +65,11 @@ const assertNoError = (error: { message: string } | null, context: string) => {
   }
 };
 
+const requireAuthenticatedUserId = (userId: string | undefined) => {
+  if (!userId) throw new Error('You must be signed in to perform this action.');
+  return userId;
+};
+
 export function useWorkOrders() {
   return useQuery({
     queryKey: ['work-orders'],
@@ -113,6 +118,7 @@ export function useCreateWorkOrder() {
 
   return useMutation({
     mutationFn: async (input: WorkOrderInput) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       if (!organizationId) throw new Error('No organization');
 
       const { data: woNumber } = await supabase.rpc('generate_work_order_number', { org_id: organizationId });
@@ -164,7 +170,7 @@ export function useCreateWorkOrder() {
           total_cost: totalCost,
           cost_per_unit: costPerUnit,
           notes: input.notes,
-          created_by: user?.id,
+          created_by: actorId,
         })
         .select()
         .single();
@@ -273,6 +279,7 @@ export function useApproveWorkOrder() {
 
   return useMutation({
     mutationFn: async (workOrder: WorkOrder) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       const materials = workOrder.work_order_materials || [];
       for (const mat of materials) {
         const currentStock = mat.raw_materials?.current_stock || 0;
@@ -300,7 +307,7 @@ export function useApproveWorkOrder() {
           reference_type: 'work_order',
           reference_id: workOrder.id,
           notes: `Deducted for ${workOrder.work_order_number}`,
-          changed_by: user?.id,
+          changed_by: actorId,
         });
         assertNoError(insertHistoryError, 'Failed to write raw material stock history');
       }
