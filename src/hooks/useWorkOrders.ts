@@ -71,8 +71,10 @@ const requireAuthenticatedUserId = (userId: string | undefined) => {
 };
 
 export function useWorkOrders() {
+  const { user } = useAuth();
+
   return useQuery({
-    queryKey: ['work-orders'],
+    queryKey: ['work-orders', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('work_orders')
@@ -105,7 +107,14 @@ export function useWorkOrders() {
 
       return data.map(wo => ({
         ...wo,
-        created_by_user: wo.created_by ? profilesMap[wo.created_by] || null : null,
+        created_by_user: wo.created_by
+          ? profilesMap[wo.created_by] || (wo.created_by === user?.id
+            ? {
+                full_name: (user?.user_metadata?.full_name as string | undefined) || (user?.user_metadata?.name as string | undefined) || null,
+                email: user?.email ?? null,
+              }
+            : null)
+          : null,
       })) as WorkOrder[];
     },
   });
