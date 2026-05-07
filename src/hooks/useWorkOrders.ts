@@ -457,6 +457,7 @@ export function useRecordWaste() {
 
   return useMutation({
     mutationFn: async ({ materialId, quantity, notes }: { materialId: string; quantity: number; notes?: string }) => {
+      const actorId = requireAuthenticatedUserId(user?.id);
       const { data: material } = await supabase
         .from('raw_materials')
         .select('current_stock')
@@ -478,7 +479,7 @@ export function useRecordWaste() {
         change_amount: -quantity,
         change_type: 'waste',
         notes: notes || 'Raw material waste recorded',
-        changed_by: user?.id,
+        changed_by: actorId,
       });
       assertNoError(insertWasteHistoryError, 'Failed to write raw material waste history');
     },
