@@ -149,8 +149,8 @@ export function useCreateOrganization() {
         status: 'trial',
         trial_start_date: now.toISOString(),
         trial_end_date: trialEnd.toISOString(),
-        number_of_users: 1,
-        number_of_branches: 1,
+        number_of_users: 3,
+        number_of_branches: 2,
         monthly_price: 0,
       };
       
