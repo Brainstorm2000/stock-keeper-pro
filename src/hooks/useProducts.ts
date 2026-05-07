@@ -160,12 +160,13 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: async (product: ProductInput & { organization_id: string }) => {
       if (!user?.id) throw new Error('You must be signed in to create products.');
+      const actorId = user.id;
 
       const { data, error } = await supabase
         .from('products')
         .insert({
           ...product,
-          created_by: user?.id,
+          created_by: actorId,
           organization_id: product.organization_id,
         })
         .select()
@@ -181,7 +182,7 @@ export function useCreateProduct() {
         change_amount: product.current_stock,
         change_type: 'initial',
         notes: 'Initial stock entry',
-        changed_by: user?.id,
+        changed_by: actorId,
       });
 
       return data;
@@ -264,6 +265,7 @@ export function useUpdateStock() {
       notes?: string;
     }) => {
       if (!user?.id) throw new Error('You must be signed in to update stock.');
+      const actorId = user.id;
 
       // Update product stock
       const { error: updateError } = await supabase
@@ -281,7 +283,7 @@ export function useUpdateStock() {
         change_amount: newStock - currentStock,
         change_type: changeType,
         notes,
-        changed_by: user?.id,
+        changed_by: actorId,
       });
 
       if (historyError) throw historyError;
