@@ -28,10 +28,23 @@ export async function adminCreateAuthUser(email: string, password: string): Prom
     password,
     options: { emailRedirectTo: `${window.location.origin}/onboarding` },
   });
-  if (error) throw error;
+
+  // If the email already exists in auth.users (e.g. user was previously
+  // deleted at profile/role level only), try signing in to recover the id.
+  if (error) {
+    const msg = (error.message || '').toLowerCase();
+    if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
+      const { data: signInData, error: signInError } = await adminAuthClient.auth.signInWithPassword({ email, password });
+      try { await adminAuthClient.auth.signOut(); } catch { /* ignore */ }
+      if (signInError || !signInData.user?.id) {
+        throw new Error('This email is already registered. If the user was previously deleted, you must use the same password they had, or reset their password.');
+      }
+      return signInData.user.id;
+    }
+    throw error;
+  }
   const userId = data.user?.id;
   if (!userId) throw new Error('Failed to create user');
-  // Immediately sign out the temporary client to keep it stateless.
   try { await adminAuthClient.auth.signOut(); } catch { /* ignore */ }
   return userId;
 }

@@ -147,15 +147,39 @@ export default function AdminUsersPage() {
           return;
         }
         const newOrgId = formOrgId === 'none' ? null : formOrgId;
+
+        // Enforce subscription user limit when assigning to an organization
+        if (newOrgId) {
+          const [{ data: sub }, { count: userCount }] = await Promise.all([
+            supabase.from('organization_subscriptions').select('number_of_users').eq('organization_id', newOrgId).maybeSingle(),
+            supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('organization_id', newOrgId),
+          ]);
+          if (sub && userCount !== null && userCount >= sub.number_of_users) {
+            toast({
+              title: 'User limit reached',
+              description: `This organization has reached its plan limit of ${sub.number_of_users} users. Upgrade the plan to add more.`,
+              variant: 'destructive',
+            });
+            setSaving(false);
+            return;
+          }
+        }
+
         const newUserId = await adminCreateAuthUser(formEmail, formPassword);
-        const { error: profileErr } = await supabase.from('profiles').insert({
-          user_id: newUserId,
-          email: formEmail,
-          full_name: formName || null,
-          organization_id: newOrgId,
-          is_active: true,
-        });
+        // Upsert profile + role so re-creating a previously-deleted user works.
+        const { error: profileErr } = await supabase.from('profiles').upsert(
+          {
+            user_id: newUserId,
+            email: formEmail,
+            full_name: formName || null,
+            organization_id: newOrgId,
+            is_active: true,
+          },
+          { onConflict: 'user_id' }
+        );
         if (profileErr) throw profileErr;
+        // Remove any leftover roles for this user, then insert the new one.
+        await supabase.from('user_roles').delete().eq('user_id', newUserId);
         const { error: roleErr } = await supabase.from('user_roles').insert({
           user_id: newUserId,
           role: formRole as any,
