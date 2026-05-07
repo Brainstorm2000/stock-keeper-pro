@@ -81,8 +81,8 @@ export function useStockHistory(productId?: string, limit = 50, category?: 'sell
         changed_by_user: entry.changed_by
           ? profilesMap[entry.changed_by] || (entry.changed_by === user?.id
             ? {
-                full_name: (user.user_metadata?.full_name as string | undefined) || (user.user_metadata?.name as string | undefined) || null,
-                email: user.email ?? null,
+                full_name: (user?.user_metadata?.full_name as string | undefined) || (user?.user_metadata?.name as string | undefined) || null,
+                email: user?.email ?? null,
               }
             : null)
           : null,
