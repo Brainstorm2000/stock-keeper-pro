@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useBOMs, useCreateBOM, useUpdateBOM, useDeleteBOM, type BOM } from '@/hooks/useBOM';
+import { useToast } from '@/hooks/use-toast';
 import { useProducts } from '@/hooks/useProducts';
 import { useRawMaterials } from '@/hooks/useRawMaterials';
 import { useModuleAccess } from '@/components/access/ModuleAccessGuard';
@@ -28,6 +29,7 @@ export function BOMTab() {
   const updateBOM = useUpdateBOM();
   const deleteBOM = useDeleteBOM();
   const { canCreate, canEdit, canDelete } = useModuleAccess('production');
+  const { toast } = useToast();
 
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -66,6 +68,10 @@ export function BOMTab() {
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
   const updateItem = (idx: number, field: keyof BOMItemForm, value: string | number) => {
     const updated = [...items];
+    if (field === 'raw_material_id' && value && updated.some((it, i) => i !== idx && it.raw_material_id === value)) {
+      toast({ title: 'Duplicate material', description: 'This material is already in the list.', variant: 'destructive' });
+      return;
+    }
     updated[idx] = { ...updated[idx], [field]: field === 'quantity_required' ? Number(value) : value };
     setItems(updated);
   };
@@ -79,6 +85,11 @@ export function BOMTab() {
     if (!name || !productId || items.length === 0) return;
     const validItems = items.filter((i) => i.raw_material_id && i.quantity_required > 0);
     if (validItems.length === 0) return;
+    const ids = validItems.map((i) => i.raw_material_id);
+    if (new Set(ids).size !== ids.length) {
+      toast({ title: 'Duplicate materials', description: 'Each material can only appear once.', variant: 'destructive' });
+      return;
+    }
 
     const data = {
       name, product_id: productId, description: description || undefined,
