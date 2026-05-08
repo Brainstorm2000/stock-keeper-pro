@@ -221,7 +221,11 @@ export function BOMTab() {
                   <div className="flex-1">
                     <Select value={item.raw_material_id} onValueChange={(v) => updateItem(idx, 'raw_material_id', v)}>
                       <SelectTrigger><SelectValue placeholder="Material" /></SelectTrigger>
-                      <SelectContent>{materials.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {materials
+                          .filter((m) => m.id === item.raw_material_id || !items.some((it, i) => i !== idx && it.raw_material_id === m.id))
+                          .map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                      </SelectContent>
                     </Select>
                   </div>
                   <div className="w-24">
