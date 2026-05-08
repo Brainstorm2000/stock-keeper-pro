@@ -219,7 +219,7 @@ export function DamagesTab({ branchFilter }: { branchFilter?: string }) {
                       <TableCell className="text-right text-destructive font-semibold">{Math.abs(record.change_amount)}</TableCell>
                       <TableCell className="text-right text-destructive">{formatCurrency(Math.abs(record.change_amount) * (record.products?.cost_price || 0))}</TableCell>
                       <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">{record.notes || '—'}</TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{record.changed_by_user?.full_name || record.changed_by_user?.email || 'Unknown'}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{record.changed_by_user?.full_name || record.changed_by_user?.email?.split('@')[0] || 'Unknown'}</TableCell>
                       {(canEdit || canDelete) && (
                         <TableCell>
                           <div className="flex gap-1">
@@ -267,7 +267,7 @@ export function DamagesTab({ branchFilter }: { branchFilter?: string }) {
                       <TableCell className="text-right text-destructive font-semibold">{Math.abs(record.change_amount)}</TableCell>
                       <TableCell className="text-right text-destructive">{formatCurrency(Math.abs(record.change_amount) * (record.raw_materials?.cost_per_unit || 0))}</TableCell>
                       <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">{record.notes || '—'}</TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{record.changed_by_user?.full_name || record.changed_by_user?.email || 'Unknown'}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{record.changed_by_user?.full_name || record.changed_by_user?.email?.split('@')[0] || 'Unknown'}</TableCell>
                       {(canEdit || canDelete) && (
                         <TableCell>
                           <div className="flex gap-1">

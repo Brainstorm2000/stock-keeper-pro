@@ -268,7 +268,7 @@ export function StockHistoryTable({ productId, limit = 100 }: StockHistoryTableP
                       {Number(entry.new_stock).toLocaleString()}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
-                      {entry.changed_by_user?.full_name || entry.changed_by_user?.email || (
+                      {entry.changed_by_user?.full_name || entry.changed_by_user?.email?.split('@')[0] || (
                         <span className="text-muted-foreground flex items-center gap-1">
                           <User className="h-3 w-3" />
                           Unknown
