@@ -19,6 +19,7 @@ export interface Staff {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  photo_url: string | null;
   branches?: { id: string; name: string } | null;
 }
 
@@ -33,6 +34,7 @@ export interface StaffInput {
   employment_date?: string | null;
   is_active?: boolean;
   notes?: string | null;
+  photo_url?: string | null;
 }
 
 function sanitizeStaffInput(input: StaffInput) {
@@ -46,6 +48,7 @@ function sanitizeStaffInput(input: StaffInput) {
     branch_id: input.branch_id || null,
     employment_date: input.employment_date || null,
     notes: input.notes || null,
+    photo_url: input.photo_url || null,
   };
 }
 

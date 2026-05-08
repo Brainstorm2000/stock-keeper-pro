@@ -215,7 +215,7 @@ export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFi
                       <Badge variant={cfg.variant} className="gap-1"><Icon className="h-3 w-3" />{cfg.label}</Badge>
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
-                      {wo.created_by_user?.full_name || wo.created_by_user?.email || (
+                      {wo.created_by_user?.full_name || wo.created_by_user?.email?.split('@')[0] || (
                         <span className="text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" />Unknown</span>
                       )}
                     </TableCell>

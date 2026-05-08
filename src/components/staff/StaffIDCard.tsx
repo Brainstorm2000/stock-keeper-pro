@@ -43,9 +43,17 @@ export const StaffIDCardFront = forwardRef<HTMLDivElement, StaffIDCardProps>(
 
       {/* Body */}
       <div className="flex-1 px-4 pb-2 flex gap-3 items-center relative z-10">
-        {/* Circular photo placeholder */}
-        <div className="w-[72px] h-[72px] rounded-full bg-muted border-2 border-primary flex items-center justify-center text-xl font-bold text-primary shrink-0">
-          {staff.full_name.charAt(0).toUpperCase()}
+        {/* Circular photo or initials */}
+        <div className="w-[72px] h-[72px] rounded-full bg-muted border-2 border-primary flex items-center justify-center text-xl font-bold text-primary shrink-0 overflow-hidden">
+          {staff.photo_url ? (
+            <img src={staff.photo_url} alt={staff.full_name} className="w-full h-full object-cover" />
+          ) : (
+            staff.full_name
+              .split(' ')
+              .map((n) => n.charAt(0).toUpperCase())
+              .slice(0, 2)
+              .join('')
+          )}
         </div>
         <div className="flex-1 min-w-0 space-y-0.5">
           <p className="font-bold text-sm text-foreground truncate leading-tight">{staff.full_name}</p>
