@@ -2010,6 +2010,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           phone: string | null
+          photo_url: string | null
           role: string | null
           role_id: string | null
           staff_id: string | null
@@ -2029,6 +2030,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           phone?: string | null
+          photo_url?: string | null
           role?: string | null
           role_id?: string | null
           staff_id?: string | null
@@ -2048,6 +2050,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           phone?: string | null
+          photo_url?: string | null
           role?: string | null
           role_id?: string | null
           staff_id?: string | null
