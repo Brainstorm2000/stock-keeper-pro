@@ -11,7 +11,9 @@ import { useCreateStaff, useUpdateStaff, type Staff, type StaffInput } from '@/h
 import { useBranches } from '@/hooks/useBranches';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useStaffPositions, useCreateStaffPosition, useCreateDepartment } from '@/hooks/useStaffPositions';
-import { Plus } from 'lucide-react';
+import { Plus, Upload, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface StaffDialogProps {
   staff: Staff | null;
@@ -29,6 +31,10 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
   const createPosition = useCreateStaffPosition();
   const createDepartment = useCreateDepartment();
   const isActive = watch('is_active') ?? true;
+  const photoUrl = watch('photo_url');
+  const fullName = watch('full_name') || '';
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
 
   const [newPosition, setNewPosition] = useState('');
   const [showNewPosition, setShowNewPosition] = useState(false);
@@ -48,9 +54,10 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
         employment_date: staff.employment_date,
         is_active: staff.is_active,
         notes: staff.notes,
+        photo_url: staff.photo_url,
       });
     } else {
-      reset({ full_name: '', is_active: true });
+      reset({ full_name: '', is_active: true, photo_url: null });
     }
     setShowNewPosition(false);
     setShowNewDepartment(false);
@@ -66,6 +73,33 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
     }
     onOpenChange(false);
   };
+
+  const handlePhotoUpload = async (file: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Max 5MB', variant: 'destructive' });
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from('staff-photos').upload(path, file, { upsert: false });
+      if (error) throw error;
+      const { data } = supabase.storage.from('staff-photos').getPublicUrl(path);
+      setValue('photo_url', data.publicUrl);
+    } catch (err) {
+      toast({ title: 'Upload failed', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const initials = fullName
+    .split(' ')
+    .map((n) => n.charAt(0).toUpperCase())
+    .slice(0, 2)
+    .join('');
 
   const handleAddPosition = async () => {
     if (!newPosition.trim()) return;
@@ -90,6 +124,38 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
           <DialogTitle>{staff ? 'Edit Staff' : 'Add Staff Member'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 rounded-full bg-muted border-2 border-primary flex items-center justify-center overflow-hidden text-xl font-bold text-primary shrink-0">
+              {photoUrl ? (
+                <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                initials || '?'
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Photo</Label>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
+                  <label className="cursor-pointer">
+                    <Upload className="h-3 w-3 mr-1" />
+                    {uploading ? 'Uploading...' : 'Upload'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
+                    />
+                  </label>
+                </Button>
+                {photoUrl && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setValue('photo_url', null)}>
+                    <X className="h-3 w-3 mr-1" />Remove
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">If empty, initials will be used on the ID card.</p>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Staff ID</Label>
