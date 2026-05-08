@@ -23,6 +23,7 @@ interface StaffDialogProps {
 
 export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<StaffInput>();
+  // Register photo_url so setValue triggers re-renders for watch()
   const createStaff = useCreateStaff();
   const updateStaff = useUpdateStaff();
   const { data: branches = [] } = useBranches();
@@ -76,8 +77,8 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
 
   const handlePhotoUpload = async (file: File) => {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: 'File too large', description: 'Max 5MB', variant: 'destructive' });
+    if (file.size > 500 * 1024) {
+      toast({ title: 'File too large', description: 'Max 500KB', variant: 'destructive' });
       return;
     }
     setUploading(true);
@@ -87,7 +88,8 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
       const { error } = await supabase.storage.from('staff-photos').upload(path, file, { upsert: false });
       if (error) throw error;
       const { data } = supabase.storage.from('staff-photos').getPublicUrl(path);
-      setValue('photo_url', data.publicUrl);
+      setValue('photo_url', data.publicUrl, { shouldDirty: true, shouldTouch: true });
+      toast({ title: 'Photo uploaded' });
     } catch (err) {
       toast({ title: 'Upload failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
@@ -148,12 +150,12 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
                   </label>
                 </Button>
                 {photoUrl && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setValue('photo_url', null)}>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setValue('photo_url', null, { shouldDirty: true })}>
                     <X className="h-3 w-3 mr-1" />Remove
                   </Button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">If empty, initials will be used on the ID card.</p>
+              <p className="text-xs text-muted-foreground">Max 500KB. If empty, initials will be used on the ID card.</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
