@@ -62,12 +62,19 @@ export default function POS() {
   const { user, loading: authLoading, isAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: branches = [] } = useBranches();
+  const defaultBranchId = useDefaultBranchId();
   const { data: organization } = useOrganization();
   const { data: customers = [] } = useCustomers();
   const { data: heldOrders = [] } = useHeldOrders();
   const { data: lastSale } = useSaleWithItems(lastSaleId);
   const createSale = useCreateSale();
   const createHeldOrder = useCreateHeldOrder();
+
+  useEffect(() => {
+    if (!selectedBranchId && defaultBranchId) {
+      setSelectedBranchId(defaultBranchId);
+    }
+  }, [defaultBranchId, selectedBranchId]);
   const deleteHeldOrder = useDeleteHeldOrder();
   const { toast } = useToast();
   const navigate = useNavigate();
