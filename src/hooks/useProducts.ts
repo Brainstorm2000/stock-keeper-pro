@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
+import { generateSku } from '@/lib/sku';
 
 export type ItemType = 'product' | 'service';
 export type ProductCategory = 'sellable' | 'consumable';
