@@ -81,6 +81,13 @@ export default function Expenses() {
     }
   }, [user, authLoading, hasCompletedOnboarding, navigate]);
 
+  // Default branch for new expenses
+  useEffect(() => {
+    if (!editingExpense && !branchId && defaultBranchId) {
+      setBranchId(defaultBranchId);
+    }
+  }, [defaultBranchId, editingExpense, branchId]);
+
   // Filter expenses
   const filteredExpenses = useMemo(() => {
     return expenses.filter(expense => {
