@@ -149,7 +149,7 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
                     {uploading ? 'Uploading...' : 'Upload'}
                     <input
                       type="file"
-                      accept="image/*"
+                      accept=".jpg,.jpeg,.png"
                       className="hidden"
                       onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
                     />
