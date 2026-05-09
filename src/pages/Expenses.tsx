@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ModuleAccessGuard, useModuleAccess } from '@/components/access/ModuleAccessGuard';
-import { useBranches } from '@/hooks/useBranches';
+import { useBranches, useDefaultBranchId } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
 import { 
@@ -63,6 +63,7 @@ export default function Expenses() {
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses();
   const { data: categories = [] } = useExpenseCategories();
   const { data: branches = [] } = useBranches();
+  const defaultBranchId = useDefaultBranchId();
   const { data: organization } = useOrganization();
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
@@ -79,6 +80,13 @@ export default function Expenses() {
       navigate('/onboarding');
     }
   }, [user, authLoading, hasCompletedOnboarding, navigate]);
+
+  // Default branch for new expenses
+  useEffect(() => {
+    if (!editingExpense && !branchId && defaultBranchId) {
+      setBranchId(defaultBranchId);
+    }
+  }, [defaultBranchId, editingExpense, branchId]);
 
   // Filter expenses
   const filteredExpenses = useMemo(() => {
@@ -101,7 +109,7 @@ export default function Expenses() {
     setDescription('');
     setExpenseDate(format(new Date(), 'yyyy-MM-dd'));
     setCategoryId('');
-    setBranchId('');
+    setBranchId(defaultBranchId || '');
     setNotes('');
     setReceiptUrl('');
     setReceiptFile(null);

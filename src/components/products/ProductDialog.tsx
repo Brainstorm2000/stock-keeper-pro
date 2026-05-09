@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUnits } from '@/hooks/useUnits';
-import { useBranches } from '@/hooks/useBranches';
+import { useBranches, useDefaultBranchId } from '@/hooks/useBranches';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useBrands } from '@/hooks/useBrands';
 import { useCreateProduct, useUpdateProduct, checkProductDuplicate, type Product, type ProductInput, type ProductCategory } from '@/hooks/useProducts';
@@ -52,6 +52,7 @@ export function ProductDialog({ product, open, onOpenChange, allProducts = [] }:
   const [csvImportDialogOpen, setCsvImportDialogOpen] = useState(false);
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
+  const defaultBranchId = useDefaultBranchId();
   const { data: suppliers = [] } = useSuppliers();
   const { data: brands = [] } = useBrands();
   const { data: organization } = useOrganization();
@@ -114,7 +115,7 @@ export function ProductDialog({ product, open, onOpenChange, allProducts = [] }:
       reset({
         name: '',
         unit_id: '',
-        branch_id: '',
+        branch_id: defaultBranchId || '',
         supplier_id: '',
         brand_id: '',
         item_type: 'product',
@@ -129,7 +130,7 @@ export function ProductDialog({ product, open, onOpenChange, allProducts = [] }:
         description: '',
       });
     }
-  }, [product, reset]);
+  }, [product, reset, defaultBranchId]);
 
   const onSubmit = async (data: ProductFormData) => {
     setIsCheckingDuplicate(true);

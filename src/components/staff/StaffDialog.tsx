@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateStaff, useUpdateStaff, type Staff, type StaffInput } from '@/hooks/useStaff';
-import { useBranches } from '@/hooks/useBranches';
+import { useBranches, useDefaultBranchId } from '@/hooks/useBranches';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useStaffPositions, useCreateStaffPosition, useCreateDepartment } from '@/hooks/useStaffPositions';
 import { Plus, Upload, X } from 'lucide-react';
@@ -27,6 +27,7 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
   const createStaff = useCreateStaff();
   const updateStaff = useUpdateStaff();
   const { data: branches = [] } = useBranches();
+  const defaultBranchId = useDefaultBranchId();
   const { data: departments = [] } = useDepartments();
   const { data: positions = [] } = useStaffPositions();
   const createPosition = useCreateStaffPosition();
@@ -58,7 +59,7 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
         photo_url: staff.photo_url,
       });
     } else {
-      reset({ full_name: '', is_active: true, photo_url: null });
+      reset({ full_name: '', is_active: true, photo_url: null, branch_id: defaultBranchId || null });
     }
     setShowNewPosition(false);
     setShowNewDepartment(false);

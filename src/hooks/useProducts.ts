@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
+import { generateSku } from '@/lib/sku';
 
 export type ItemType = 'product' | 'service';
 export type ProductCategory = 'sellable' | 'consumable';
@@ -162,10 +163,16 @@ export function useCreateProduct() {
       if (!user?.id) throw new Error('You must be signed in to create products.');
       const actorId = user.id;
 
+      // Auto-generate SKU when not provided
+      const sku = product.sku && product.sku.trim()
+        ? product.sku.trim()
+        : generateSku(product.item_type === 'service' ? 'SRV' : product.category === 'consumable' ? 'CON' : 'PRD');
+
       const { data, error } = await supabase
         .from('products')
         .insert({
           ...product,
+          sku,
           created_by: actorId,
           organization_id: product.organization_id,
         })

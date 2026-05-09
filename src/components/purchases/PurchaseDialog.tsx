@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCreatePurchase, type PurchaseItemInput, type PurchasePaymentStatus } from '@/hooks/usePurchases';
 import { useProducts, type Product } from '@/hooks/useProducts';
-import { useBranches } from '@/hooks/useBranches';
+import { useBranches, useDefaultBranchId } from '@/hooks/useBranches';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -31,8 +31,15 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
   const { data: branches = [] } = useBranches();
   const { data: suppliers = [] } = useSuppliers();
   const createPurchase = useCreatePurchase();
+  const defaultBranchId = useDefaultBranchId();
 
   const [branchId, setBranchId] = useState('');
+
+  useEffect(() => {
+    if (open && !branchId && defaultBranchId) {
+      setBranchId(defaultBranchId);
+    }
+  }, [open, defaultBranchId, branchId]);
   const [supplierId, setSupplierId] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [referenceNumber, setReferenceNumber] = useState('');

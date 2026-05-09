@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { useCreateActionTask, useUpdateActionTask, type ActionTask, type ActionTaskInput } from '@/hooks/useActionTasks';
 import { useStaff } from '@/hooks/useStaff';
-import { useBranches } from '@/hooks/useBranches';
+import { useBranches, useDefaultBranchId } from '@/hooks/useBranches';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TaskDialogProps {
@@ -27,6 +27,7 @@ export function TaskDialog({ task, open, onOpenChange }: TaskDialogProps) {
   const updateTask = useUpdateActionTask();
   const { data: staff = [] } = useStaff();
   const { data: branches = [] } = useBranches();
+  const defaultBranchId = useDefaultBranchId();
   const activeStaff = staff.filter(s => s.is_active);
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
 
@@ -55,7 +56,7 @@ export function TaskDialog({ task, open, onOpenChange }: TaskDialogProps) {
           setSelectedStaffIds(allIds);
         });
     } else {
-      reset({ title: '', staff_id: '', priority: 'medium', status: 'pending' });
+      reset({ title: '', staff_id: '', priority: 'medium', status: 'pending', branch_id: defaultBranchId || null });
       setSelectedStaffIds([]);
     }
   }, [task, open, reset]);

@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
 import { useProducts, type Product } from '@/hooks/useProducts';
-import { useBranches } from '@/hooks/useBranches';
+import { useBranches, useDefaultBranchId } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCustomers, type Customer } from '@/hooks/useCustomers';
 import { useAuth } from '@/lib/auth';
@@ -62,12 +62,19 @@ export default function POS() {
   const { user, loading: authLoading, isAdmin, hasCompletedOnboarding } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: branches = [] } = useBranches();
+  const defaultBranchId = useDefaultBranchId();
   const { data: organization } = useOrganization();
   const { data: customers = [] } = useCustomers();
   const { data: heldOrders = [] } = useHeldOrders();
   const { data: lastSale } = useSaleWithItems(lastSaleId);
   const createSale = useCreateSale();
   const createHeldOrder = useCreateHeldOrder();
+
+  useEffect(() => {
+    if (!selectedBranchId && defaultBranchId) {
+      setSelectedBranchId(defaultBranchId);
+    }
+  }, [defaultBranchId, selectedBranchId]);
   const deleteHeldOrder = useDeleteHeldOrder();
   const { toast } = useToast();
   const navigate = useNavigate();
