@@ -63,6 +63,7 @@ export default function Expenses() {
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses();
   const { data: categories = [] } = useExpenseCategories();
   const { data: branches = [] } = useBranches();
+  const defaultBranchId = useDefaultBranchId();
   const { data: organization } = useOrganization();
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
@@ -101,7 +102,7 @@ export default function Expenses() {
     setDescription('');
     setExpenseDate(format(new Date(), 'yyyy-MM-dd'));
     setCategoryId('');
-    setBranchId('');
+    setBranchId(defaultBranchId || '');
     setNotes('');
     setReceiptUrl('');
     setReceiptFile(null);
