@@ -161,7 +161,7 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
                   </Button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">Max 500KB. If empty, initials will be used on the ID card.</p>
+              <p className="text-xs text-muted-foreground">JPG/JPEG/PNG only. Max 500KB. If empty, initials will be used on the ID card.</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
