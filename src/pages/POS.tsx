@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
 import { useProducts, type Product } from '@/hooks/useProducts';
-import { useBranches } from '@/hooks/useBranches';
+import { useBranches, useDefaultBranchId } from '@/hooks/useBranches';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCustomers, type Customer } from '@/hooks/useCustomers';
 import { useAuth } from '@/lib/auth';
