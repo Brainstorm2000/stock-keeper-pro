@@ -78,6 +78,11 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
 
   const handlePhotoUpload = async (file: File) => {
     if (!file) return;
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: 'Invalid file type', description: 'Only JPG, JPEG, and PNG allowed', variant: 'destructive' });
+      return;
+    }
     if (file.size > 500 * 1024) {
       toast({ title: 'File too large', description: 'Max 500KB', variant: 'destructive' });
       return;
