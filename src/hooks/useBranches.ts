@@ -80,6 +80,17 @@ export function useMyBranchAssignments() {
   });
 }
 
+// Returns the default branch id for the current user:
+// - first assigned branch if any
+// - else the only branch in the org if there is exactly one
+export function useDefaultBranchId(): string | undefined {
+  const { data: assignments = [] } = useMyBranchAssignments();
+  const { data: branches = [] } = useBranches();
+  if (assignments.length > 0) return assignments[0].branch_id;
+  if (branches.length === 1) return branches[0].id;
+  return undefined;
+}
+
 export function useCreateBranch() {
   const queryClient = useQueryClient();
   const { user, organizationId } = useAuth();
