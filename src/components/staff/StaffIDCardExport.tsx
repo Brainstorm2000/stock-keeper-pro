@@ -232,7 +232,6 @@ async function renderBack(staff: Staff, org: Organization | null, config: CardCo
   ctx.fillText('CONTACT', padX, cy); cy += 22;
   ctx.fillStyle = '#475569'; ctx.font = '15px system-ui';
   if (org?.email) { ctx.fillText(org.email, padX, cy); cy += 22; }
-  if (org?.phone) { ctx.fillText(org.phone, padX, cy); cy += 22; }
   if (org?.address) { ctx.fillText(org.address.slice(0, 70), padX, cy); }
 
   // QR code
