@@ -131,8 +131,15 @@ export default function Expenses() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({ title: 'Invalid file type', description: 'Only JPG, JPEG, and PNG allowed', variant: 'destructive' });
+        e.target.value = '';
+        return;
+      }
       if (file.size > 5 * 1024 * 1024) {
         toast({ title: 'File too large', description: 'Maximum file size is 5MB', variant: 'destructive' });
+        e.target.value = '';
         return;
       }
       setReceiptFile(file);
@@ -473,11 +480,12 @@ export default function Expenses() {
               <div className="flex gap-2">
                 <Input
                   type="file"
-                  accept="image/*,.pdf"
+                  accept=".jpg,.jpeg,.png"
                   onChange={handleFileChange}
                   className="flex-1"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">JPG, JPEG, or PNG only. Max 5MB.</p>
               {receiptUrl && !receiptFile && (
                 <a href={receiptUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary flex items-center gap-1">
                   <ExternalLink className="h-3 w-3" />

@@ -94,59 +94,106 @@ async function renderFront(staff: Staff, org: Organization | null, config: CardC
   const ctx = canvas.getContext('2d')!;
   const primary = config.themeColor;
 
+  // White card background
   ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 20); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 24); ctx.fill();
 
-  ctx.fillStyle = primary;
-  ctx.beginPath(); ctx.moveTo(w - 280, 0); ctx.lineTo(w, 0); ctx.lineTo(w, 280); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(0, h); ctx.lineTo(240, h); ctx.lineTo(0, h - 190); ctx.closePath(); ctx.fill();
-
-  ctx.fillStyle = '#0f172a';
-  ctx.font = 'bold 28px system-ui';
-  ctx.fillText(org?.name || 'Organization', 30, 50);
-  ctx.fillStyle = '#64748b';
-  ctx.font = '16px system-ui';
-  ctx.fillText('Staff Identification Card', 30, 75);
-
-  const cx = 130, cy = 280, r = 80;
+  // Left accent stripe
   ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, r + 3, 0, Math.PI * 2); ctx.fillStyle = primary; ctx.fill();
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
-  ctx.fillStyle = '#e2e8f0'; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-  ctx.fillStyle = primary; ctx.font = 'bold 64px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(staff.full_name.charAt(0).toUpperCase(), cx, cy);
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 24); ctx.clip();
+  ctx.fillStyle = primary;
+  ctx.fillRect(0, 0, 28, h);
   ctx.restore();
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 
-  const infoX = 260;
-  ctx.fillStyle = '#0f172a'; ctx.font = 'bold 36px system-ui'; ctx.fillText(staff.full_name, infoX, 200);
-  ctx.fillStyle = primary; ctx.font = 'bold 22px system-ui';
-  if (staff.role) ctx.fillText(staff.role, infoX, 235);
+  const padX = 70;
+
+  // Header: org name + logo placeholder area
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 30px system-ui';
+  ctx.fillText((org?.name || 'Organization').toUpperCase(), padX, 70);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '14px system-ui';
+  ctx.fillText('EMPLOYEE  ·  IDENTIFICATION  CARD', padX, 96);
+
+  // Divider
+  ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(padX, 120); ctx.lineTo(w - 50, 120); ctx.stroke();
+
+  // Photo (rounded square)
+  const photoX = padX, photoY = 165, photoSize = 240;
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 12); ctx.clip();
+  ctx.fillStyle = '#f1f5f9'; ctx.fillRect(photoX, photoY, photoSize, photoSize);
+
+  let photoLoaded = false;
+  if (staff.photo_url) {
+    try {
+      const img = await loadImage(staff.photo_url);
+      // Cover-fit
+      const iw = img.naturalWidth || img.width;
+      const ih = img.naturalHeight || img.height;
+      const scale = Math.max(photoSize / iw, photoSize / ih);
+      const dw = iw * scale, dh = ih * scale;
+      const dx = photoX + (photoSize - dw) / 2;
+      const dy = photoY + (photoSize - dh) / 2;
+      ctx.drawImage(img, dx, dy, dw, dh);
+      photoLoaded = true;
+    } catch {
+      photoLoaded = false;
+    }
+  }
+  if (!photoLoaded) {
+    const initials = staff.full_name.split(' ').map(n => n.charAt(0).toUpperCase()).slice(0, 2).join('');
+    ctx.fillStyle = primary; ctx.font = 'bold 96px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(initials, photoX + photoSize / 2, photoY + photoSize / 2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+  ctx.restore();
+  // Photo border
+  ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(photoX, photoY, photoSize, photoSize, 12); ctx.stroke();
+
+  // Info column
+  const infoX = photoX + photoSize + 50;
+  ctx.fillStyle = '#0f172a'; ctx.font = 'bold 40px system-ui';
+  ctx.fillText(staff.full_name, infoX, 210);
+  if (staff.role) {
+    ctx.fillStyle = primary; ctx.font = '600 22px system-ui';
+    ctx.fillText(staff.role, infoX, 245);
+  }
 
   const details: [string, string][] = [];
-  if (config.showStaffId && staff.staff_id) details.push(['ID', staff.staff_id]);
-  if (config.showDepartment && staff.department) details.push(['DEPT', staff.department]);
+  if (config.showStaffId && staff.staff_id) details.push(['ID NO.', staff.staff_id]);
+  if (config.showDepartment && staff.department) details.push(['DEPARTMENT', staff.department]);
   if (config.showPhone && staff.phone) details.push(['PHONE', staff.phone]);
   if (config.showEmail && staff.email) details.push(['EMAIL', staff.email]);
 
-  let dy = 280;
+  let dy = 300;
   for (const [label, value] of details) {
-    ctx.fillStyle = '#0f172a'; ctx.font = 'bold 18px system-ui'; ctx.fillText(label, infoX, dy);
-    ctx.fillStyle = '#64748b'; ctx.font = '18px system-ui'; ctx.fillText(`  ${value}`, infoX + ctx.measureText(label).width, dy);
-    dy += 32;
+    ctx.fillStyle = '#94a3b8'; ctx.font = '600 11px system-ui';
+    ctx.fillText(label, infoX, dy);
+    ctx.fillStyle = '#0f172a'; ctx.font = '18px system-ui';
+    ctx.fillText(value, infoX, dy + 22);
+    dy += 50;
   }
 
-  const { r: pr, g: pg, b: pb } = hexToRgb(primary);
-  ctx.fillStyle = `rgba(${pr},${pg},${pb},0.09)`;
-  ctx.fillRect(0, h - 50, w, 50);
-  ctx.fillStyle = primary; ctx.font = '18px system-ui';
-  if (config.showBranch && staff.branches?.name) ctx.fillText('📍 ' + staff.branches.name, 30, h - 18);
+  // Footer divider + meta
+  ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(padX, h - 60); ctx.lineTo(w - 50, h - 60); ctx.stroke();
+  ctx.fillStyle = '#64748b'; ctx.font = '14px system-ui';
+  if (config.showBranch && staff.branches?.name) {
+    ctx.fillText(staff.branches.name.toUpperCase(), padX, h - 30);
+  }
   if (config.showEmploymentDate && staff.employment_date) {
-    ctx.textAlign = 'right'; ctx.fillStyle = '#64748b'; ctx.fillText('Since ' + staff.employment_date, w - 30, h - 18); ctx.textAlign = 'left';
+    ctx.textAlign = 'right';
+    ctx.fillText('SINCE ' + staff.employment_date, w - 50, h - 30);
+    ctx.textAlign = 'left';
   }
 
+  // Outer border
   ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 20); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 24); ctx.stroke();
   return canvas;
 }
 
@@ -157,13 +204,18 @@ async function renderBack(staff: Staff, org: Organization | null, config: CardCo
   const ctx = canvas.getContext('2d')!;
   const primary = config.themeColor;
 
+  // White background
   ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 20); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 24); ctx.fill();
 
-  ctx.fillStyle = primary;
-  ctx.beginPath(); ctx.moveTo(w, h); ctx.lineTo(w - 240, h); ctx.lineTo(w, h - 190); ctx.closePath(); ctx.fill();
+  const padX = 50;
 
-  ctx.fillStyle = '#0f172a'; ctx.font = 'bold 24px system-ui'; ctx.fillText('Terms & Information', 40, 60);
+  // Heading
+  ctx.fillStyle = '#94a3b8'; ctx.font = '600 13px system-ui';
+  ctx.fillText('TERMS & CONDITIONS', padX, 60);
+  ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(padX, 75); ctx.lineTo(w - 350, 75); ctx.stroke();
+
   const orgName = org?.name || 'the organization';
   const terms = [
     `This card is property of ${orgName}.`,
@@ -171,33 +223,45 @@ async function renderBack(staff: Staff, org: Organization | null, config: CardCo
     'Report loss immediately to HR department.',
     'Not transferable to another person.',
   ];
-  ctx.fillStyle = '#64748b'; ctx.font = '18px system-ui';
-  terms.forEach((t, i) => { ctx.fillText('•  ' + t, 60, 110 + i * 34); });
+  ctx.fillStyle = '#475569'; ctx.font = '17px system-ui';
+  terms.forEach((t, i) => { ctx.fillText('•  ' + t, padX, 115 + i * 32); });
 
+  // Org contact
   let cy = 300;
-  if (org?.email) { ctx.fillStyle = '#64748b'; ctx.font = '18px system-ui'; ctx.fillText('✉  ' + org.email, 40, cy); cy += 30; }
-  if (org?.address) { ctx.fillText('📍  ' + org.address.slice(0, 60), 40, cy); }
+  ctx.fillStyle = '#94a3b8'; ctx.font = '600 12px system-ui';
+  ctx.fillText('CONTACT', padX, cy); cy += 22;
+  ctx.fillStyle = '#475569'; ctx.font = '15px system-ui';
+  if (org?.email) { ctx.fillText(org.email, padX, cy); cy += 22; }
+  if (org?.address) { ctx.fillText(org.address.slice(0, 70), padX, cy); }
 
+  // QR code
   if (config.showQR) {
     const qrValue = JSON.stringify({ staff_id: staff.id, organization_id: staff.organization_id });
     const qrDataUrl = await renderQRToDataURL(qrValue, 512);
     if (qrDataUrl) {
       const qrImg = await loadImage(qrDataUrl);
-      const qrSize = 200;
-      const qrX = w - qrSize - 60, qrY = 60;
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20);
-      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1; ctx.strokeRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20);
+      const qrSize = 230;
+      const qrX = w - qrSize - 60, qrY = 110;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(qrX - 12, qrY - 12, qrSize + 24, qrSize + 24);
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 8); ctx.stroke();
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-      ctx.fillStyle = '#64748b'; ctx.font = '14px system-ui'; ctx.textAlign = 'center';
-      ctx.fillText('Scan for attendance', qrX + qrSize / 2, qrY + qrSize + 25); ctx.textAlign = 'left';
+      ctx.fillStyle = '#94a3b8'; ctx.font = '600 11px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText('SCAN FOR ATTENDANCE', qrX + qrSize / 2, qrY + qrSize + 30);
+      ctx.textAlign = 'left';
     }
   }
 
-  ctx.fillStyle = primary; ctx.fillRect(0, h - 55, w, 55);
-  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px system-ui'; ctx.fillText(org?.name || 'Organization', 40, h - 20);
+  // Bottom accent stripe
+  ctx.fillStyle = primary;
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 24); ctx.clip();
+  ctx.fillRect(0, h - 18, w, 18);
+  ctx.restore();
 
+  // Outer border
   ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 20); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(0, 0, w, h, 24); ctx.stroke();
   return canvas;
 }
 
