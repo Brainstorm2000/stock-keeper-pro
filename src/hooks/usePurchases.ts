@@ -40,6 +40,7 @@ export interface Purchase {
   payment_status: PurchasePaymentStatus;
   amount_paid: number;
   notes: string | null;
+  receipt_url: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -70,6 +71,7 @@ export interface PurchaseInput {
   payment_status?: PurchasePaymentStatus;
   amount_paid?: number;
   notes?: string;
+  receipt_url?: string | null;
   items: PurchaseItemInput[];
 }
 
@@ -100,7 +102,7 @@ export function usePurchases(branchId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Purchase[];
+      return data as unknown as Purchase[];
     },
   });
 }
@@ -141,6 +143,7 @@ export function useCreatePurchase() {
           payment_status: input.payment_status || 'pending',
           amount_paid: input.amount_paid || 0,
           notes: input.notes,
+          receipt_url: input.receipt_url ?? null,
           created_by: user?.id,
         })
         .select()
@@ -327,6 +330,7 @@ export function useUpdatePurchase() {
           payment_status: input.payment_status || 'pending',
           amount_paid: input.amount_paid || 0,
           notes: input.notes,
+          receipt_url: input.receipt_url ?? null,
         })
         .eq('id', purchaseId)
         .select()
@@ -478,4 +482,21 @@ export function useDeletePurchase() {
       toast({ title, description, variant: 'destructive' });
     },
   });
+}
+
+export async function uploadPurchaseReceipt(file: File, organizationId: string): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${organizationId}/${crypto.randomUUID()}.${fileExt}`;
+  const { error } = await supabase.storage.from('purchase-receipts').upload(fileName, file);
+  if (error) throw error;
+  return fileName;
+}
+
+export async function getPurchaseReceiptUrl(receiptRef: string): Promise<string> {
+  if (/^https?:\/\//i.test(receiptRef)) return receiptRef;
+  const { data, error } = await supabase.storage
+    .from('purchase-receipts')
+    .createSignedUrl(receiptRef, 60 * 10);
+  if (error || !data?.signedUrl) throw error ?? new Error('Could not generate receipt URL');
+  return data.signedUrl;
 }

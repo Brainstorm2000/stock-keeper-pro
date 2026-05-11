@@ -1429,6 +1429,7 @@ export type Database = {
           payment_status: Database["public"]["Enums"]["purchase_payment_status"]
           purchase_date: string
           purchase_number: string
+          receipt_url: string | null
           reference_number: string | null
           subtotal: number
           supplier_id: string
@@ -1448,6 +1449,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["purchase_payment_status"]
           purchase_date?: string
           purchase_number: string
+          receipt_url?: string | null
           reference_number?: string | null
           subtotal?: number
           supplier_id: string
@@ -1467,6 +1469,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["purchase_payment_status"]
           purchase_date?: string
           purchase_number?: string
+          receipt_url?: string | null
           reference_number?: string | null
           subtotal?: number
           supplier_id?: string

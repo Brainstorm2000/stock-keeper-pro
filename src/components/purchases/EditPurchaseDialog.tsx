@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useUpdatePurchase, type Purchase, type PurchaseItemInput, type PurchasePaymentStatus } from '@/hooks/usePurchases';
+import { useUpdatePurchase, uploadPurchaseReceipt, getPurchaseReceiptUrl, type Purchase, type PurchaseItemInput, type PurchasePaymentStatus } from '@/hooks/usePurchases';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useBranches } from '@/hooks/useBranches';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useToast } from '@/hooks/use-toast';
 
 interface EditPurchaseDialogProps {
   purchase: Purchase;
@@ -32,6 +33,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
   const { data: branches = [] } = useBranches();
   const { data: suppliers = [] } = useSuppliers();
   const updatePurchase = useUpdatePurchase();
+  const { toast } = useToast();
 
   const [branchId, setBranchId] = useState(purchase.branch_id);
   const [supplierId, setSupplierId] = useState(purchase.supplier_id);
@@ -40,6 +42,9 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
   const [taxRate, setTaxRate] = useState(String(purchase.tax_rate || 0));
   const [amountPaid, setAmountPaid] = useState(String(purchase.amount_paid));
   const [notes, setNotes] = useState(purchase.notes || '');
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(purchase.receipt_url || null);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -132,6 +137,19 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
   const handleSubmit = async () => {
     if (!organization?.id || !branchId || !supplierId || cart.length === 0) return;
 
+    let finalReceiptUrl = receiptUrl;
+    if (receiptFile) {
+      try {
+        setUploading(true);
+        finalReceiptUrl = await uploadPurchaseReceipt(receiptFile, organization.id);
+      } catch (e) {
+        toast({ title: 'Failed to upload receipt', variant: 'destructive' });
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
     await updatePurchase.mutateAsync({
       purchaseId: purchase.id,
       originalItems: purchase.purchase_items || [],
@@ -145,6 +163,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
         payment_status: paymentStatus,
         amount_paid: Number(amountPaid) || 0,
         notes: notes || undefined,
+        receipt_url: finalReceiptUrl,
         items: cart.map(({ product, ...item }) => item),
       },
     });
@@ -376,6 +395,54 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
               rows={2}
             />
           </div>
+
+          {/* Receipt */}
+          <div className="space-y-2">
+            <Label>Receipt (JPG, JPEG, PNG)</Label>
+            {receiptUrl && !receiptFile && (
+              <div className="flex items-center gap-2 text-sm">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const url = await getPurchaseReceiptUrl(receiptUrl);
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    } catch (e: any) {
+                      toast({ title: 'Could not open receipt', description: e?.message ?? 'Unknown error', variant: 'destructive' });
+                    }
+                  }}
+                >
+                  View current receipt
+                </Button>
+                <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setReceiptUrl(null)}>
+                  Remove
+                </Button>
+              </div>
+            )}
+            <Input
+              type="file"
+              accept=".jpg,.jpeg,.png"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const allowed = ['image/jpeg', 'image/jpg', 'image/png'];
+                if (!allowed.includes(file.type)) {
+                  toast({ title: 'Invalid file type', description: 'Only JPG, JPEG, and PNG allowed', variant: 'destructive' });
+                  e.target.value = '';
+                  return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                  toast({ title: 'File too large', description: 'Maximum file size is 5MB', variant: 'destructive' });
+                  e.target.value = '';
+                  return;
+                }
+                setReceiptFile(file);
+              }}
+            />
+            {receiptFile && <p className="text-xs text-muted-foreground">New file: {receiptFile.name}</p>}
+          </div>
         </div>
 
         {/* Footer */}
@@ -396,12 +463,12 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!branchId || !supplierId || cart.length === 0 || updatePurchase.isPending}
+                disabled={!branchId || !supplierId || cart.length === 0 || updatePurchase.isPending || uploading}
               >
-                {updatePurchase.isPending ? (
+                {updatePurchase.isPending || uploading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    {uploading ? 'Uploading...' : 'Saving...'}
                   </>
                 ) : (
                   'Save Changes'
