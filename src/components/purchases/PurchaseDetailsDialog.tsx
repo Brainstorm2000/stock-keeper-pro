@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Clock, AlertCircle, Loader2 } from 'lucide-react';
-import { type Purchase, type PurchasePaymentStatus, useUpdatePurchasePayment } from '@/hooks/usePurchases';
+import { CheckCircle2, Clock, AlertCircle, Loader2, FileText } from 'lucide-react';
+import { type Purchase, type PurchasePaymentStatus, useUpdatePurchasePayment, getPurchaseReceiptUrl } from '@/hooks/usePurchases';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface PurchaseDetailsDialogProps {
   purchase: Purchase;
@@ -21,6 +22,7 @@ export function PurchaseDetailsDialog({ purchase, open, onOpenChange }: Purchase
   const [paymentStatus, setPaymentStatus] = useState<PurchasePaymentStatus>(purchase.payment_status);
   const [amountPaid, setAmountPaid] = useState(String(purchase.amount_paid));
   const updatePayment = useUpdatePurchasePayment();
+  const { toast } = useToast();
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-NG', {
@@ -191,6 +193,29 @@ export function PurchaseDetailsDialog({ purchase, open, onOpenChange }: Purchase
               <div>
                 <h3 className="font-semibold mb-2">Notes</h3>
                 <p className="text-sm text-muted-foreground">{purchase.notes}</p>
+              </div>
+            </>
+          )}
+
+          {purchase.receipt_url && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="font-semibold mb-2">Receipt</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const url = await getPurchaseReceiptUrl(purchase.receipt_url!);
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    } catch (e: any) {
+                      toast({ title: 'Could not open receipt', description: e?.message ?? 'Unknown error', variant: 'destructive' });
+                    }
+                  }}
+                >
+                  <FileText className="h-4 w-4 mr-1" /> View Receipt
+                </Button>
               </div>
             </>
           )}
