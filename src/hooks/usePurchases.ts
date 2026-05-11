@@ -483,3 +483,20 @@ export function useDeletePurchase() {
     },
   });
 }
+
+export async function uploadPurchaseReceipt(file: File, organizationId: string): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${organizationId}/${crypto.randomUUID()}.${fileExt}`;
+  const { error } = await supabase.storage.from('purchase-receipts').upload(fileName, file);
+  if (error) throw error;
+  return fileName;
+}
+
+export async function getPurchaseReceiptUrl(receiptRef: string): Promise<string> {
+  if (/^https?:\/\//i.test(receiptRef)) return receiptRef;
+  const { data, error } = await supabase.storage
+    .from('purchase-receipts')
+    .createSignedUrl(receiptRef, 60 * 10);
+  if (error || !data?.signedUrl) throw error ?? new Error('Could not generate receipt URL');
+  return data.signedUrl;
+}
