@@ -27,6 +27,7 @@ import {
   useCreateExpenseCategory,
   useDeleteExpenseCategory,
   uploadExpenseReceipt,
+  getExpenseReceiptUrl,
   type Expense,
   type ExpenseCategory
 } from '@/hooks/useExpenses';
@@ -358,12 +359,17 @@ export default function Expenses() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          asChild
+                          onClick={async () => {
+                            try {
+                              const url = await getExpenseReceiptUrl(expense.receipt_url!);
+                              window.open(url, '_blank', 'noopener,noreferrer');
+                            } catch (e: any) {
+                              toast({ title: 'Could not open receipt', description: e?.message ?? 'Unknown error', variant: 'destructive' });
+                            }
+                          }}
                         >
-                          <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer">
-                            <FileText className="h-4 w-4 mr-1" />
-                            View
-                          </a>
+                          <FileText className="h-4 w-4 mr-1" />
+                          View
                         </Button>
                       ) : (
                         <span className="text-muted-foreground">-</span>

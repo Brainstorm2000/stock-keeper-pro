@@ -238,9 +238,24 @@ export async function uploadExpenseReceipt(file: File, organizationId: string): 
 
   if (uploadError) throw uploadError;
 
-  const { data } = supabase.storage
-    .from('expense-receipts')
-    .getPublicUrl(fileName);
+  // Bucket is private — store the storage path; generate signed URLs for viewing.
+  return fileName;
+}
 
-  return data.publicUrl;
+/**
+ * Resolve a stored receipt reference to a viewable URL.
+ * Accepts either a storage path (preferred, private bucket) or a legacy public URL.
+ */
+export async function getExpenseReceiptUrl(receiptRef: string): Promise<string> {
+  // Legacy values may already be full URLs — return as-is.
+  if (/^https?:\/\//i.test(receiptRef)) return receiptRef;
+
+  const { data, error } = await supabase.storage
+    .from('expense-receipts')
+    .createSignedUrl(receiptRef, 60 * 10); // 10 minutes
+
+  if (error || !data?.signedUrl) {
+    throw error ?? new Error('Could not generate receipt URL');
+  }
+  return data.signedUrl;
 }
