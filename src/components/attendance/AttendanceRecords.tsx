@@ -29,8 +29,23 @@ export function AttendanceRecords() {
   const { data: departments = [] } = useDepartments();
   const { data: shifts = [] } = useShifts();
 
+  // Days worked per staff = count of unique attendance dates with a clock-in (or non-absent status)
+  const daysWorkedByStaff = (() => {
+    const map = new Map<string, Set<string>>();
+    for (const r of records) {
+      if (!r.staff_id) continue;
+      const worked = !!r.clock_in_time || (r.status && r.status !== 'absent');
+      if (!worked) continue;
+      if (!map.has(r.staff_id)) map.set(r.staff_id, new Set());
+      map.get(r.staff_id)!.add(r.attendance_date);
+    }
+    const out: Record<string, number> = {};
+    map.forEach((set, k) => { out[k] = set.size; });
+    return out;
+  })();
+
   const handleExport = () => {
-    const headers = ['Staff Name', 'Department', 'Branch', 'Shift', 'Date', 'Clock In', 'Clock Out', 'Hours Worked', 'Overtime Hours', 'Status'];
+    const headers = ['Staff Name', 'Department', 'Branch', 'Shift', 'Date', 'Clock In', 'Clock Out', 'Hours Worked', 'Overtime Hours', 'Days Worked', 'Status'];
     const rows = records.map(r => [
       r.staff?.full_name || '',
       r.departments?.name || r.staff?.department || '',
@@ -41,6 +56,7 @@ export function AttendanceRecords() {
       r.clock_out_time ? format(new Date(r.clock_out_time), 'HH:mm') : '',
       r.hours_worked?.toFixed(2) || '',
       r.overtime_hours?.toFixed(2) || '0',
+      daysWorkedByStaff[r.staff_id] ?? 0,
       r.status,
     ].map(v => String(v).includes(',') ? `"${v}"` : v));
     const content = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -124,12 +140,13 @@ export function AttendanceRecords() {
                 <TableHead>Clock Out</TableHead>
                 <TableHead className="hidden sm:table-cell">Hours</TableHead>
                 <TableHead className="hidden sm:table-cell">Overtime</TableHead>
+                <TableHead className="hidden sm:table-cell">Days Worked</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {records.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No records found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No records found</TableCell></TableRow>
               ) : records.map(r => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.staff?.full_name || '-'}</TableCell>
@@ -141,6 +158,7 @@ export function AttendanceRecords() {
                   <TableCell>{r.clock_out_time ? format(new Date(r.clock_out_time), 'HH:mm') : '-'}</TableCell>
                   <TableCell className="hidden sm:table-cell">{r.hours_worked ? r.hours_worked.toFixed(1) : '-'}</TableCell>
                   <TableCell className="hidden sm:table-cell">{r.overtime_hours ? r.overtime_hours.toFixed(1) : '0'}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{daysWorkedByStaff[r.staff_id] ?? 0}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={statusColors[r.status] || ''}>
                       {r.status.replace('_', ' ')}
