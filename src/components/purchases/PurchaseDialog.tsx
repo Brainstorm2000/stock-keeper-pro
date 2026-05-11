@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Search, Loader2, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useCreatePurchase, type PurchaseItemInput, type PurchasePaymentStatus } from '@/hooks/usePurchases';
+import { useCreatePurchase, uploadPurchaseReceipt, type PurchaseItemInput, type PurchasePaymentStatus } from '@/hooks/usePurchases';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useBranches, useDefaultBranchId } from '@/hooks/useBranches';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useToast } from '@/hooks/use-toast';
 
 interface PurchaseDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
   const { data: suppliers = [] } = useSuppliers();
   const createPurchase = useCreatePurchase();
   const defaultBranchId = useDefaultBranchId();
+  const { toast } = useToast();
 
   const [branchId, setBranchId] = useState('');
 
@@ -46,6 +48,8 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
   const [taxRate, setTaxRate] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
   const [notes, setNotes] = useState('');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -117,6 +121,19 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
   const handleSubmit = async () => {
     if (!organization?.id || !branchId || !supplierId || cart.length === 0) return;
 
+    let receiptUrl: string | undefined;
+    if (receiptFile) {
+      try {
+        setUploading(true);
+        receiptUrl = await uploadPurchaseReceipt(receiptFile, organization.id);
+      } catch (e) {
+        toast({ title: 'Failed to upload receipt', variant: 'destructive' });
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
     await createPurchase.mutateAsync({
       organization_id: organization.id,
       branch_id: branchId,
@@ -127,6 +144,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
       payment_status: paymentStatus,
       amount_paid: Number(amountPaid) || 0,
       notes: notes || undefined,
+      receipt_url: receiptUrl,
       items: cart.map(({ product, ...item }) => item),
     });
 
@@ -138,6 +156,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
     setTaxRate('');
     setAmountPaid('');
     setNotes('');
+    setReceiptFile(null);
     setCart([]);
     onOpenChange(false);
   };
@@ -366,6 +385,34 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
               rows={2}
             />
           </div>
+
+          {/* Receipt upload */}
+          <div className="space-y-2">
+            <Label>Receipt (JPG, JPEG, PNG)</Label>
+            <Input
+              type="file"
+              accept=".jpg,.jpeg,.png"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const allowed = ['image/jpeg', 'image/jpg', 'image/png'];
+                if (!allowed.includes(file.type)) {
+                  toast({ title: 'Invalid file type', description: 'Only JPG, JPEG, and PNG allowed', variant: 'destructive' });
+                  e.target.value = '';
+                  return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                  toast({ title: 'File too large', description: 'Maximum file size is 5MB', variant: 'destructive' });
+                  e.target.value = '';
+                  return;
+                }
+                setReceiptFile(file);
+              }}
+            />
+            {receiptFile && (
+              <p className="text-xs text-muted-foreground">Selected: {receiptFile.name}</p>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -386,12 +433,12 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!branchId || !supplierId || cart.length === 0 || createPurchase.isPending}
+                disabled={!branchId || !supplierId || cart.length === 0 || createPurchase.isPending || uploading}
               >
-                {createPurchase.isPending ? (
+                {createPurchase.isPending || uploading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    {uploading ? 'Uploading...' : 'Creating...'}
                   </>
                 ) : (
                   'Create Purchase'
