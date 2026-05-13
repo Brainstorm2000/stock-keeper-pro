@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -99,7 +99,7 @@
     --border: 217 33% 17%;
     --input: 217 33% 17%;
     --ring: 213 27% 84%;
-    
+
     --sidebar-background: 222 47% 6%;
     --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 221 83% 53%;
@@ -118,7 +118,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: "Inter", system-ui, sans-serif;
   }
 }
 
@@ -126,19 +126,19 @@
   .glass-card {
     @apply bg-card/80 backdrop-blur-sm border border-border/50 shadow-lg;
   }
-  
+
   .gradient-primary {
     @apply bg-gradient-to-r from-primary to-primary/80;
   }
-  
+
   .status-normal {
     @apply bg-[hsl(var(--stock-normal))] text-[hsl(var(--stock-normal-foreground))];
   }
-  
+
   .status-low {
     @apply bg-[hsl(var(--stock-low))] text-[hsl(var(--stock-low-foreground))];
   }
-  
+
   .status-out {
     @apply bg-[hsl(var(--stock-out))] text-[hsl(var(--stock-out-foreground))];
   }

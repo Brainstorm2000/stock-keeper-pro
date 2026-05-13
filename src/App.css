@@ -40,3 +40,22 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Custom Scrollbar for Sidebar and Containers */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 5px; /* Thin profile */
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 158, 61, 0.1); /* Subtle Amber hint */
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 158, 61, 0.3); /* Brighter on hover */
+}
