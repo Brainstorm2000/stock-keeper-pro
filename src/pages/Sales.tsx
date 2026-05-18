@@ -135,6 +135,7 @@ export default function Sales() {
     }
   }, [user, authLoading, hasCompletedOnboarding, navigate]);
 
+  // Filter sales
   const filteredSales = useMemo(() => {
     return sales.filter((sale) => {
       const matchesSearch =
@@ -147,10 +148,12 @@ export default function Sales() {
         filterPayment === "all" || sale.payment_method === filterPayment;
       const matchesBranch =
         filterBranch === "all" || sale.branch_id === filterBranch;
+
       const saleDate = new Date(sale.created_at);
       const matchesStartDate = !startDate || saleDate >= new Date(startDate);
       const matchesEndDate =
         !endDate || saleDate <= new Date(endDate + "T23:59:59");
+
       return (
         matchesSearch &&
         matchesStatus &&
@@ -179,7 +182,8 @@ export default function Sales() {
     goToPage,
   } = usePagination(filteredSales);
 
-  const totalSalesValue = filteredSales.reduce(
+  // Calculate totals
+  const totalSales = filteredSales.reduce(
     (sum, s) => sum + Number(s.total_amount),
     0,
   );
@@ -203,6 +207,7 @@ export default function Sales() {
 
   const handleSaveEdit = async () => {
     if (!selectedSaleId) return;
+
     await updateSale.mutateAsync({
       saleId: selectedSaleId,
       updates: {
@@ -213,6 +218,7 @@ export default function Sales() {
         notes: editData.notes || null,
       },
     });
+
     setEditDialogOpen(false);
     setSelectedSaleId(null);
   };
@@ -223,27 +229,27 @@ export default function Sales() {
     setDeleteConfirmSale(null);
   };
 
-  if (authLoading)
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
 
   return (
     <DashboardLayout>
       <ModuleAccessGuard module="sales">
         <div className="space-y-6">
-          {/* Responsive Header */}
+          {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-                Sales
-              </h1>
-              <p className="text-sm text-muted-foreground">
+              <h1 className="text-2xl font-bold text-foreground">Sales</h1>
+              <p className="text-muted-foreground">
                 View and manage your sales history
               </p>
             </div>
+
             <Button
               onClick={() => navigate("/pos")}
               className="w-full sm:w-auto bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-md shadow-amber-500/10 transition-all active:scale-[0.98]"
@@ -252,7 +258,7 @@ export default function Sales() {
             </Button>
           </div>
 
-          {/* Responsive Summary Cards */}
+          {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card>
               <CardHeader className="pb-2">
@@ -272,7 +278,7 @@ export default function Sales() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(totalSalesValue)}
+                  {formatCurrency(totalSales)}
                 </div>
               </CardContent>
             </Card>
@@ -290,258 +296,483 @@ export default function Sales() {
             </Card>
           </div>
 
-          {/* Responsive Filters */}
-          <div className="flex flex-col space-y-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search invoice # or customer..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-full"
-                />
+          {/* Filters */}
+          <div className="flex flex-wrap gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by invoice # or customer..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="on_hold">On Hold</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterPayment} onValueChange={setFilterPayment}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Payment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Payments</SelectItem>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="card">Card</SelectItem>
+                <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                <SelectItem value="credit">Credit</SelectItem>
+              </SelectContent>
+            </Select>
+            {branches.length > 0 && (
+              <Select value={filterBranch} onValueChange={setFilterBranch}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-[140px]"
+              />
+              <span className="text-muted-foreground">to</span>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-[140px]"
+              />
+            </div>
+          </div>
+
+          {/* Sales Table */}
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {salesLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredSales.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No sales found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedSales.map((sale) => (
+                    <TableRow key={sale.id}>
+                      <TableCell className="font-mono font-medium">
+                        {sale.sale_number}
+                      </TableCell>
+                      <TableCell>
+                        {format(
+                          new Date(sale.created_at),
+                          "MMM dd, yyyy HH:mm",
+                        )}
+                      </TableCell>
+                      <TableCell>{sale.customer_name || "Walk-in"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {paymentMethodLabels[sale.payment_method]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[sale.status]}>
+                          {sale.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(Number(sale.total_amount))}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="View Details"
+                            onClick={() => setSelectedSaleId(sale.id)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Print Receipt"
+                            onClick={() => setReceiptSaleId(sale.id)}
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit Sale"
+                              onClick={() => handleOpenEdit(sale)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEdit && canReturnEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Return Items"
+                              onClick={() => setReturnSale(sale)}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete Sale"
+                              onClick={() => setDeleteConfirmSale(sale)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={goToPage}
+            />
+          </Card>
+        </div>
+
+        {/* Sale Detail Dialog */}
+        <Dialog
+          open={!!selectedSaleId && !editDialogOpen}
+          onOpenChange={() => setSelectedSaleId(null)}
+        >
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                Sale Details - {selectedSale?.sale_number}
+              </DialogTitle>
+            </DialogHeader>
+
+            {selectedSale && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Date</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedSale.created_at), "PPpp")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Customer</p>
+                    <p className="font-medium">
+                      {selectedSale.customer_name || "Walk-in"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Payment</p>
+                    <p className="font-medium">
+                      {paymentMethodLabels[selectedSale.payment_method]}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Status</p>
+                    <Badge className={statusColors[selectedSale.status]}>
+                      {selectedSale.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead className="text-center">Qty</TableHead>
+                        <TableHead className="text-right">Price</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedSale.sale_items?.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.product_name}</TableCell>
+                          <TableCell className="text-center">
+                            {item.quantity}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(Number(item.unit_price))}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(Number(item.total_price))}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="space-y-2 text-sm border-t pt-4">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>{formatCurrency(Number(selectedSale.subtotal))}</span>
+                  </div>
+                  {Number(selectedSale.discount_amount) > 0 && (
+                    <div className="flex justify-between text-destructive">
+                      <span>Discount</span>
+                      <span>
+                        -{formatCurrency(Number(selectedSale.discount_amount))}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                    <span>Total</span>
+                    <span>
+                      {formatCurrency(Number(selectedSale.total_amount))}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedSale.notes && (
+                  <div className="text-sm">
+                    <p className="text-muted-foreground">Notes</p>
+                    <p>{selectedSale.notes}</p>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-row gap-2">
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue placeholder="Status" />
+            )}
+
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (selectedSaleId) setReceiptSaleId(selectedSaleId);
+                  setSelectedSaleId(null);
+                }}
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Print Receipt
+              </Button>
+              <Button variant="outline" onClick={() => setSelectedSaleId(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Sale Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Sale</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Customer Name</Label>
+                  <Input
+                    value={editData.customer_name}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        customer_name: e.target.value,
+                      }))
+                    }
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input
+                    value={editData.customer_phone}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        customer_phone: e.target.value,
+                      }))
+                    }
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select
+                  value={editData.payment_method}
+                  onValueChange={(val: PaymentMethod) =>
+                    setEditData((prev) => ({ ...prev, payment_method: val }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="credit">Credit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={editData.status}
+                  onValueChange={(val: SaleStatus) =>
+                    setEditData((prev) => ({ ...prev, status: val }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                     <SelectItem value="on_hold">On Hold</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filterPayment} onValueChange={setFilterPayment}>
-                  <SelectTrigger className="w-full sm:w-[150px]">
-                    <SelectValue placeholder="Payment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Payments</SelectItem>
-                    {Object.entries(paymentMethodLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
-            </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="flex-1 sm:w-[140px]"
-                />
-                <span className="text-muted-foreground">to</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="flex-1 sm:w-[140px]"
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea
+                  value={editData.notes}
+                  onChange={(e) =>
+                    setEditData((prev) => ({ ...prev, notes: e.target.value }))
+                  }
+                  placeholder="Optional notes..."
+                  rows={2}
                 />
               </div>
-              {branches.length > 0 && (
-                <Select value={filterBranch} onValueChange={setFilterBranch}>
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue placeholder="Branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Branches</SelectItem>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </div>
-
-          {/* Responsive Table Card */}
-          <Card className="overflow-hidden">
-            {/* Desktop Table: Hidden on Mobile */}
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="w-[120px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {salesLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                      </TableCell>
-                    </TableRow>
-                  ) : paginatedSales.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center py-8 text-muted-foreground"
-                      >
-                        No sales found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedSales.map((sale) => (
-                      <TableRow key={sale.id}>
-                        <TableCell className="font-mono font-medium">
-                          {sale.sale_number}
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(sale.created_at), "MMM dd, HH:mm")}
-                        </TableCell>
-                        <TableCell>{sale.customer_name || "Walk-in"}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {paymentMethodLabels[sale.payment_method]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[sale.status]}>
-                            {sale.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(Number(sale.total_amount))}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setSelectedSaleId(sale.id)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setReceiptSaleId(sale.id)}
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                            {canEdit && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleOpenEdit(sale)}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {canDelete && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeleteConfirmSale(sale)}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
             </div>
 
-            {/* Mobile List: Shown only on Mobile */}
-            <div className="md:hidden divide-y">
-              {salesLoading ? (
-                <div className="p-8 flex justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : paginatedSales.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  No sales found
-                </div>
-              ) : (
-                paginatedSales.map((sale) => (
-                  <div key={sale.id} className="p-4 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-xs font-mono text-muted-foreground block">
-                          {sale.sale_number}
-                        </span>
-                        <h3 className="font-bold">
-                          {sale.customer_name || "Walk-in"}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(sale.created_at), "MMM dd, HH:mm")}
-                        </p>
-                      </div>
-                      <Badge className={statusColors[sale.status]}>
-                        {sale.status}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <div className="text-lg font-bold text-primary">
-                        {formatCurrency(Number(sale.total_amount))}
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedSaleId(sale.id)}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setReceiptSaleId(sale.id)}
-                        >
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenEdit(sale)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setEditDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit} disabled={updateSale.isPending}>
+                {updateSale.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-            {/* Pagination Component */}
-            <div className="border-t">
-              <TablePagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                pageSize={pageSize}
-                onPageChange={goToPage}
-              />
-            </div>
-          </Card>
-        </div>
+        {/* Receipt Dialog */}
+        <ReceiptDialog
+          open={!!receiptSaleId}
+          onOpenChange={(open) => !open && setReceiptSaleId(null)}
+          sale={receiptSale || null}
+          organizationName={organization?.name}
+          organizationAddress={organization?.address || undefined}
+          organizationEmail={organization?.email || undefined}
+        />
 
-        {/* Sale Detail, Edit, Receipt, and Delete Dialogs remain here... */}
-        {/* (Keeping the original dialog code you provided) */}
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog
+          open={!!deleteConfirmSale}
+          onOpenChange={(open) => !open && setDeleteConfirmSale(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Sale</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete sale{" "}
+                <span className="font-mono font-semibold">
+                  {deleteConfirmSale?.sale_number}
+                </span>
+                ? This will restore the stock for all items in this sale. This
+                action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteSale}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deleteSale.isPending}
+              >
+                {deleteSale.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete Sale"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {returnSale && (
+          <SaleReturnDialog
+            sale={returnSale}
+            open={!!returnSale}
+            onOpenChange={(open) => {
+              if (!open) setReturnSale(null);
+            }}
+          />
+        )}
       </ModuleAccessGuard>
     </DashboardLayout>
   );

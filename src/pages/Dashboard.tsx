@@ -216,7 +216,7 @@ export default function Dashboard() {
 
               <Button
                 onClick={() => setProductDialogOpen(true)}
-                className="w-full md:w-auto bg-[#FF9E3D] hover:bg-[#e88d30] font-bold"
+                className="w-full sm:w-auto bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-md shadow-amber-500/10 transition-all active:scale-[0.98]"
               >
                 <Plus className="mr-2 h-4 w-4" /> Product
               </Button>
@@ -234,7 +234,7 @@ export default function Dashboard() {
               <SelectValue placeholder="All Branches" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Global Locations</SelectItem>
+              <SelectItem value="all">All Branches</SelectItem>
               {branches.map((b) => (
                 <SelectItem key={b.id} value={b.id}>
                   {b.name}
@@ -268,7 +268,7 @@ export default function Dashboard() {
                 value="history"
                 className="flex-1 md:flex-none md:px-8 font-bold whitespace-nowrap"
               >
-                <History className="mr-2 h-4 w-4" /> Logs
+                <History className="mr-2 h-4 w-4" /> History
               </TabsTrigger>
               <TabsTrigger
                 value="forecast"

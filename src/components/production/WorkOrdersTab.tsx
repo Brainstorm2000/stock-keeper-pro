@@ -1,35 +1,89 @@
-import { useState } from 'react';
-import { Plus, Search, CheckCircle2, Clock, XCircle, PlayCircle, AlertTriangle, Pencil, User } from 'lucide-react';
-import { format } from 'date-fns';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useState } from "react";
 import {
-  useWorkOrders, useCreateWorkOrder, useUpdateWorkOrder, useApproveWorkOrder, useCompleteWorkOrder, useCancelWorkOrder,
+  Plus,
+  Search,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  PlayCircle,
+  AlertTriangle,
+  Pencil,
+  User,
+} from "lucide-react";
+import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  useWorkOrders,
+  useCreateWorkOrder,
+  useUpdateWorkOrder,
+  useApproveWorkOrder,
+  useCompleteWorkOrder,
+  useCancelWorkOrder,
   type WorkOrder,
-} from '@/hooks/useWorkOrders';
-import { useBOMs } from '@/hooks/useBOM';
-import { useBranches, useMyBranchAssignments } from '@/hooks/useBranches';
-import { useModuleAccess } from '@/components/access/ModuleAccessGuard';
-import { useAuth } from '@/lib/auth';
-import { formatCurrency } from '@/lib/currency';
+} from "@/hooks/useWorkOrders";
+import { useBOMs } from "@/hooks/useBOM";
+import { useBranches, useMyBranchAssignments } from "@/hooks/useBranches";
+import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
+import { useAuth } from "@/lib/auth";
+import { formatCurrency } from "@/lib/currency";
 
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<any>; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  draft: { label: 'Draft', icon: Clock, variant: 'secondary' },
-  approved: { label: 'Approved', icon: CheckCircle2, variant: 'default' },
-  in_progress: { label: 'In Progress', icon: PlayCircle, variant: 'outline' },
-  completed: { label: 'Completed', icon: CheckCircle2, variant: 'default' },
-  cancelled: { label: 'Cancelled', icon: XCircle, variant: 'destructive' },
+const STATUS_CONFIG: Record<
+  string,
+  {
+    label: string;
+    icon: React.ComponentType<any>;
+    variant: "default" | "secondary" | "destructive" | "outline";
+  }
+> = {
+  draft: { label: "Draft", icon: Clock, variant: "secondary" },
+  approved: { label: "Approved", icon: CheckCircle2, variant: "default" },
+  in_progress: { label: "In Progress", icon: PlayCircle, variant: "outline" },
+  completed: { label: "Completed", icon: CheckCircle2, variant: "default" },
+  cancelled: { label: "Cancelled", icon: XCircle, variant: "destructive" },
 };
 
-export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFilter?: string }) {
+export function WorkOrdersTab({
+  branchFilter: externalBranchFilter,
+}: {
+  branchFilter?: string;
+}) {
   const { isSuperAdmin } = useAuth();
   const { data: workOrders = [], isLoading } = useWorkOrders();
   const { data: boms = [] } = useBOMs();
@@ -40,53 +94,70 @@ export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFi
   const approveWO = useApproveWorkOrder();
   const completeWO = useCompleteWorkOrder();
   const cancelWO = useCancelWorkOrder();
-  const { canCreate, canEdit } = useModuleAccess('production');
+  const { canCreate, canEdit } = useModuleAccess("production");
 
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWO, setEditingWO] = useState<WorkOrder | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'complete' | 'cancel'; wo: WorkOrder } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "approve" | "complete" | "cancel";
+    wo: WorkOrder;
+  } | null>(null);
 
   // Form
-  const [bomId, setBomId] = useState('');
-  const [branchId, setBranchId] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [laborCost, setLaborCost] = useState('');
-  const [overheadCost, setOverheadCost] = useState('');
-  const [notes, setNotes] = useState('');
+  const [bomId, setBomId] = useState("");
+  const [branchId, setBranchId] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [laborCost, setLaborCost] = useState("");
+  const [overheadCost, setOverheadCost] = useState("");
+  const [notes, setNotes] = useState("");
 
   const selectedBom = boms.find((b) => b.id === bomId);
 
   // User's accessible branches
-  const myBranchIds = myBranchAssignments.map(a => a.branch_id);
-  const accessibleBranches = isSuperAdmin ? branches : branches.filter(b => myBranchIds.includes(b.id));
+  const myBranchIds = myBranchAssignments.map((a) => a.branch_id);
+  const accessibleBranches = isSuperAdmin
+    ? branches
+    : branches.filter((b) => myBranchIds.includes(b.id));
 
   // Filter work orders by branch access
   const branchAccessFiltered = isSuperAdmin
     ? workOrders
-    : workOrders.filter(wo => !wo.branch_id || myBranchIds.includes(wo.branch_id));
+    : workOrders.filter(
+        (wo) => !wo.branch_id || myBranchIds.includes(wo.branch_id),
+      );
 
-  const activeBranchFilter = externalBranchFilter || 'all';
+  const activeBranchFilter = externalBranchFilter || "all";
 
   const filtered = branchAccessFiltered.filter((wo) => {
-    const matchSearch = wo.work_order_number.toLowerCase().includes(search.toLowerCase()) ||
+    const matchSearch =
+      wo.work_order_number.toLowerCase().includes(search.toLowerCase()) ||
       wo.products?.name?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'all' || wo.status === statusFilter;
-    const matchBranch = activeBranchFilter === 'all' || wo.branch_id === activeBranchFilter;
+    const matchStatus = statusFilter === "all" || wo.status === statusFilter;
+    const matchBranch =
+      activeBranchFilter === "all" || wo.branch_id === activeBranchFilter;
     return matchSearch && matchStatus && matchBranch;
   });
 
-  const resetForm = () => { setBomId(''); setBranchId(''); setQuantity(''); setLaborCost(''); setOverheadCost(''); setNotes(''); setEditingWO(null); };
+  const resetForm = () => {
+    setBomId("");
+    setBranchId("");
+    setQuantity("");
+    setLaborCost("");
+    setOverheadCost("");
+    setNotes("");
+    setEditingWO(null);
+  };
 
   const openEdit = (wo: WorkOrder) => {
     setEditingWO(wo);
     setBomId(wo.bom_id);
-    setBranchId(wo.branch_id || '');
+    setBranchId(wo.branch_id || "");
     setQuantity(String(wo.quantity));
     setLaborCost(String(wo.labor_cost));
     setOverheadCost(String(wo.overhead_cost));
-    setNotes(wo.notes || '');
+    setNotes(wo.notes || "");
     setDialogOpen(true);
   };
 
@@ -121,33 +192,66 @@ export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFi
 
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
-    if (confirmAction.type === 'approve') await approveWO.mutateAsync(confirmAction.wo);
-    else if (confirmAction.type === 'complete') await completeWO.mutateAsync(confirmAction.wo);
-    else if (confirmAction.type === 'cancel') await cancelWO.mutateAsync(confirmAction.wo.id);
+    if (confirmAction.type === "approve")
+      await approveWO.mutateAsync(confirmAction.wo);
+    else if (confirmAction.type === "complete")
+      await completeWO.mutateAsync(confirmAction.wo);
+    else if (confirmAction.type === "cancel")
+      await cancelWO.mutateAsync(confirmAction.wo.id);
     setConfirmAction(null);
   };
 
   // Stats
-  const draftCount = branchAccessFiltered.filter((w) => w.status === 'draft').length;
-  const activeCount = branchAccessFiltered.filter((w) => ['approved', 'in_progress'].includes(w.status)).length;
-  const completedCount = branchAccessFiltered.filter((w) => w.status === 'completed').length;
+  const draftCount = branchAccessFiltered.filter(
+    (w) => w.status === "draft",
+  ).length;
+  const activeCount = branchAccessFiltered.filter((w) =>
+    ["approved", "in_progress"].includes(w.status),
+  ).length;
+  const completedCount = branchAccessFiltered.filter(
+    (w) => w.status === "completed",
+  ).length;
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Draft</p><p className="text-2xl font-bold">{draftCount}</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Active</p><p className="text-2xl font-bold text-primary">{activeCount}</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Completed</p><p className="text-2xl font-bold text-primary">{completedCount}</p></CardContent></Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Draft</p>
+            <p className="text-2xl font-bold">{draftCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Active</p>
+            <p className="text-2xl font-bold text-[#FF9E3D]">{activeCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Completed</p>
+            <p className="text-2xl font-bold text-[#FF9E3D]">
+              {completedCount}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex gap-3 flex-1 flex-wrap">
           <div className="relative flex-1 max-w-sm min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search work orders..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input
+              placeholder="Search work orders..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="draft">Draft</SelectItem>
@@ -159,17 +263,27 @@ export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFi
           </Select>
           {!externalBranchFilter && accessibleBranches.length > 1 && (
             <Select value={activeBranchFilter} onValueChange={() => {}}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Branch" /></SelectTrigger>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Branch" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Branches</SelectItem>
-                {accessibleBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                {accessibleBranches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}
         </div>
         {canCreate && (
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-2" />New Work Order
+          <Button
+            onClick={openCreate}
+            className="bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-sm transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Work Order
           </Button>
         )}
       </div>
@@ -194,47 +308,113 @@ export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFi
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+              <TableRow>
+                <TableCell
+                  colSpan={12}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  Loading...
+                </TableCell>
+              </TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">No work orders found</TableCell></TableRow>
+              <TableRow>
+                <TableCell
+                  colSpan={12}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  No work orders found
+                </TableCell>
+              </TableRow>
             ) : (
               filtered.map((wo) => {
                 const cfg = STATUS_CONFIG[wo.status] || STATUS_CONFIG.draft;
                 const Icon = cfg.icon;
                 return (
                   <TableRow key={wo.id}>
-                    <TableCell className="font-medium">{wo.work_order_number}</TableCell>
-                    <TableCell className="text-sm">{wo.branches?.name || '—'}</TableCell>
-                    <TableCell>{wo.products?.name || '—'}</TableCell>
-                    <TableCell className="text-right">{Number(wo.quantity)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(wo.material_cost)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(wo.labor_cost + wo.overhead_cost)}</TableCell>
-                    <TableCell className="text-right font-semibold">{formatCurrency(wo.total_cost)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(wo.cost_per_unit)}</TableCell>
+                    <TableCell className="font-medium">
+                      {wo.work_order_number}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {wo.branches?.name || "—"}
+                    </TableCell>
+                    <TableCell>{wo.products?.name || "—"}</TableCell>
+                    <TableCell className="text-right">
+                      {Number(wo.quantity)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(wo.material_cost)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(wo.labor_cost + wo.overhead_cost)}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {formatCurrency(wo.total_cost)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(wo.cost_per_unit)}
+                    </TableCell>
                     <TableCell>
-                      <Badge variant={cfg.variant} className="gap-1"><Icon className="h-3 w-3" />{cfg.label}</Badge>
+                      <Badge variant={cfg.variant} className="gap-1">
+                        <Icon className="h-3 w-3" />
+                        {cfg.label}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
-                      {wo.created_by_user?.full_name || wo.created_by_user?.email?.split('@')[0] || (
-                        <span className="text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" />Unknown</span>
-                      )}
+                      {wo.created_by_user?.full_name ||
+                        wo.created_by_user?.email?.split("@")[0] || (
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            Unknown
+                          </span>
+                        )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{format(new Date(wo.created_at), 'MMM d, yyyy')}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(wo.created_at), "MMM d, yyyy")}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {wo.status === 'draft' && canEdit && (
-                          <Button size="sm" variant="ghost" onClick={() => openEdit(wo)}>
-                            <Pencil className="h-3 w-3 mr-1" />Edit
+                        {wo.status === "draft" && canEdit && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEdit(wo)}
+                          >
+                            <Pencil className="h-3 w-3 mr-1" />
+                            Edit
                           </Button>
                         )}
-                        {wo.status === 'draft' && (
+                        {wo.status === "draft" && (
                           <>
-                            <Button size="sm" variant="outline" onClick={() => setConfirmAction({ type: 'approve', wo })}>Approve</Button>
-                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setConfirmAction({ type: 'cancel', wo })}>Cancel</Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setConfirmAction({ type: "approve", wo })
+                              }
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive"
+                              onClick={() =>
+                                setConfirmAction({ type: "cancel", wo })
+                              }
+                            >
+                              Cancel
+                            </Button>
                           </>
                         )}
-                        {wo.status === 'approved' && (
-                          <Button size="sm" onClick={() => setConfirmAction({ type: 'complete', wo })}>Complete</Button>
+                        {wo.status === "approved" && (
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              setConfirmAction({ type: "complete", wo })
+                            }
+                          >
+                            Complete
+                          </Button>
                         )}
                       </div>
                     </TableCell>
@@ -247,89 +427,193 @@ export function WorkOrdersTab({ branchFilter: externalBranchFilter }: { branchFi
       </Card>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{editingWO ? 'Edit' : 'New'} Work Order</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) resetForm();
+        }}
+      >
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{editingWO ? "Edit" : "New"} Work Order</DialogTitle>
+          </DialogHeader>
+
+          {/* Scrollable Form Body */}
+          <div className="flex-1 overflow-y-auto pr-2 py-2 space-y-4">
             <div className="space-y-2">
               <Label>Branch *</Label>
               <Select value={branchId} onValueChange={setBranchId}>
-                <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
                 <SelectContent>
-                  {accessibleBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  {accessibleBranches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
               <Label>Bill of Materials *</Label>
               <Select value={bomId} onValueChange={setBomId}>
-                <SelectTrigger><SelectValue placeholder="Select BOM" /></SelectTrigger>
-                <SelectContent>{boms.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} — {b.products?.name}</SelectItem>)}</SelectContent>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select BOM" />
+                </SelectTrigger>
+                <SelectContent>
+                  {boms.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name} — {b.products?.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
+
             {selectedBom && (
               <div className="text-sm text-muted-foreground p-3 rounded-md bg-muted">
-                <p>Product: <span className="font-medium text-foreground">{selectedBom.products?.name}</span></p>
+                <p>
+                  Product:{" "}
+                  <span className="font-medium text-foreground">
+                    {selectedBom.products?.name}
+                  </span>
+                </p>
                 <p>Materials: {selectedBom.bom_items?.length || 0} items</p>
               </div>
             )}
-            <div className="space-y-2"><Label>Quantity to Produce *</Label><Input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></div>
+
+            <div className="space-y-2">
+              <Label>Quantity to Produce *</Label>
+              <Input
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
+            </div>
+
             {selectedBom && quantity && Number(quantity) > 0 && (
               <div className="text-sm space-y-1 p-3 rounded-md bg-muted">
                 <p className="font-medium">Material Requirements:</p>
                 {selectedBom.bom_items?.map((item) => {
-                  const needed = Number(item.quantity_required) * Number(quantity);
-                  const available = Number(item.raw_materials?.current_stock || 0);
+                  const needed =
+                    Number(item.quantity_required) * Number(quantity);
+                  const available = Number(
+                    item.raw_materials?.current_stock || 0,
+                  );
                   const insufficient = available < needed;
                   return (
                     <div key={item.id} className="flex justify-between">
                       <span>{item.raw_materials?.name}</span>
-                      <span className={insufficient ? 'text-destructive font-medium' : ''}>
+                      <span
+                        className={
+                          insufficient ? "text-destructive font-medium" : ""
+                        }
+                      >
                         {needed} needed / {available} available
-                        {insufficient && <AlertTriangle className="h-3 w-3 inline ml-1" />}
+                        {insufficient && (
+                          <AlertTriangle className="h-3 w-3 inline ml-1" />
+                        )}
                       </span>
                     </div>
                   );
                 })}
               </div>
             )}
+
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Labor Cost (Override)</Label><Input type="number" min="0" value={laborCost} onChange={(e) => setLaborCost(e.target.value)} placeholder="Auto from BOM" /></div>
-              <div className="space-y-2"><Label>Overhead Cost (Override)</Label><Input type="number" min="0" value={overheadCost} onChange={(e) => setOverheadCost(e.target.value)} placeholder="Auto from BOM" /></div>
+              <div className="space-y-2">
+                <Label>Labor Cost (Override)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={laborCost}
+                  onChange={(e) => setLaborCost(e.target.value)}
+                  placeholder="Auto from BOM"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Overhead Cost (Override)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={overheadCost}
+                  onChange={(e) => setOverheadCost(e.target.value)}
+                  placeholder="Auto from BOM"
+                />
+              </div>
             </div>
-            <div className="space-y-2"><Label>Notes</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+              />
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={!bomId || !branchId || !quantity || Number(quantity) <= 0}>{editingWO ? 'Update' : 'Create'}</Button>
+
+          <DialogFooter className="pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogOpen(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              className="bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold"
+              disabled={
+                !bomId || !branchId || !quantity || Number(quantity) <= 0
+              }
+            >
+              {editingWO ? "Update" : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Confirm Action Dialog */}
-      <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+      <AlertDialog
+        open={!!confirmAction}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmAction?.type === 'approve' && 'Approve Work Order?'}
-              {confirmAction?.type === 'complete' && 'Complete Work Order?'}
-              {confirmAction?.type === 'cancel' && 'Cancel Work Order?'}
+              {confirmAction?.type === "approve" && "Approve Work Order?"}
+              {confirmAction?.type === "complete" && "Complete Work Order?"}
+              {confirmAction?.type === "cancel" && "Cancel Work Order?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmAction?.type === 'approve' && 'This will deduct raw materials from stock. Ensure sufficient stock is available.'}
-              {confirmAction?.type === 'complete' && `This will add ${confirmAction?.wo.quantity} finished goods to product stock.`}
-              {confirmAction?.type === 'cancel' && 'This work order will be marked as cancelled.'}
+              {confirmAction?.type === "approve" &&
+                "This will deduct raw materials from stock. Ensure sufficient stock is available."}
+              {confirmAction?.type === "complete" &&
+                `This will add ${confirmAction?.wo.quantity} finished goods to product stock.`}
+              {confirmAction?.type === "cancel" &&
+                "This work order will be marked as cancelled."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmAction}
-              className={confirmAction?.type === 'cancel' ? 'bg-destructive text-destructive-foreground' : ''}
+              className={
+                confirmAction?.type === "cancel"
+                  ? "bg-destructive text-destructive-foreground"
+                  : ""
+              }
             >
-              {confirmAction?.type === 'approve' && 'Approve'}
-              {confirmAction?.type === 'complete' && 'Complete'}
-              {confirmAction?.type === 'cancel' && 'Cancel Order'}
+              {confirmAction?.type === "approve" && "Approve"}
+              {confirmAction?.type === "complete" && "Complete"}
+              {confirmAction?.type === "cancel" && "Cancel Order"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -21,7 +21,6 @@ import {
   ScanLine,
   BadgeDollarSign,
   RotateCcw,
-  ChevronRight,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/lib/auth";
@@ -33,7 +32,6 @@ import {
   hasAccess,
   AppModule,
 } from "@/hooks/useModulePermissions";
-import faviconIcon from "/favicon.png";
 import { cn } from "@/lib/utils";
 import {
   Sidebar,
@@ -48,7 +46,6 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 
 interface NavItem {
   href: string;
@@ -133,27 +130,18 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" className="border-r border-white/5">
-      {/* Brand Header */}
       <SidebarHeader className="h-15 flex justify-center bg-[#000B26] dark:bg-[#020817] px-4">
         <div className="flex items-center gap-3">
-          <div className="h-15 w-15 ">
-            {organization?.logo_url ? (
-              <img
-                src={organization.logo_url}
-                alt={organization.name}
-                className="h-10 w-10 object-contain"
-              />
-            ) : (
-              <img
-                src="/stoqkip-logo.png"
-                alt="StoqKip"
-                className="h-10 w-10 object-contain"
-              />
-            )}
+          <div className="h-10 w-10 flex items-center justify-center shrink-0">
+            <img
+              src={organization?.logo_url || "/stoqkip-logo.png"}
+              alt="StoqKip"
+              className="h-10 w-10 object-contain"
+            />
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <h1 className="text-lg font-black text-white tracking-tighte leading-none">
+              <h1 className="text-lg font-black text-white tracking-tight leading-none">
                 Stoq<span className="text-[#FF9E3D]">Kip</span>
               </h1>
               {organization && (
@@ -185,18 +173,16 @@ export function AppSidebar({
                       <SidebarMenuButton
                         asChild
                         isActive={active}
+                        tooltip={item.label}
                         className={cn(
-                          "h-11 rounded-xl transition-all duration-200 group relative",
+                          "h-11 rounded-xl transition-all duration-200 group relative flex items-center gap-3",
                           active
                             ? "bg-white/10 text-[#FF9E3D] shadow-inner"
                             : "text-slate-400 hover:bg-white/5 hover:text-white",
                         )}
                       >
-                        <NavLink
-                          to={item.href}
-                          end
-                          className="flex items-center gap-3 w-full"
-                        >
+                        {/* preventScrollReset added to maintain scroll position */}
+                        <NavLink to={item.href} end preventScrollReset={true}>
                           <item.icon
                             className={cn(
                               "h-5 w-5 shrink-0 transition-colors",
@@ -231,7 +217,7 @@ export function AppSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={onOpenOrgSettings}
-                    className="h-11 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white"
+                    className="h-11 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white flex items-center gap-3"
                   >
                     <Building2 className="h-5 w-5 shrink-0" />
                     <span className="font-bold text-sm tracking-tight">
@@ -242,7 +228,7 @@ export function AppSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={onOpenPermissions}
-                    className="h-11 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white"
+                    className="h-11 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white flex items-center gap-3"
                   >
                     <Lock className="h-5 w-5 shrink-0" />
                     <span className="font-bold text-sm tracking-tight">
@@ -258,7 +244,8 @@ export function AppSidebar({
                     <NavLink
                       to="/subscription"
                       end
-                      className="flex items-center gap-3 w-full"
+                      preventScrollReset={true}
+                      className="flex items-center gap-3"
                     >
                       <CreditCard className="h-5 w-5 shrink-0" />
                       <span className="font-bold text-sm tracking-tight">
@@ -290,7 +277,6 @@ export function AppSidebar({
               <ThemeToggle />
             </div>
 
-            {/* User Identity Card */}
             <div className="bg-white/5 rounded-2xl p-3 flex items-center gap-3 border border-white/5 shadow-inner">
               <div className="h-10 w-10 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-black text-xs text-[#FF9E3D] shrink-0">
                 {initials}
@@ -311,7 +297,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={onOpenProfile}
-              className="h-11 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white"
+              className="h-11 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white flex items-center gap-3"
             >
               <Settings className="h-5 w-5 shrink-0" />
               <span className="font-bold text-sm tracking-tight">Settings</span>
@@ -320,7 +306,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={signOut}
-              className="h-11 rounded-xl text-red-400 hover:bg-red-400/10 hover:text-red-400"
+              className="h-11 rounded-xl text-red-400 hover:bg-red-400/10 hover:text-red-400 flex items-center gap-3"
             >
               <LogOut className="h-5 w-5 shrink-0" />
               <span className="font-bold text-sm tracking-tight">Sign out</span>

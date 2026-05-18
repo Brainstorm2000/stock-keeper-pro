@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Trash2, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { formatCurrency } from '@/lib/currency';
+import { useState, useEffect } from "react";
+import { Trash2, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
 
 interface CartItem {
   product_id: string;
@@ -12,7 +12,7 @@ interface CartItem {
   unit_price: number;
   total_price: number;
   max_quantity?: number;
-  item_type: 'product' | 'service';
+  item_type: "product" | "service";
 }
 
 interface CartItemRowProps {
@@ -23,7 +23,13 @@ interface CartItemRowProps {
   onRemove: (index: number) => void;
 }
 
-export function CartItemRow({ item, index, onQuantityChange, onPriceChange, onRemove }: CartItemRowProps) {
+export function CartItemRow({
+  item,
+  index,
+  onQuantityChange,
+  onPriceChange,
+  onRemove,
+}: CartItemRowProps) {
   const [qtyInput, setQtyInput] = useState(String(item.quantity));
   const [priceInput, setPriceInput] = useState(String(item.unit_price));
 
@@ -56,20 +62,29 @@ export function CartItemRow({ item, index, onQuantityChange, onPriceChange, onRe
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
   };
 
-  const isOverStock = item.item_type === 'product' &&
+  const isOverStock =
+    item.item_type === "product" &&
     item.max_quantity !== undefined &&
     item.quantity > item.max_quantity;
 
   return (
-    <div className={cn(
-      "flex items-center gap-2 p-2 rounded-lg",
-      isOverStock ? "bg-destructive/10 border border-destructive/30" : "bg-muted/50"
-    )}>
+    <div
+      className={cn(
+        "flex items-center gap-2 p-2 rounded-lg",
+        isOverStock
+          ? "bg-destructive/10 border border-destructive/30"
+          : "bg-muted/50",
+      )}
+    >
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm truncate">{item.product_name}</p>
+        <p className="font-medium text-sm truncate">
+          {item.product_name.length > 10
+            ? `${item.product_name.substring(0, 10)}...`
+            : item.product_name}
+        </p>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <span>@</span>
           <Input
@@ -101,12 +116,14 @@ export function CartItemRow({ item, index, onQuantityChange, onPriceChange, onRe
           onKeyDown={handleKeyDown}
           className={cn(
             "w-16 h-8 text-center text-sm px-1",
-            isOverStock && "border-destructive"
+            isOverStock && "border-destructive",
           )}
         />
       </div>
       <div className="text-right w-20">
-        <p className="font-medium text-sm">{formatCurrency(item.total_price)}</p>
+        <p className="font-medium text-sm">
+          {formatCurrency(item.total_price)}
+        </p>
       </div>
       <Button
         variant="ghost"

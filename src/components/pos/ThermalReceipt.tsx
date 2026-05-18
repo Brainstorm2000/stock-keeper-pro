@@ -34,8 +34,8 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
           backgroundColor: "white",
           color: "black",
           fontFamily: "'Courier New', Courier, monospace",
-          fontSize: "11px",
-          lineHeight: "1.2",
+          fontSize: "12px", // Increased base size for readability
+          lineHeight: "1.3",
         }}
       >
         <style
@@ -46,26 +46,34 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
             body { margin: 0; padding: 0; }
             .thermal-print-container { width: 58mm !important; margin: 0 !important; padding: 2mm !important; }
           }
-          .receipt-divider { border-top: 1px dashed #000; margin: 4px 0; }
-          .receipt-bold-divider { border-top: 1px solid #000; margin: 4px 0; }
+          .receipt-divider { border-top: 1px dashed #000; margin: 6px 0; }
+          .receipt-bold-divider { border-top: 1.5px solid #000; margin: 6px 0; }
+          .item-grid {
+            display: grid;
+            grid-template-columns: 1fr 25px 65px; /* Fixed widths for QTY and TOTAL */
+            gap: 4px;
+            align-items: start;
+          }
         `,
           }}
         />
 
         {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "8px" }}>
+        <div style={{ textAlign: "center", marginBottom: "10px" }}>
           <div
             style={{
-              fontWeight: "bold",
-              fontSize: "14px",
+              fontWeight: "900", // Extra bold for brand name
+              fontSize: "16px",
               textTransform: "uppercase",
             }}
           >
             {organizationName || "RECEIPT"}
           </div>
           {organizationAddress && (
-            <div style={{ fontSize: "10px", marginTop: "2px" }}>
-              {organizationAddress}
+            <div
+              style={{ fontSize: "11px", marginTop: "2px", fontWeight: "600" }}
+            >
+              {organizationAddress.toUpperCase()}
             </div>
           )}
           {organizationEmail && (
@@ -73,13 +81,13 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
           )}
         </div>
 
-        <div className="receipt-divider" />
+        <div className="receipt-bold-divider" />
 
         {/* Sale Meta */}
-        <div style={{ fontSize: "10px" }}>
+        <div style={{ fontSize: "11px", fontWeight: "700" }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>INV:</span>
-            <span style={{ fontWeight: "bold" }}>{sale.sale_number}</span>
+            <span>INVOICE NO:</span>
+            <span>{sale.sale_number}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>DATE:</span>
@@ -87,7 +95,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
           </div>
           {sale.customer_name && (
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>CUST:</span>
+              <span>CUSTOMER:</span>
               <span>{sale.customer_name.toUpperCase()}</span>
             </div>
           )}
@@ -97,50 +105,50 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
 
         {/* Items Table Header */}
         <div
-          style={{
-            display: "flex",
-            fontWeight: "bold",
-            fontSize: "9px",
-            marginBottom: "2px",
-          }}
+          className="item-grid"
+          style={{ fontWeight: "900", fontSize: "10px", marginBottom: "4px" }}
         >
-          <span style={{ flex: "1" }}>ITEM</span>
-          <span style={{ width: "15mm", textAlign: "right" }}>QTY</span>
-          <span style={{ width: "18mm", textAlign: "right" }}>TOTAL</span>
+          <span>ITEM</span>
+          <span style={{ textAlign: "center" }}>QTY</span>
+          <span style={{ textAlign: "right" }}>TOTAL</span>
         </div>
 
         {/* Items List */}
-        <div style={{ marginBottom: "4px" }}>
+        <div style={{ marginBottom: "6px" }}>
           {sale.sale_items?.map((item, idx) => (
-            <div key={item.id || idx} style={{ marginBottom: "3px" }}>
-              <div style={{ textTransform: "uppercase", fontSize: "10px" }}>
-                {item.product_name}
-              </div>
-              <div style={{ display: "flex", fontSize: "10px" }}>
-                <span style={{ flex: "1", fontSize: "9px" }}>
-                  {formatCurrency(Number(item.unit_price))}
-                </span>
-                <span style={{ width: "15mm", textAlign: "right" }}>
-                  {item.quantity}
-                </span>
+            <div key={item.id || idx} style={{ marginBottom: "6px" }}>
+              <div className="item-grid" style={{ fontSize: "11px" }}>
+                {/* Product Name Column - Will wrap automatically */}
                 <span
                   style={{
-                    width: "18mm",
-                    textAlign: "right",
-                    fontWeight: "bold",
+                    textTransform: "uppercase",
+                    fontWeight: "700",
+                    wordBreak: "break-word",
                   }}
                 >
+                  {item.product_name}
+                </span>
+                <span style={{ textAlign: "center", fontWeight: "600" }}>
+                  {item.quantity}
+                </span>
+                <span style={{ textAlign: "right", fontWeight: "900" }}>
                   {formatCurrency(Number(item.total_price))}
                 </span>
+              </div>
+              {/* Unit Price row - shown underneath name for clarity */}
+              <div
+                style={{ fontSize: "10px", color: "#333", marginTop: "1px" }}
+              >
+                @{formatCurrency(Number(item.unit_price))}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="receipt-divider" />
+        <div className="receipt-bold-divider" />
 
-        {/* Totals */}
-        <div style={{ marginLeft: "10mm" }}>
+        {/* Totals Section */}
+        <div style={{ fontWeight: "700" }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>SUBTOTAL:</span>
             <span>{formatCurrency(Number(sale.subtotal))}</span>
@@ -151,13 +159,16 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
               <span>-{formatCurrency(Number(sale.discount_amount))}</span>
             </div>
           )}
-          <div className="receipt-bold-divider" />
+
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              fontWeight: "bold",
-              fontSize: "13px",
+              fontSize: "15px",
+              fontWeight: "900",
+              marginTop: "4px",
+              borderTop: "1px solid #000",
+              paddingTop: "4px",
             }}
           >
             <span>TOTAL:</span>
@@ -168,10 +179,16 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         <div className="receipt-divider" />
 
         {/* Payment */}
-        <div style={{ fontSize: "10px" }}>
+        <div style={{ fontSize: "11px" }}>
           {hasSplitPayment ? (
             <div>
-              <div style={{ fontWeight: "bold", marginBottom: "2px" }}>
+              <div
+                style={{
+                  fontWeight: "900",
+                  marginBottom: "4px",
+                  textDecoration: "underline",
+                }}
+              >
                 PAYMENT BREAKDOWN:
               </div>
               {paymentDetails.map((payment, idx) => (
@@ -180,10 +197,10 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
-                    paddingLeft: "2mm",
+                    marginBottom: "2px",
                   }}
                 >
-                  <span>
+                  <span style={{ fontWeight: "600" }}>
                     {paymentMethodLabels[payment.method] || payment.method}:
                   </span>
                   <span>{formatCurrency(Number(payment.amount))}</span>
@@ -191,9 +208,15 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
               ))}
             </div>
           ) : (
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>PAYMENT METHOD:</span>
-              <span style={{ fontWeight: "bold" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontWeight: "700",
+              }}
+            >
+              <span>METHOD:</span>
+              <span>
                 {paymentMethodLabels[sale.payment_method] ||
                   sale.payment_method.toUpperCase()}
               </span>
@@ -203,29 +226,31 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
 
         {/* Footer & Powered By */}
         <div
-          style={{ textAlign: "center", marginTop: "12px", fontSize: "10px" }}
+          style={{ textAlign: "center", marginTop: "15px", fontSize: "11px" }}
         >
           <div className="receipt-divider" />
-          <div style={{ fontWeight: "bold" }}>THANK YOU FOR YOUR BUSINESS!</div>
+          <div style={{ fontWeight: "900", letterSpacing: "1px" }}>
+            THANK YOU!
+          </div>
 
           <div
             style={{
-              fontSize: "8px",
-              marginTop: "8px",
-              textTransform: "uppercase",
+              fontSize: "9px",
+              marginTop: "10px",
+              fontWeight: "700",
+              border: "1px solid #000",
+              padding: "4px",
             }}
           >
-            Powered by StoqKip @{currentYear}
-            <br />
-            All Rights Reserved
+            POWERED BY STOQKIP @{currentYear}
           </div>
 
-          <div style={{ fontSize: "7px", marginTop: "4px" }}>
-            Printed: {format(new Date(), "dd/MM/yyyy HH:mm:ss")}
+          <div style={{ fontSize: "8px", marginTop: "6px" }}>
+            {format(new Date(), "dd/MM/yyyy HH:mm:ss")}
           </div>
 
           {/* Feed space for manual cutting */}
-          <div style={{ height: "12mm" }} />
+          <div style={{ height: "15mm" }} />
         </div>
       </div>
     );
