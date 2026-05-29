@@ -242,7 +242,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
               padding: "4px",
             }}
           >
-            POWERED BY STOQKIP @{currentYear}
+            POWERED BY STOQKIP@{currentYear}
           </div>
 
           <div style={{ fontSize: "8px", marginTop: "6px" }}>
