@@ -4,13 +4,21 @@ interface UsePaginationOptions {
   pageSize?: number;
 }
 
-export function usePagination<T>(items: T[], options: UsePaginationOptions = {}) {
-  const { pageSize = 15 } = options;
+export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+export function usePagination<T>(
+  items: T[],
+  optionsOrPageSize: UsePaginationOptions | number = {},
+) {
+  const initialPageSize =
+    typeof optionsOrPageSize === 'number'
+      ? optionsOrPageSize
+      : optionsOrPageSize.pageSize ?? 10;
+
+  const [pageSize, setPageSizeState] = useState(initialPageSize);
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
-
-  // Reset to page 1 if items change and current page is out of bounds
   const safePage = currentPage > totalPages ? 1 : currentPage;
 
   const paginatedItems = useMemo(() => {
@@ -22,6 +30,11 @@ export function usePagination<T>(items: T[], options: UsePaginationOptions = {})
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
 
+  const setPageSize = (size: number) => {
+    setPageSizeState(size);
+    setCurrentPage(1);
+  };
+
   return {
     paginatedItems,
     currentPage: safePage,
@@ -30,5 +43,6 @@ export function usePagination<T>(items: T[], options: UsePaginationOptions = {})
     pageSize,
     goToPage,
     setCurrentPage: goToPage,
+    setPageSize,
   };
 }

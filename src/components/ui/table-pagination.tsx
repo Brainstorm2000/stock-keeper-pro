@@ -7,6 +7,14 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from '@/components/ui/pagination';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { DEFAULT_PAGE_SIZE_OPTIONS } from '@/hooks/usePagination';
 
 interface TablePaginationProps {
   currentPage: number;
@@ -14,10 +22,20 @@ interface TablePaginationProps {
   totalItems: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
+  pageSizeOptions?: number[];
 }
 
-export function TablePagination({ currentPage, totalPages, totalItems, pageSize, onPageChange }: TablePaginationProps) {
-  if (totalPages <= 1) return null;
+export function TablePagination({
+  currentPage,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
+}: TablePaginationProps) {
+  if (totalItems === 0) return null;
 
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
@@ -39,11 +57,34 @@ export function TablePagination({ currentPage, totalPages, totalItems, pageSize,
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-4">
-      <p className="text-sm text-muted-foreground">
-        Showing {startItem}–{endItem} of {totalItems}
-      </p>
-      <Pagination>
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
+      <div className="flex items-center gap-4">
+        <p className="text-sm text-muted-foreground">
+          Showing {startItem}–{endItem} of {totalItems}
+        </p>
+        {onPageSizeChange && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Rows per page</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => onPageSizeChange(Number(v))}
+            >
+              <SelectTrigger className="h-8 w-[80px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pageSizeOptions.map((opt) => (
+                  <SelectItem key={opt} value={String(opt)}>
+                    {opt}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+      {totalPages > 1 ? (
+      <Pagination className="mx-0 w-auto justify-end">
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious
@@ -76,6 +117,7 @@ export function TablePagination({ currentPage, totalPages, totalItems, pageSize,
           </PaginationItem>
         </PaginationContent>
       </Pagination>
+      ) : null}
     </div>
   );
 }
