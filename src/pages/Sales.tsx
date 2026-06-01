@@ -81,6 +81,12 @@ const statusColors: Record<SaleStatus, string> = {
   on_hold: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20",
 };
 
+const paymentStatusColors: Record<string, string> = {
+  paid: "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20",
+  partial: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20",
+  outstanding: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20",
+};
+
 const paymentMethodLabels: Record<PaymentMethod, string> = {
   cash: "Cash",
   card: "Card",
@@ -415,9 +421,15 @@ export default function Sales() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={statusColors[sale.status]}>
-                          {sale.status}
-                        </Badge>
+                        {sale.status === "completed" && sale.payment_status && sale.payment_status !== "paid" ? (
+                          <Badge className={paymentStatusColors[sale.payment_status]}>
+                            {sale.payment_status === "partial" ? "Partial" : "Credit"}
+                          </Badge>
+                        ) : (
+                          <Badge className={statusColors[sale.status]}>
+                            {sale.status}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatCurrency(Number(sale.total_amount))}
