@@ -96,22 +96,35 @@ export function useUndoSaleReturn() {
         }
       }
 
-      // Reverse balance adjustment on outstanding/partial sales
-      const { data: sale } = await supabase
-        .from('sales')
-        .select('total_amount, amount_paid, balance_due, payment_status')
-        .eq('id', ret.sale_id)
-        .single();
+      // Reverse any debt credit recorded for this return
+      const { data: creditPayments } = await supabase
+        .from('debt_payments')
+        .select('id, amount')
+        .eq('sale_return_id', ret.id);
 
-      if (sale && (sale.payment_status === 'partial' || sale.payment_status === 'outstanding' || sale.payment_status === 'paid')) {
-        const newTotal = Number(sale.total_amount) + ret.total_amount;
-        const newBalance = newTotal - Number(sale.amount_paid);
-        const newStatus = newBalance <= 0 ? 'paid' : Number(sale.amount_paid) > 0 ? 'partial' : 'outstanding';
-        await supabase.from('sales').update({
-          total_amount: newTotal,
-          balance_due: Math.max(0, newBalance),
-          payment_status: newStatus,
-        }).eq('id', ret.sale_id);
+      const creditTotal = (creditPayments || []).reduce((s, p) => s + Number(p.amount), 0);
+
+      if (creditPayments && creditPayments.length > 0) {
+        await supabase.from('debt_payments').delete().eq('sale_return_id', ret.id);
+      }
+
+      if (creditTotal > 0) {
+        const { data: sale } = await supabase
+          .from('sales')
+          .select('total_amount, amount_paid')
+          .eq('id', ret.sale_id)
+          .single();
+
+        if (sale) {
+          const newAmountPaid = Math.max(0, Number(sale.amount_paid) - creditTotal);
+          const newBalance = Math.max(0, Number(sale.total_amount) - newAmountPaid);
+          const newStatus = newBalance <= 0 ? 'paid' : newAmountPaid > 0 ? 'partial' : 'outstanding';
+          await supabase.from('sales').update({
+            amount_paid: newAmountPaid,
+            balance_due: newBalance,
+            payment_status: newStatus,
+          }).eq('id', ret.sale_id);
+        }
       }
 
       // Delete return items then return
@@ -126,6 +139,7 @@ export function useUndoSaleReturn() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       queryClient.invalidateQueries({ queryKey: ['sale-returned-quantities'] });
+      queryClient.invalidateQueries({ queryKey: ['debt-payments'] });
       toast({ title: 'Sale return undone successfully' });
     },
     onError: (error: Error) => {
@@ -209,19 +223,31 @@ export function useCreateSaleReturn() {
         }
       }
 
-      // Adjust outstanding balance: reduce total_amount by return amount
+      // If sale has outstanding debt, apply return value as a credit against it
       const { data: sale } = await supabase
         .from('sales')
         .select('total_amount, amount_paid, balance_due, payment_status')
         .eq('id', input.sale_id)
         .single();
 
-      if (sale && (sale.payment_status === 'partial' || sale.payment_status === 'outstanding')) {
-        const newTotal = Math.max(0, Number(sale.total_amount) - totalAmount);
-        const newBalance = Math.max(0, newTotal - Number(sale.amount_paid));
-        const newStatus = newBalance <= 0 ? 'paid' : Number(sale.amount_paid) > 0 ? 'partial' : 'outstanding';
+      const currentBalance = sale ? Number(sale.balance_due) : 0;
+      if (sale && currentBalance > 0) {
+        const creditAmount = Math.min(totalAmount, currentBalance);
+        await supabase.from('debt_payments').insert({
+          organization_id: input.organization_id,
+          sale_id: input.sale_id,
+          amount: creditAmount,
+          payment_method: 'store_credit',
+          notes: `Return credit from ${returnNumber}`,
+          paid_by: user?.id || null,
+          sale_return_id: ret.id,
+        });
+
+        const newAmountPaid = Number(sale.amount_paid) + creditAmount;
+        const newBalance = Math.max(0, Number(sale.total_amount) - newAmountPaid);
+        const newStatus = newBalance <= 0 ? 'paid' : newAmountPaid > 0 ? 'partial' : 'outstanding';
         await supabase.from('sales').update({
-          total_amount: newTotal,
+          amount_paid: newAmountPaid,
           balance_due: newBalance,
           payment_status: newStatus,
         }).eq('id', input.sale_id);

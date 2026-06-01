@@ -160,6 +160,7 @@ export default function Expenses() {
     totalItems,
     pageSize,
     goToPage,
+    setPageSize,
   } = usePagination(filteredExpenses);
 
   // Calculate totals
@@ -525,6 +526,7 @@ export default function Expenses() {
               totalItems={totalItems}
               pageSize={pageSize}
               onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
             />
           </Card>
         </div>

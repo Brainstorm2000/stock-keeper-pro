@@ -448,6 +448,7 @@ export type Database = {
           paid_by: string | null
           payment_method: string
           sale_id: string
+          sale_return_id: string | null
         }
         Insert: {
           amount: number
@@ -458,6 +459,7 @@ export type Database = {
           paid_by?: string | null
           payment_method?: string
           sale_id: string
+          sale_return_id?: string | null
         }
         Update: {
           amount?: number
@@ -468,6 +470,7 @@ export type Database = {
           paid_by?: string | null
           payment_method?: string
           sale_id?: string
+          sale_return_id?: string | null
         }
         Relationships: [
           {

@@ -142,6 +142,7 @@ export default function Purchases() {
     totalItems,
     pageSize,
     goToPage,
+    setPageSize,
   } = usePagination(filteredPurchases, 10);
 
   /**
@@ -660,6 +661,7 @@ export default function Purchases() {
                   totalItems={totalItems}
                   pageSize={pageSize}
                   onPageChange={goToPage}
+                  onPageSizeChange={setPageSize}
                 />
               </div>
             </CardContent>
