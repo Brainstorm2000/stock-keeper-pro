@@ -536,9 +536,15 @@ export default function Sales() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Status</p>
-                    <Badge className={statusColors[selectedSale.status]}>
-                      {selectedSale.status}
-                    </Badge>
+                    {selectedSale.status === "completed" && selectedSale.payment_status && selectedSale.payment_status !== "paid" ? (
+                      <Badge className={paymentStatusColors[selectedSale.payment_status]}>
+                        {selectedSale.payment_status === "partial" ? "Partial" : "Credit"}
+                      </Badge>
+                    ) : (
+                      <Badge className={statusColors[selectedSale.status]}>
+                        {selectedSale.status}
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
