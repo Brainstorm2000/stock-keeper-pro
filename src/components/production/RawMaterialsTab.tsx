@@ -452,7 +452,8 @@ export function RawMaterialsTab() {
                   <Label>Opening Stock</Label>
                   <Input
                     type="number"
-                    min="0"
+                    min="0.00001"
+                    step="0.00001"
                     value={currentStock}
                     onChange={(e) => setCurrentStock(e.target.value)}
                   />
