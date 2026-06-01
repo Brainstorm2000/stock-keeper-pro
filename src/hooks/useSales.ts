@@ -39,6 +39,10 @@ export interface Sale {
   payment_method: PaymentMethod;
   payment_details?: PaymentDetail[];
   status: SaleStatus;
+  payment_status?: 'paid' | 'partial' | 'outstanding';
+  amount_paid?: number;
+  balance_due?: number;
+  due_date?: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
