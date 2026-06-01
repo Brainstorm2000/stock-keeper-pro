@@ -56,7 +56,7 @@ export default function Debts() {
     });
   }, [allSales, search, statusFilter, startDate, endDate]);
 
-  const { paginatedItems: paginatedDebts, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(debtSales);
+  const { paginatedItems: paginatedDebts, currentPage, totalPages, totalItems, pageSize, goToPage, setPageSize } = usePagination(debtSales);
 
   const totalOutstanding = debtSales.reduce((sum: number, s: any) => sum + Number(s.balance_due || 0), 0);
   const totalDebtors = new Set(debtSales.map((s: any) => s.customer_name || 'Walk-in')).size;
@@ -197,7 +197,7 @@ export default function Debts() {
                 )}
               </TableBody>
             </Table>
-            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
+            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} onPageSizeChange={setPageSize} />
           </Card>
         </div>
 

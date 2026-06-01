@@ -49,7 +49,7 @@ function ActionTrackerContent() {
     return matchSearch && matchStatus && matchPriority;
   });
 
-  const { paginatedItems: paginatedTasks, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filtered);
+  const { paginatedItems: paginatedTasks, currentPage, totalPages, totalItems, pageSize, goToPage, setPageSize } = usePagination(filtered);
 
   const handleEdit = (t: ActionTask) => { setEditingTask(t); setDialogOpen(true); };
   const handleDialogClose = (open: boolean) => { setDialogOpen(open); if (!open) setEditingTask(null); };
@@ -182,7 +182,7 @@ function ActionTrackerContent() {
                 ))}
               </TableBody>
             </Table>
-            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
+            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} onPageSizeChange={setPageSize} />
           </div>
         )}
       </div>

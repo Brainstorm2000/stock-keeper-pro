@@ -51,7 +51,7 @@ function StaffContent() {
     return matchSearch && matchStatus && matchBranch;
   });
 
-  const { paginatedItems: paginatedStaff, currentPage, totalPages, totalItems, pageSize, goToPage } = usePagination(filtered);
+  const { paginatedItems: paginatedStaff, currentPage, totalPages, totalItems, pageSize, goToPage, setPageSize } = usePagination(filtered);
 
   const handleEdit = (s: Staff) => { setEditingStaff(s); setDialogOpen(true); };
   const handleDialogClose = (open: boolean) => { setDialogOpen(open); if (!open) setEditingStaff(null); };
@@ -189,7 +189,7 @@ function StaffContent() {
                 ))}
               </TableBody>
             </Table>
-            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} />
+            <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} onPageSizeChange={setPageSize} />
           </div>
         )}
       </div>

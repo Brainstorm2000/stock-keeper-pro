@@ -39,8 +39,8 @@ export default function Returns() {
     r.reason?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const { paginatedItems: paginatedSaleReturns, currentPage: srPage, totalPages: srTotalPages, totalItems: srTotalItems, pageSize: srPageSize, goToPage: srGoToPage } = usePagination(filteredSaleReturns);
-  const { paginatedItems: paginatedPurchaseReturns, currentPage: prPage, totalPages: prTotalPages, totalItems: prTotalItems, pageSize: prPageSize, goToPage: prGoToPage } = usePagination(filteredPurchaseReturns);
+  const { paginatedItems: paginatedSaleReturns, currentPage: srPage, totalPages: srTotalPages, totalItems: srTotalItems, pageSize: srPageSize, goToPage: srGoToPage, setPageSize: srSetPageSize } = usePagination(filteredSaleReturns);
+  const { paginatedItems: paginatedPurchaseReturns, currentPage: prPage, totalPages: prTotalPages, totalItems: prTotalItems, pageSize: prPageSize, goToPage: prGoToPage, setPageSize: prSetPageSize } = usePagination(filteredPurchaseReturns);
 
   const totalSaleReturns = saleReturns.reduce((s, r) => s + Number(r.total_amount), 0);
   const totalPurchaseReturns = purchaseReturns.reduce((s, r) => s + Number(r.total_amount), 0);
@@ -153,7 +153,7 @@ export default function Returns() {
                           ))}
                         </TableBody>
                       </Table>
-                      <TablePagination currentPage={srPage} totalPages={srTotalPages} totalItems={srTotalItems} pageSize={srPageSize} onPageChange={srGoToPage} />
+                      <TablePagination currentPage={srPage} totalPages={srTotalPages} totalItems={srTotalItems} pageSize={srPageSize} onPageChange={srGoToPage} onPageSizeChange={srSetPageSize} />
                     </div>
                   )}
                 </CardContent>
@@ -208,7 +208,7 @@ export default function Returns() {
                           ))}
                         </TableBody>
                       </Table>
-                      <TablePagination currentPage={prPage} totalPages={prTotalPages} totalItems={prTotalItems} pageSize={prPageSize} onPageChange={prGoToPage} />
+                      <TablePagination currentPage={prPage} totalPages={prTotalPages} totalItems={prTotalItems} pageSize={prPageSize} onPageChange={prGoToPage} onPageSizeChange={prSetPageSize} />
                     </div>
                   )}
                 </CardContent>

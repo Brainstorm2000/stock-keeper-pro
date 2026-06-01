@@ -180,6 +180,7 @@ export default function Sales() {
     totalItems,
     pageSize,
     goToPage,
+    setPageSize,
   } = usePagination(filteredSales);
 
   // Calculate totals
@@ -483,6 +484,7 @@ export default function Sales() {
               totalItems={totalItems}
               pageSize={pageSize}
               onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
             />
           </Card>
         </div>
