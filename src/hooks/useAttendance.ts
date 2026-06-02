@@ -37,9 +37,14 @@ export interface AttendanceFilters {
 }
 
 export function useAttendance(filters: AttendanceFilters = {}) {
+  const { organizationId } = useAuth();
   return useQuery({
-    queryKey: ['attendance', filters],
+    queryKey: ['attendance', filters, organizationId],
     queryFn: async () => {
+      // Auto-close stale records before fetching
+      if (organizationId) {
+        await supabase.rpc('auto_clockout_stale_attendance', { _org_id: organizationId });
+      }
       let query = supabase
         .from('attendance')
         .select('*, staff(id, full_name, staff_id, department), shifts(id, shift_name, start_time, end_time, overtime_start_time, grace_period_minutes, clockin_start_time), branches(id, name), departments(id, name)')
