@@ -37,9 +37,14 @@ export interface AttendanceFilters {
 }
 
 export function useAttendance(filters: AttendanceFilters = {}) {
+  const { organizationId } = useAuth();
   return useQuery({
-    queryKey: ['attendance', filters],
+    queryKey: ['attendance', filters, organizationId],
     queryFn: async () => {
+      // Auto-close stale records before fetching
+      if (organizationId) {
+        await supabase.rpc('auto_clockout_stale_attendance', { _org_id: organizationId });
+      }
       let query = supabase
         .from('attendance')
         .select('*, staff(id, full_name, staff_id, department), shifts(id, shift_name, start_time, end_time, overtime_start_time, grace_period_minutes, clockin_start_time), branches(id, name), departments(id, name)')
@@ -96,7 +101,7 @@ function computeStatus(clockInTime: Date, shiftStartTime: string, graceMinutes: 
   return 'late';
 }
 
-function computeHours(clockIn: Date, clockOut: Date, shiftEndTime: string, overtimeStartTime: string | null, attendanceDate: string) {
+function computeHours(clockIn: Date, clockOut: Date, shiftEndTime: string, overtimeStartTime: string | null, attendanceDate: string, maxOvertimeHours: number | null = null) {
   const hoursWorked = (clockOut.getTime() - clockIn.getTime()) / 3600000;
 
   let overtimeHours = 0;
@@ -107,6 +112,9 @@ function computeHours(clockIn: Date, clockOut: Date, shiftEndTime: string, overt
     if (clockOut > otStart) {
       overtimeHours = (clockOut.getTime() - otStart.getTime()) / 3600000;
     }
+  }
+  if (maxOvertimeHours != null && overtimeHours > maxOvertimeHours) {
+    overtimeHours = maxOvertimeHours;
   }
 
   const [eh, em] = shiftEndTime.split(':').map(Number);
@@ -212,7 +220,7 @@ export function useClockOut() {
 
       const { data: record, error: recErr } = await supabase
         .from('attendance')
-        .select('*, shifts(start_time, end_time, overtime_start_time)')
+        .select('*, shifts(start_time, end_time, overtime_start_time, auto_clockout_time, max_overtime_hours)')
         .eq('staff_id', staffId)
         .eq('attendance_date', today)
         .eq('shift_id', shiftId)
@@ -223,8 +231,15 @@ export function useClockOut() {
 
       const clockIn = new Date(record.clock_in_time!);
       const shift = record.shifts as any;
+      let clockOut = now;
+      if (shift.auto_clockout_time) {
+        const [ah, am] = shift.auto_clockout_time.split(':').map(Number);
+        const autoOut = new Date(today + 'T00:00:00');
+        autoOut.setHours(ah, am, 0);
+        if (clockOut > autoOut) clockOut = autoOut;
+      }
       const { hoursWorked, overtimeHours, regularHours } = computeHours(
-        clockIn, now, shift.end_time, shift.overtime_start_time, today
+        clockIn, clockOut, shift.end_time, shift.overtime_start_time, today, shift.max_overtime_hours ?? null
       );
 
       let status = record.status;
@@ -233,7 +248,7 @@ export function useClockOut() {
       const { data, error } = await supabase
         .from('attendance')
         .update({
-          clock_out_time: now.toISOString(),
+          clock_out_time: clockOut.toISOString(),
           hours_worked: hoursWorked,
           overtime_hours: overtimeHours,
           regular_hours: regularHours,

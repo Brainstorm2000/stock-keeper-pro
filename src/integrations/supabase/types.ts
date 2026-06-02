@@ -1930,6 +1930,7 @@ export type Database = {
       }
       shifts: {
         Row: {
+          auto_clockout_time: string | null
           branch_id: string | null
           clockin_start_time: string
           created_at: string
@@ -1939,6 +1940,7 @@ export type Database = {
           grace_period_minutes: number
           id: string
           is_active: boolean
+          max_overtime_hours: number | null
           organization_id: string
           overtime_start_time: string | null
           shift_name: string
@@ -1946,6 +1948,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_clockout_time?: string | null
           branch_id?: string | null
           clockin_start_time: string
           created_at?: string
@@ -1955,6 +1958,7 @@ export type Database = {
           grace_period_minutes?: number
           id?: string
           is_active?: boolean
+          max_overtime_hours?: number | null
           organization_id: string
           overtime_start_time?: string | null
           shift_name: string
@@ -1962,6 +1966,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_clockout_time?: string | null
           branch_id?: string | null
           clockin_start_time?: string
           created_at?: string
@@ -1971,6 +1976,7 @@ export type Database = {
           grace_period_minutes?: number
           id?: string
           is_active?: boolean
+          max_overtime_hours?: number | null
           organization_id?: string
           overtime_start_time?: string | null
           shift_name?: string
@@ -2624,6 +2630,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_clockout_stale_attendance: {
+        Args: { _org_id: string }
+        Returns: number
+      }
       generate_purchase_number: { Args: { org_id: string }; Returns: string }
       generate_purchase_return_number: {
         Args: { org_id: string }

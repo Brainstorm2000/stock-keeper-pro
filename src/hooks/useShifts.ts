@@ -17,6 +17,8 @@ export interface Shift {
   department_id: string | null;
   is_active: boolean;
   created_at: string;
+  auto_clockout_time: string | null;
+  max_overtime_hours: number | null;
   branches?: { id: string; name: string } | null;
   departments?: { id: string; name: string } | null;
 }
@@ -31,6 +33,8 @@ export interface ShiftInput {
   branch_id?: string | null;
   department_id?: string | null;
   is_active?: boolean;
+  auto_clockout_time?: string | null;
+  max_overtime_hours?: number | null;
 }
 
 export function useShifts() {
@@ -64,6 +68,11 @@ export function useCreateShift() {
           overtime_start_time: input.overtime_start_time || null,
           branch_id: input.branch_id || null,
           department_id: input.department_id || null,
+          auto_clockout_time: input.auto_clockout_time || null,
+          max_overtime_hours:
+            input.max_overtime_hours === undefined || input.max_overtime_hours === null || (input.max_overtime_hours as any) === ''
+              ? null
+              : Number(input.max_overtime_hours),
         })
         .select()
         .single();
@@ -94,6 +103,11 @@ export function useUpdateShift() {
           overtime_start_time: input.overtime_start_time || null,
           branch_id: input.branch_id || null,
           department_id: input.department_id || null,
+          auto_clockout_time: input.auto_clockout_time || null,
+          max_overtime_hours:
+            input.max_overtime_hours === undefined || input.max_overtime_hours === null || (input.max_overtime_hours as any) === ''
+              ? null
+              : Number(input.max_overtime_hours),
         })
         .eq('id', id)
         .select()

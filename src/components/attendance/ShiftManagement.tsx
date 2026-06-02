@@ -31,12 +31,14 @@ function ShiftDialog({ shift, open, onOpenChange }: { shift: Shift | null; open:
         clockin_start_time: shift.clockin_start_time,
         grace_period_minutes: shift.grace_period_minutes,
         overtime_start_time: shift.overtime_start_time,
+        auto_clockout_time: shift.auto_clockout_time,
+        max_overtime_hours: shift.max_overtime_hours,
         branch_id: shift.branch_id,
         department_id: shift.department_id,
         is_active: shift.is_active,
       });
     } else {
-      reset({ shift_name: '', start_time: '08:00', end_time: '17:00', clockin_start_time: '07:30', grace_period_minutes: 10, is_active: true });
+      reset({ shift_name: '', start_time: '08:00', end_time: '17:00', clockin_start_time: '07:30', grace_period_minutes: 10, auto_clockout_time: null, max_overtime_hours: null, is_active: true });
     }
   }, [shift, open, reset]);
 
@@ -83,6 +85,18 @@ function ShiftDialog({ shift, open, onOpenChange }: { shift: Shift | null; open:
           <div className="space-y-2">
             <Label>Overtime Start Time</Label>
             <Input type="time" {...register('overtime_start_time')} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Automatic Clock-out Time</Label>
+              <Input type="time" {...register('auto_clockout_time')} />
+              <p className="text-xs text-muted-foreground">Open records will be auto-closed at this time.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Max Overtime (hours)</Label>
+              <Input type="number" step="0.25" min="0" {...register('max_overtime_hours', { valueAsNumber: true })} placeholder="No limit" />
+              <p className="text-xs text-muted-foreground">Caps overtime credited per day.</p>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -150,13 +164,15 @@ export function ShiftManagement() {
                 <TableHead className="hidden md:table-cell">Clock-in From</TableHead>
                 <TableHead className="hidden md:table-cell">Grace (min)</TableHead>
                 <TableHead className="hidden lg:table-cell">OT Start</TableHead>
+                <TableHead className="hidden lg:table-cell">Auto Out</TableHead>
+                <TableHead className="hidden lg:table-cell">Max OT</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {shifts.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No shifts configured</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No shifts configured</TableCell></TableRow>
               ) : shifts.map(s => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.shift_name}</TableCell>
@@ -165,6 +181,8 @@ export function ShiftManagement() {
                   <TableCell className="hidden md:table-cell">{s.clockin_start_time.slice(0, 5)}</TableCell>
                   <TableCell className="hidden md:table-cell">{s.grace_period_minutes}</TableCell>
                   <TableCell className="hidden lg:table-cell">{s.overtime_start_time?.slice(0, 5) || '-'}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{s.auto_clockout_time?.slice(0, 5) || '-'}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{s.max_overtime_hours != null ? `${s.max_overtime_hours}h` : '-'}</TableCell>
                   <TableCell>
                     <Badge variant={s.is_active ? 'default' : 'secondary'}>{s.is_active ? 'Active' : 'Inactive'}</Badge>
                   </TableCell>
