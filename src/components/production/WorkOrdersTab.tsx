@@ -436,6 +436,14 @@ export function WorkOrdersTab({
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={goToPage}
+          onPageSizeChange={setPageSize}
+        />
       </Card>
 
       {/* Create/Edit Dialog */}
