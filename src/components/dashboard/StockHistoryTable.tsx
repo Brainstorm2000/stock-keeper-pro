@@ -9,8 +9,6 @@ import {
   CalendarIcon,
   X,
   User,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -39,6 +37,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/usePagination";
 import {
   useStockHistory,
   type StockHistoryEntry,
@@ -92,10 +92,6 @@ export function StockHistoryTable({
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-
   const { data: history, isLoading } = useStockHistory(
     productId,
     limit,
@@ -139,18 +135,22 @@ export function StockHistoryTable({
     });
   }, [history, searchQuery, startDate, endDate]);
 
-  // Derived Pagination Logic
-  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredHistory.slice(indexOfFirstItem, indexOfLastItem);
+  const {
+    paginatedItems: currentItems,
+    currentPage,
+    totalPages,
+    totalItems,
+    pageSize,
+    goToPage,
+    setPageSize,
+  } = usePagination(filteredHistory, 10);
 
   const clearFilters = () => {
     setSearchQuery("");
     setStartDate(undefined);
     setEndDate(undefined);
     setCategoryFilter("all");
-    setCurrentPage(1);
+    goToPage(1);
   };
 
   const hasActiveFilters =
