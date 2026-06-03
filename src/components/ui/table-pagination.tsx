@@ -1,12 +1,5 @@
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from '@/components/ui/pagination';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -40,36 +33,35 @@ export function TablePagination({
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
-  const getPageNumbers = () => {
-    const pages: (number | 'ellipsis')[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (currentPage > 3) pages.push('ellipsis');
-      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-        pages.push(i);
-      }
-      if (currentPage < totalPages - 2) pages.push('ellipsis');
-      pages.push(totalPages);
+  const safeTotal = Math.max(1, totalPages);
+  const windowSize = 5;
+  const pageNumbers: number[] = [];
+  if (safeTotal <= windowSize) {
+    for (let i = 1; i <= safeTotal; i++) pageNumbers.push(i);
+  } else {
+    let start = Math.max(1, currentPage - 2);
+    let end = start + windowSize - 1;
+    if (end > safeTotal) {
+      end = safeTotal;
+      start = end - windowSize + 1;
     }
-    return pages;
-  };
+    for (let i = start; i <= end; i++) pageNumbers.push(i);
+  }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4 mt-4 border-t border-slate-100 dark:border-slate-800">
       <div className="flex items-center gap-4">
-        <p className="text-sm text-muted-foreground">
-          Showing {startItem}–{endItem} of {totalItems}
-        </p>
+        <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+          Showing{' '}
+          <span className="text-[#000B26] dark:text-white font-bold">{startItem}</span> to{' '}
+          <span className="text-[#000B26] dark:text-white font-bold">{endItem}</span> of{' '}
+          <span className="text-[#000B26] dark:text-white font-bold">{totalItems}</span> entries
+        </div>
         {onPageSizeChange && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">Rows per page</span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v) => onPageSizeChange(Number(v))}
-            >
-              <SelectTrigger className="h-8 w-[80px]">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">Rows:</span>
+            <Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange(Number(v))}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-slate-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -83,41 +75,42 @@ export function TablePagination({
           </div>
         )}
       </div>
-      {totalPages > 1 ? (
-      <Pagination className="mx-0 w-auto justify-end">
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
-              className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-            />
-          </PaginationItem>
-          {getPageNumbers().map((page, i) =>
-            page === 'ellipsis' ? (
-              <PaginationItem key={`e-${i}`}>
-                <PaginationEllipsis />
-              </PaginationItem>
-            ) : (
-              <PaginationItem key={page}>
-                <PaginationLink
-                  isActive={page === currentPage}
-                  onClick={() => onPageChange(page)}
-                  className="cursor-pointer"
-                >
-                  {page}
-                </PaginationLink>
-              </PaginationItem>
-            )
-          )}
-          <PaginationItem>
-            <PaginationNext
-              onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
-              className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
-      ) : null}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 w-9 p-0 border-slate-200 dark:border-slate-800"
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage <= 1}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex items-center gap-1">
+          {pageNumbers.map((p) => (
+            <Button
+              key={p}
+              size="sm"
+              onClick={() => onPageChange(p)}
+              className={`h-9 w-9 p-0 font-bold transition-all ${
+                p === currentPage
+                  ? 'bg-[#FF9E3D] text-[#000B26] shadow-sm hover:bg-[#FF9E3D]/90'
+                  : 'bg-transparent text-slate-600 hover:bg-slate-100 dark:text-slate-400'
+              }`}
+            >
+              {p}
+            </Button>
+          ))}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 w-9 p-0 border-slate-200 dark:border-slate-800"
+          onClick={() => onPageChange(Math.min(safeTotal, currentPage + 1))}
+          disabled={currentPage >= safeTotal}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
