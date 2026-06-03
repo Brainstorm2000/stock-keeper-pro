@@ -179,7 +179,22 @@ export function useCreateSale() {
           status: input.status || 'completed',
           notes: input.notes || null,
           created_by: user?.id,
-          ...(input.sale_date ? { created_at: new Date(input.sale_date).toISOString() } : {}),
+          ...(input.sale_date
+            ? (() => {
+                const now = new Date();
+                const [y, m, d] = input.sale_date!.split('-').map(Number);
+                const dt = new Date(
+                  y,
+                  (m || 1) - 1,
+                  d || 1,
+                  now.getHours(),
+                  now.getMinutes(),
+                  now.getSeconds(),
+                  now.getMilliseconds(),
+                );
+                return { created_at: dt.toISOString() };
+              })()
+            : {}),
         })
         .select()
         .single();
