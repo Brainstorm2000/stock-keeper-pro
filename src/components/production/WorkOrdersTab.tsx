@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/usePagination";
 import {
   Table,
   TableBody,
@@ -139,6 +141,16 @@ export function WorkOrdersTab({
       activeBranchFilter === "all" || wo.branch_id === activeBranchFilter;
     return matchSearch && matchStatus && matchBranch;
   });
+
+  const {
+    paginatedItems: paginatedFiltered,
+    currentPage,
+    totalPages,
+    totalItems,
+    pageSize,
+    goToPage,
+    setPageSize,
+  } = usePagination(filtered, 10);
 
   const resetForm = () => {
     setBomId("");
@@ -326,7 +338,7 @@ export function WorkOrdersTab({
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((wo) => {
+              paginatedFiltered.map((wo) => {
                 const cfg = STATUS_CONFIG[wo.status] || STATUS_CONFIG.draft;
                 const Icon = cfg.icon;
                 return (
@@ -424,6 +436,14 @@ export function WorkOrdersTab({
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={goToPage}
+          onPageSizeChange={setPageSize}
+        />
       </Card>
 
       {/* Create/Edit Dialog */}
