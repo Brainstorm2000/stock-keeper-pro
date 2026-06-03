@@ -188,7 +188,7 @@ export function StockHistoryTable({
               value={categoryFilter}
               onValueChange={(v) => {
                 setCategoryFilter(v);
-                setCurrentPage(1);
+                goToPage(1);
               }}
             >
               <SelectTrigger className="w-[140px]">
@@ -208,7 +208,7 @@ export function StockHistoryTable({
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  setCurrentPage(1);
+                  goToPage(1);
                 }}
                 className="pl-9"
               />
@@ -233,7 +233,7 @@ export function StockHistoryTable({
                   selected={startDate}
                   onSelect={(d) => {
                     setStartDate(d);
-                    setCurrentPage(1);
+                    goToPage(1);
                   }}
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}
@@ -260,7 +260,7 @@ export function StockHistoryTable({
                   selected={endDate}
                   onSelect={(d) => {
                     setEndDate(d);
-                    setCurrentPage(1);
+                    goToPage(1);
                   }}
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}
@@ -356,101 +356,14 @@ export function StockHistoryTable({
           </div>
         )}
 
-        {/* --- Standardized stoqkip Pagination Footer --- */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4 mt-4 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-              Showing{" "}
-              <span className="text-[#000B26] dark:text-white font-bold">
-                {indexOfFirstItem + 1}
-              </span>{" "}
-              to{" "}
-              <span className="text-[#000B26] dark:text-white font-bold">
-                {Math.min(indexOfLastItem, filteredHistory.length)}
-              </span>{" "}
-              of{" "}
-              <span className="text-[#000B26] dark:text-white font-bold">
-                {filteredHistory.length}
-              </span>{" "}
-              entries
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">
-                Rows:
-              </span>
-              <Select
-                value={itemsPerPage.toString()}
-                onValueChange={(v) => {
-                  setItemsPerPage(parseInt(v));
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 w-[70px] bg-transparent border-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[10, 20, 50, 100].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-9 p-0 border-slate-200 dark:border-slate-800"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                // Simple logic to show pages around current page if total is large
-                let pageNum = i + 1;
-                if (totalPages > 5 && currentPage > 3) {
-                  pageNum = currentPage - 3 + i;
-                  if (pageNum + (5 - i) > totalPages)
-                    pageNum = totalPages - 4 + i;
-                }
-
-                return (
-                  <Button
-                    key={pageNum}
-                    size="sm"
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`h-9 w-9 p-0 font-bold transition-all ${
-                      currentPage === pageNum
-                        ? "bg-[#FF9E3D] text-[#000B26] shadow-sm"
-                        : "bg-transparent text-slate-600 hover:bg-slate-100 dark:text-slate-400"
-                    }`}
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 w-9 p-0 border-slate-200 dark:border-slate-800"
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages || totalPages === 0}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={goToPage}
+          onPageSizeChange={setPageSize}
+        />
       </CardContent>
     </Card>
   );
