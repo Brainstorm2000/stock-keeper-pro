@@ -7,6 +7,14 @@ import { useBranches, useCreateBranch } from '@/hooks/useBranches';
 import { useSuppliers, useCreateSupplier } from '@/hooks/useSuppliers';
 import { useBrands, useCreateBrand } from '@/hooks/useBrands';
 import { useCreateProduct, checkProductDuplicate } from '@/hooks/useProducts';
+import {
+  useProductAttributes,
+  useCreateAttribute,
+  useCreateAttributeValue,
+  saveProductVariations,
+  type VariationDraft,
+} from '@/hooks/useProductVariations';
+import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
  import { ArrowDown, FileText, AlertCircle, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
@@ -39,6 +47,9 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
   const { data: suppliers = [] } = useSuppliers();
   const { data: brands = [] } = useBrands();
   const { data: organization } = useOrganization();
+  const { data: attributes = [], refetch: refetchAttributes } = useProductAttributes();
+  const createAttribute = useCreateAttribute();
+  const createAttributeValue = useCreateAttributeValue();
   const createUnit = useCreateUnit();
   const createBranch = useCreateBranch();
   const createSupplier = useCreateSupplier();
@@ -75,7 +86,9 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
     }
 
     setStatus('importing');
-    setImportProgress({ current: 0, total: parsedProducts.length });
+    const parentRows = parsedProducts.filter((p) => !p.is_variation);
+    const variationRows = parsedProducts.filter((p) => p.is_variation);
+    setImportProgress({ current: 0, total: parentRows.length + variationRows.length });
     
     const result: ImportResult = {
       imported: 0,
@@ -90,7 +103,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
       const supplierMap = new Map(suppliers.map((s) => [s.name.toLowerCase(), s.id]));
       const brandMap = new Map(brands.map((b) => [b.name.toLowerCase(), b.id]));
 
-      for (const product of parsedProducts) {
+      for (const product of parentRows) {
         const unitName = product.unit_name.toLowerCase();
         if (!unitMap.has(unitName)) {
           const newUnit = await createUnit.mutateAsync({ 
@@ -134,8 +147,10 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
       }
 
       // Import products with duplicate checking
-      for (let i = 0; i < parsedProducts.length; i++) {
-        const product = parsedProducts[i];
+      const createdParentIdBySku = new Map<string, string>();
+      const createdParentIdByName = new Map<string, string>();
+      for (let i = 0; i < parentRows.length; i++) {
+        const product = parentRows[i];
         const unitId = unitMap.get(product.unit_name.toLowerCase());
         const branchId = product.branch_name 
           ? branchMap.get(product.branch_name.toLowerCase()) 
@@ -163,11 +178,16 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
           result.skippedProducts.push(
             `${product.name}${product.sku ? ` (SKU: ${product.sku})` : ''}`
           );
-          setImportProgress({ current: i + 1, total: parsedProducts.length });
+          // Even when skipped, allow follow-up variation rows to attach
+          if (duplicateCheck.existingProduct?.id) {
+            if (product.sku) createdParentIdBySku.set(product.sku.toLowerCase(), duplicateCheck.existingProduct.id);
+            createdParentIdByName.set(product.name.toLowerCase(), duplicateCheck.existingProduct.id);
+          }
+          setImportProgress({ current: i + 1, total: parentRows.length + variationRows.length });
           continue;
         }
 
-        await createProduct.mutateAsync({
+        const created = await createProduct.mutateAsync({
           name: product.name,
           unit_id: unitId,
           item_type: product.item_type,
@@ -186,9 +206,107 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
           organization_id: organization.id,
         });
 
+        if (product.sku) createdParentIdBySku.set(product.sku.toLowerCase(), (created as any).id);
+        createdParentIdByName.set(product.name.toLowerCase(), (created as any).id);
+
         result.imported++;
-        setImportProgress({ current: i + 1, total: parsedProducts.length });
+        setImportProgress({ current: i + 1, total: parentRows.length + variationRows.length });
       }
+
+      // === Pass 2: Variation rows ===
+      // Build attribute map (auto-create as needed)
+      const attrByName = new Map<string, { id: string; values: Map<string, string> }>();
+      for (const a of attributes) {
+        attrByName.set(a.name.toLowerCase(), {
+          id: a.id,
+          values: new Map((a.values || []).map((v) => [v.value.toLowerCase(), v.id])),
+        });
+      }
+
+      // Group variation rows by parent
+      const variationsByParent = new Map<string, typeof variationRows>();
+      for (const v of variationRows) {
+        const parentKey = (v.parent_sku || v.parent_name || '').toLowerCase();
+        const arr = variationsByParent.get(parentKey) || [];
+        arr.push(v);
+        variationsByParent.set(parentKey, arr);
+      }
+
+      let varProgress = parentRows.length;
+      for (const [parentKey, rows] of variationsByParent.entries()) {
+        // Resolve parent product id
+        let parentId = createdParentIdBySku.get(parentKey) || createdParentIdByName.get(parentKey);
+        if (!parentId) {
+          // Try DB lookup
+          const { data: existing } = await supabase
+            .from('products')
+            .select('id, sku, name')
+            .eq('organization_id', organization.id)
+            .or(`sku.ilike.${parentKey},name.ilike.${parentKey}`)
+            .limit(1);
+          parentId = (existing as any)?.[0]?.id;
+        }
+        if (!parentId) {
+          rows.forEach((r) => {
+            result.skipped++;
+            result.skippedProducts.push(`Variation of ${r.parent_sku || r.parent_name} (parent not found)`);
+            varProgress++;
+            setImportProgress({ current: varProgress, total: parentRows.length + variationRows.length });
+          });
+          continue;
+        }
+
+        const drafts: VariationDraft[] = [];
+        for (const r of rows) {
+          const pairs: { attribute_id: string; value_id: string }[] = [];
+          for (const att of r.variation_attributes || []) {
+            const aKey = att.attribute.toLowerCase();
+            let attrEntry = attrByName.get(aKey);
+            if (!attrEntry) {
+              const created = await createAttribute.mutateAsync({
+                name: att.attribute,
+                organization_id: organization.id,
+              });
+              attrEntry = { id: (created as any).id, values: new Map() };
+              attrByName.set(aKey, attrEntry);
+            }
+            const vKey = att.value.toLowerCase();
+            let valId = attrEntry.values.get(vKey);
+            if (!valId) {
+              const createdVal = await createAttributeValue.mutateAsync({
+                attribute_id: attrEntry.id,
+                value: att.value,
+              });
+              valId = (createdVal as any).id;
+              attrEntry.values.set(vKey, valId!);
+            }
+            pairs.push({ attribute_id: attrEntry.id, value_id: valId! });
+          }
+          drafts.push({
+            attribute_value_ids: pairs,
+            sku: r.variation_sku || '',
+            opening_stock: r.variation_stock || 0,
+            current_stock: r.variation_stock || 0,
+            low_stock_threshold: 10,
+            out_of_stock_threshold: 0,
+            cost_price: r.variation_cost || 0,
+            selling_price: r.variation_price || 0,
+            is_active: true,
+          });
+          varProgress++;
+          setImportProgress({ current: varProgress, total: parentRows.length + variationRows.length });
+        }
+
+        try {
+          await saveProductVariations(parentId, organization.id, drafts);
+          result.imported += drafts.length;
+        } catch (err) {
+          result.skipped += drafts.length;
+          result.skippedProducts.push(`${drafts.length} variation(s) for ${parentKey} (save failed)`);
+        }
+      }
+
+      await refetchAttributes();
 
       setImportResult(result);
       setStatus('complete');
