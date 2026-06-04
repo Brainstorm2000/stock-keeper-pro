@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 import { generateSku } from '@/lib/sku';
 
-export type ItemType = 'product' | 'service';
+export type ItemType = 'product' | 'service' | 'variable';
 export type ProductCategory = 'sellable' | 'consumable';
 
 export interface Product {
