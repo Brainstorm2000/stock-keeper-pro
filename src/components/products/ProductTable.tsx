@@ -182,6 +182,11 @@ export function ProductTable({
             >
               {product.category === "sellable" ? "Sellable" : "Consumable"}
             </Badge>
+            {product.item_type === "variable" && (
+              <Badge variant="outline" className="text-[10px] ml-1">
+                Variable
+              </Badge>
+            )}
           </TableCell>
           <TableCell>
             {product.units?.name}

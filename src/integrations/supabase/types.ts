@@ -922,6 +922,73 @@ export type Database = {
         }
         Relationships: []
       }
+      product_attribute_values: {
+        Row: {
+          attribute_id: string
+          created_at: string
+          id: string
+          sort_order: number
+          value: string
+        }
+        Insert: {
+          attribute_id: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          value: string
+        }
+        Update: {
+          attribute_id?: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attribute_values_attribute_id_fkey"
+            columns: ["attribute_id"]
+            isOneToOne: false
+            referencedRelation: "product_attributes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_attributes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attributes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_price_history: {
         Row: {
           change_type: string
@@ -963,6 +1030,112 @@ export type Database = {
           product_id?: string
         }
         Relationships: []
+      }
+      product_variation_attributes: {
+        Row: {
+          attribute_id: string
+          value_id: string
+          variation_id: string
+        }
+        Insert: {
+          attribute_id: string
+          value_id: string
+          variation_id: string
+        }
+        Update: {
+          attribute_id?: string
+          value_id?: string
+          variation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variation_attributes_attribute_id_fkey"
+            columns: ["attribute_id"]
+            isOneToOne: false
+            referencedRelation: "product_attributes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variation_attributes_value_id_fkey"
+            columns: ["value_id"]
+            isOneToOne: false
+            referencedRelation: "product_attribute_values"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variation_attributes_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_variations: {
+        Row: {
+          cost_price: number
+          created_at: string
+          created_by: string | null
+          current_stock: number
+          id: string
+          is_active: boolean
+          low_stock_threshold: number
+          opening_stock: number
+          organization_id: string
+          out_of_stock_threshold: number
+          product_id: string
+          selling_price: number
+          sku: string | null
+          updated_at: string
+        }
+        Insert: {
+          cost_price?: number
+          created_at?: string
+          created_by?: string | null
+          current_stock?: number
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          opening_stock?: number
+          organization_id: string
+          out_of_stock_threshold?: number
+          product_id: string
+          selling_price?: number
+          sku?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cost_price?: number
+          created_at?: string
+          created_by?: string | null
+          current_stock?: number
+          id?: string
+          is_active?: boolean
+          low_stock_threshold?: number
+          opening_stock?: number
+          organization_id?: string
+          out_of_stock_threshold?: number
+          product_id?: string
+          selling_price?: number
+          sku?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       production_fields: {
         Row: {
@@ -1270,6 +1443,7 @@ export type Database = {
           selling_price: number
           total_cost: number
           unit_cost: number
+          variation_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1280,6 +1454,7 @@ export type Database = {
           selling_price?: number
           total_cost: number
           unit_cost: number
+          variation_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1290,6 +1465,7 @@ export type Database = {
           selling_price?: number
           total_cost?: number
           unit_cost?: number
+          variation_id?: string | null
         }
         Relationships: [
           {
@@ -1306,6 +1482,13 @@ export type Database = {
             referencedRelation: "purchases"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "purchase_items_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       purchase_return_items: {
@@ -1317,6 +1500,7 @@ export type Database = {
           return_id: string
           total_cost: number
           unit_cost: number
+          variation_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1326,6 +1510,7 @@ export type Database = {
           return_id: string
           total_cost?: number
           unit_cost?: number
+          variation_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1335,6 +1520,7 @@ export type Database = {
           return_id?: string
           total_cost?: number
           unit_cost?: number
+          variation_id?: string | null
         }
         Relationships: [
           {
@@ -1349,6 +1535,13 @@ export type Database = {
             columns: ["return_id"]
             isOneToOne: false
             referencedRelation: "purchase_returns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_return_items_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
             referencedColumns: ["id"]
           },
         ]
@@ -1673,6 +1866,7 @@ export type Database = {
           sale_id: string
           total_price: number
           unit_price: number
+          variation_id: string | null
         }
         Insert: {
           cost_price?: number
@@ -1684,6 +1878,7 @@ export type Database = {
           sale_id: string
           total_price: number
           unit_price: number
+          variation_id?: string | null
         }
         Update: {
           cost_price?: number
@@ -1695,6 +1890,7 @@ export type Database = {
           sale_id?: string
           total_price?: number
           unit_price?: number
+          variation_id?: string | null
         }
         Relationships: [
           {
@@ -1711,6 +1907,13 @@ export type Database = {
             referencedRelation: "sales"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sale_items_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sale_return_items: {
@@ -1722,6 +1925,7 @@ export type Database = {
           return_id: string
           total_price: number
           unit_price: number
+          variation_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1731,6 +1935,7 @@ export type Database = {
           return_id: string
           total_price?: number
           unit_price?: number
+          variation_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1740,6 +1945,7 @@ export type Database = {
           return_id?: string
           total_price?: number
           unit_price?: number
+          variation_id?: string | null
         }
         Relationships: [
           {
@@ -1754,6 +1960,13 @@ export type Database = {
             columns: ["return_id"]
             isOneToOne: false
             referencedRelation: "sale_returns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_return_items_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
             referencedColumns: ["id"]
           },
         ]
@@ -2186,6 +2399,7 @@ export type Database = {
           notes: string | null
           previous_stock: number
           product_id: string
+          variation_id: string | null
         }
         Insert: {
           change_amount: number
@@ -2197,6 +2411,7 @@ export type Database = {
           notes?: string | null
           previous_stock: number
           product_id: string
+          variation_id?: string | null
         }
         Update: {
           change_amount?: number
@@ -2208,6 +2423,7 @@ export type Database = {
           notes?: string | null
           previous_stock?: number
           product_id?: string
+          variation_id?: string | null
         }
         Relationships: [
           {
@@ -2215,6 +2431,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_history_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
             referencedColumns: ["id"]
           },
         ]
@@ -2702,7 +2925,7 @@ export type Database = {
         | "returns"
         | "products"
       app_role: "admin" | "user" | "super_admin" | "super_super_admin"
-      item_type: "product" | "service"
+      item_type: "product" | "service" | "variable"
       module_access_level: "none" | "view" | "create" | "full"
       payment_method:
         | "cash"
@@ -2857,7 +3080,7 @@ export const Constants = {
         "products",
       ],
       app_role: ["admin", "user", "super_admin", "super_super_admin"],
-      item_type: ["product", "service"],
+      item_type: ["product", "service", "variable"],
       module_access_level: ["none", "view", "create", "full"],
       payment_method: [
         "cash",
