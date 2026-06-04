@@ -396,10 +396,22 @@ export function ProductDialog({
   };
 
   const handleExportCSV = () => {
-    const csv = exportProductsToCSV(allProducts, branches, suppliers, brands);
-    const date = new Date().toISOString().split("T")[0];
-    downloadCSV(csv, `products_export_${date}.csv`);
-    toast({ title: "Products exported successfully" });
+    (async () => {
+      try {
+        const { fetchVariationsForProduct } = await import("@/hooks/useProductVariations");
+        const map = new Map<string, Awaited<ReturnType<typeof fetchVariationsForProduct>>>();
+        const variableProducts = allProducts.filter((p) => p.item_type === "variable");
+        for (const p of variableProducts) {
+          map.set(p.id, await fetchVariationsForProduct(p.id));
+        }
+        const csv = exportProductsToCSV(allProducts, branches, suppliers, brands, map);
+        const date = new Date().toISOString().split("T")[0];
+        downloadCSV(csv, `products_export_${date}.csv`);
+        toast({ title: "Products exported successfully" });
+      } catch (e: any) {
+        toast({ title: "Export failed", description: e.message, variant: "destructive" });
+      }
+    })();
   };
 
   const handleDownloadTemplate = () => {
