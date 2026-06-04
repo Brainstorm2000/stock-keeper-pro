@@ -42,6 +42,17 @@ import {
   generateCSVTemplate,
 } from "@/lib/csv-utils";
 import { CSVImportDialog } from "@/components/csv/CSVImportDialog";
+import {
+  useProductAttributes,
+  useCreateAttribute,
+  useCreateAttributeValue,
+  useProductVariations,
+  saveProductVariations,
+  type VariationDraft,
+} from "@/hooks/useProductVariations";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Trash2, Wand2 } from "lucide-react";
+import { generateSku } from "@/lib/sku";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Product name is required").max(200),
@@ -49,7 +60,7 @@ const productSchema = z.object({
   branch_id: z.string().min(1, "Branch is required"),
   supplier_id: z.string().optional(),
   brand_id: z.string().optional(),
-  item_type: z.enum(["product", "service"]),
+  item_type: z.enum(["product", "service", "variable"]),
   category: z.enum(["sellable", "consumable"]),
   opening_stock: z.coerce.number().min(0, "Must be 0 or greater"),
   current_stock: z.coerce.number().min(0, "Must be 0 or greater"),
@@ -78,12 +89,22 @@ export function ProductDialog({
 }: ProductDialogProps) {
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const [csvImportDialogOpen, setCsvImportDialogOpen] = useState(false);
+  const [selectedAttributeIds, setSelectedAttributeIds] = useState<string[]>([]);
+  const [variationDrafts, setVariationDrafts] = useState<VariationDraft[]>([]);
+  const [newAttrName, setNewAttrName] = useState("");
+  const [newValueByAttr, setNewValueByAttr] = useState<Record<string, string>>({});
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
   const defaultBranchId = useDefaultBranchId();
   const { data: suppliers = [] } = useSuppliers();
   const { data: brands = [] } = useBrands();
   const { data: organization } = useOrganization();
+  const { data: attributes = [] } = useProductAttributes();
+  const createAttribute = useCreateAttribute();
+  const createAttributeValue = useCreateAttributeValue();
+  const { data: existingVariations = [] } = useProductVariations(
+    product?.item_type === "variable" ? product?.id : null,
+  );
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const { isSuperAdmin } = useAuth();
@@ -158,8 +179,38 @@ export function ProductDialog({
         sku: "",
         description: "",
       });
+      setSelectedAttributeIds([]);
+      setVariationDrafts([]);
     }
   }, [product, reset, defaultBranchId]);
+
+  // Hydrate variation drafts when editing a variable product
+  useEffect(() => {
+    if (product?.item_type === "variable" && existingVariations.length > 0) {
+      const attrIds = new Set<string>();
+      existingVariations.forEach((v) =>
+        v.attributes?.forEach((a) => attrIds.add(a.attribute_id)),
+      );
+      setSelectedAttributeIds(Array.from(attrIds));
+      setVariationDrafts(
+        existingVariations.map((v) => ({
+          id: v.id,
+          attribute_value_ids: (v.attributes || []).map((a) => ({
+            attribute_id: a.attribute_id,
+            value_id: a.value_id,
+          })),
+          sku: v.sku || "",
+          opening_stock: Number(v.opening_stock),
+          current_stock: Number(v.current_stock),
+          low_stock_threshold: Number(v.low_stock_threshold),
+          out_of_stock_threshold: Number(v.out_of_stock_threshold),
+          cost_price: Number(v.cost_price),
+          selling_price: Number(v.selling_price),
+          is_active: v.is_active,
+        })),
+      );
+    }
+  }, [product?.id, product?.item_type, existingVariations]);
 
   const onSubmit = async (data: ProductFormData) => {
     setIsCheckingDuplicate(true);
@@ -196,16 +247,27 @@ export function ProductDialog({
         brand_id: data.brand_id || undefined,
         item_type: data.item_type,
         category: data.category,
-        opening_stock: data.opening_stock,
-        current_stock: data.current_stock,
+        opening_stock: data.item_type === "variable" ? 0 : data.opening_stock,
+        current_stock: data.item_type === "variable" ? 0 : data.current_stock,
         low_stock_threshold: data.low_stock_threshold,
         out_of_stock_threshold: data.out_of_stock_threshold,
-        cost_price: data.cost_price,
-        selling_price: data.selling_price,
+        cost_price: data.item_type === "variable" ? 0 : data.cost_price,
+        selling_price: data.item_type === "variable" ? 0 : data.selling_price,
         sku: data.sku || undefined,
         description: data.description || undefined,
       };
 
+      if (data.item_type === "variable" && variationDrafts.length === 0) {
+        toast({
+          title: "Add at least one variation",
+          description: "Variable products need one or more variations.",
+          variant: "destructive",
+        });
+        setIsCheckingDuplicate(false);
+        return;
+      }
+
+      let savedProductId = product?.id;
       if (isEditing && product) {
         await updateProduct.mutateAsync({ id: product.id, ...productData });
       } else {
@@ -217,10 +279,15 @@ export function ProductDialog({
           });
           return;
         }
-        await createProduct.mutateAsync({
+        const created = await createProduct.mutateAsync({
           ...productData,
           organization_id: organization.id,
         });
+        savedProductId = (created as any).id;
+      }
+
+      if (data.item_type === "variable" && savedProductId && organization?.id) {
+        await saveProductVariations(savedProductId, organization.id, variationDrafts);
       }
 
       onOpenChange(false);
@@ -235,6 +302,97 @@ export function ProductDialog({
   const selectedBrandId = watch("brand_id");
   const selectedItemType = watch("item_type");
   const selectedCategory = watch("category");
+
+  const isVariable = selectedItemType === "variable";
+
+  const handleAddAttribute = async () => {
+    if (!newAttrName.trim() || !organization?.id) return;
+    const created = await createAttribute.mutateAsync({
+      name: newAttrName.trim(),
+      organization_id: organization.id,
+    });
+    setSelectedAttributeIds((prev) => [...prev, created.id]);
+    setNewAttrName("");
+  };
+
+  const handleAddValue = async (attributeId: string) => {
+    const value = newValueByAttr[attributeId]?.trim();
+    if (!value) return;
+    await createAttributeValue.mutateAsync({ attribute_id: attributeId, value });
+    setNewValueByAttr((prev) => ({ ...prev, [attributeId]: "" }));
+  };
+
+  const toggleAttribute = (attrId: string) => {
+    setSelectedAttributeIds((prev) =>
+      prev.includes(attrId) ? prev.filter((id) => id !== attrId) : [...prev, attrId],
+    );
+  };
+
+  const generateVariations = () => {
+    const selectedAttrs = attributes.filter((a) => selectedAttributeIds.includes(a.id));
+    if (selectedAttrs.length === 0) {
+      toast({ title: "Select at least one attribute", variant: "destructive" });
+      return;
+    }
+    const withValues = selectedAttrs.filter((a) => (a.values?.length || 0) > 0);
+    if (withValues.length !== selectedAttrs.length) {
+      toast({ title: "Each attribute needs at least one value", variant: "destructive" });
+      return;
+    }
+    // Cartesian product
+    let combos: { attribute_id: string; value_id: string; value: string; attribute_name: string }[][] = [[]];
+    for (const attr of withValues) {
+      const next: typeof combos = [];
+      for (const combo of combos) {
+        for (const v of attr.values!) {
+          next.push([
+            ...combo,
+            { attribute_id: attr.id, value_id: v.id, value: v.value, attribute_name: attr.name },
+          ]);
+        }
+      }
+      combos = next;
+    }
+    // Avoid duplicates of existing drafts
+    const key = (pairs: { attribute_id: string; value_id: string }[]) =>
+      [...pairs].sort((a, b) => a.attribute_id.localeCompare(b.attribute_id))
+        .map((p) => `${p.attribute_id}:${p.value_id}`).join("|");
+    const existingKeys = new Set(variationDrafts.map((d) => key(d.attribute_value_ids)));
+    const baseSku = watch("sku")?.trim() || generateSku("VAR");
+    const newDrafts: VariationDraft[] = combos
+      .filter((c) => !existingKeys.has(key(c.map((x) => ({ attribute_id: x.attribute_id, value_id: x.value_id })))))
+      .map((c, idx) => ({
+        attribute_value_ids: c.map((x) => ({ attribute_id: x.attribute_id, value_id: x.value_id })),
+        sku: `${baseSku}-${variationDrafts.length + idx + 1}`,
+        opening_stock: 0,
+        current_stock: 0,
+        low_stock_threshold: 10,
+        out_of_stock_threshold: 0,
+        cost_price: 0,
+        selling_price: 0,
+        is_active: true,
+      }));
+    setVariationDrafts((prev) => [...prev, ...newDrafts]);
+  };
+
+  const variationLabel = (d: VariationDraft) => {
+    return d.attribute_value_ids
+      .map((p) => {
+        const attr = attributes.find((a) => a.id === p.attribute_id);
+        const val = attr?.values?.find((v) => v.id === p.value_id);
+        return val ? `${attr?.name}: ${val.value}` : "";
+      })
+      .filter(Boolean)
+      .join(" / ");
+  };
+
+  const updateDraft = (idx: number, patch: Partial<VariationDraft>) => {
+    setVariationDrafts((prev) => prev.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
+  };
+
+  const removeDraft = (idx: number) => {
+    setVariationDrafts((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const handleExportCSV = () => {
     const csv = exportProductsToCSV(allProducts, branches, suppliers, brands);
@@ -305,7 +463,7 @@ export function ProductDialog({
                 <Label>Type *</Label>
                 <Select
                   value={selectedItemType}
-                  onValueChange={(value: "product" | "service") =>
+                  onValueChange={(value: "product" | "service" | "variable") =>
                     setValue("item_type", value)
                   }
                 >
@@ -315,6 +473,7 @@ export function ProductDialog({
                   <SelectContent>
                     <SelectItem value="product">Product</SelectItem>
                     <SelectItem value="service">Service</SelectItem>
+                    <SelectItem value="variable">Variable Product</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
