@@ -74,11 +74,13 @@ import {
   SplitPaymentDialog,
   type PaymentSplit,
 } from "@/components/pos/SplitPaymentDialog";
+import { VariationPickerDialog } from "@/components/pos/VariationPickerDialog";
+import type { ProductVariation } from "@/hooks/useProductVariations";
 
 interface CartItem extends SaleItem {
   product_name: string;
   max_quantity?: number;
-  item_type: "product" | "service";
+  item_type: "product" | "service" | "variable";
 }
 
 export default function POS() {
@@ -108,6 +110,7 @@ export default function POS() {
   const [saleDate, setSaleDate] = useState(
     new Date().toISOString().split("T")[0],
   );
+  const [variationPickerProduct, setVariationPickerProduct] = useState<Product | null>(null);
 
   const {
     user,
@@ -218,10 +221,14 @@ export default function POS() {
   }, [cart]);
 
   const addToCart = (product: Product) => {
+    const productType = (product as any).item_type || "product";
+    if (productType === "variable") {
+      setVariationPickerProduct(product);
+      return;
+    }
     const existingIndex = cart.findIndex(
       (item) => item.product_id === product.id,
     );
-    const productType = (product as any).item_type || "product";
     const maxQty =
       productType === "service" ? Infinity : Number(product.current_stock);
 
@@ -261,6 +268,45 @@ export default function POS() {
           total_price: sellingPrice,
           max_quantity: maxQty,
           item_type: productType,
+        },
+      ]);
+    }
+  };
+
+  const addVariationToCart = (variation: ProductVariation) => {
+    const product = variationPickerProduct;
+    if (!product) return;
+    const maxQty = Number(variation.current_stock);
+    const existingIndex = cart.findIndex((i) => i.variation_id === variation.id);
+    if (existingIndex > -1) {
+      const newCart = [...cart];
+      newCart[existingIndex].quantity += 1;
+      newCart[existingIndex].total_price =
+        newCart[existingIndex].quantity * newCart[existingIndex].unit_price -
+        newCart[existingIndex].discount_amount;
+      setCart(newCart);
+      if (newCart[existingIndex].quantity > maxQty) {
+        toast({ title: "Stock warning", description: `Exceeds available (${maxQty})`, variant: "destructive" });
+      }
+    } else {
+      const sellingPrice = Number(variation.selling_price);
+      const costPrice = Number(variation.cost_price);
+      const label = (variation.attributes || [])
+        .map((a) => `${a.value}`)
+        .join(" / ");
+      setCart([
+        ...cart,
+        {
+          product_id: product.id,
+          variation_id: variation.id,
+          product_name: `${product.name}${label ? ` (${label})` : ""}`,
+          quantity: 1,
+          unit_price: sellingPrice,
+          cost_price: costPrice,
+          discount_amount: 0,
+          total_price: sellingPrice,
+          max_quantity: maxQty,
+          item_type: "product",
         },
       ]);
     }
