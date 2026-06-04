@@ -1238,6 +1238,13 @@ export default function POS() {
           showSuccessMessage={true}
           onNewSale={handleNewSale}
         />
+        <VariationPickerDialog
+          productId={variationPickerProduct?.id || null}
+          productName={variationPickerProduct?.name || ""}
+          open={!!variationPickerProduct}
+          onOpenChange={(o) => !o && setVariationPickerProduct(null)}
+          onSelect={addVariationToCart}
+        />
       </ModuleAccessGuard>
     </DashboardLayout>
   );
