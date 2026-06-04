@@ -53,6 +53,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Wand2 } from "lucide-react";
 import { generateSku } from "@/lib/sku";
+import { cn } from "@/lib/utils";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Product name is required").max(200),
