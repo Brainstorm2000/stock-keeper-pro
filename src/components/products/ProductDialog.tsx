@@ -715,6 +715,194 @@ export function ProductDialog({
                 </>
               )}
 
+              {isVariable && (
+                <div className="sm:col-span-2 space-y-4 border rounded-md p-4 bg-muted/30">
+                  <div>
+                    <Label className="text-base font-semibold">Variations</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Define attributes (Size, Color, …), pick values, and generate variations. Each variation tracks its own stock and price.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Attributes</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {attributes.map((a) => (
+                        <button
+                          type="button"
+                          key={a.id}
+                          onClick={() => toggleAttribute(a.id)}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs border transition-colors",
+                            selectedAttributeIds.includes(a.id)
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background hover:bg-muted",
+                          )}
+                        >
+                          {a.name}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="New attribute (e.g. Size)"
+                        value={newAttrName}
+                        onChange={(e) => setNewAttrName(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddAttribute}
+                        disabled={!newAttrName.trim()}
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Add
+                      </Button>
+                    </div>
+                  </div>
+
+                  {selectedAttributeIds.map((attrId) => {
+                    const attr = attributes.find((a) => a.id === attrId);
+                    if (!attr) return null;
+                    return (
+                      <div key={attrId} className="space-y-2 pl-3 border-l-2 border-primary/40">
+                        <Label className="text-sm">{attr.name} values</Label>
+                        <div className="flex flex-wrap gap-1">
+                          {(attr.values || []).map((v) => (
+                            <span
+                              key={v.id}
+                              className="px-2 py-0.5 rounded bg-background border text-xs"
+                            >
+                              {v.value}
+                            </span>
+                          ))}
+                          {(attr.values || []).length === 0 && (
+                            <span className="text-xs text-muted-foreground">No values yet</span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder={`New ${attr.name} value`}
+                            value={newValueByAttr[attrId] || ""}
+                            onChange={(e) =>
+                              setNewValueByAttr((p) => ({ ...p, [attrId]: e.target.value }))
+                            }
+                            className="h-8 text-sm"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAddValue(attrId)}
+                            disabled={!newValueByAttr[attrId]?.trim()}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={generateVariations}
+                    disabled={selectedAttributeIds.length === 0}
+                  >
+                    <Wand2 className="h-3 w-3 mr-1" /> Generate variations
+                  </Button>
+
+                  {variationDrafts.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Variations ({variationDrafts.length})</Label>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b text-left">
+                              <th className="p-1">Variation</th>
+                              <th className="p-1">SKU</th>
+                              <th className="p-1">Stock</th>
+                              <th className="p-1">Cost</th>
+                              <th className="p-1">Price</th>
+                              <th className="p-1">Low</th>
+                              <th className="p-1"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {variationDrafts.map((d, idx) => (
+                              <tr key={idx} className="border-b">
+                                <td className="p-1 font-medium">{variationLabel(d) || "—"}</td>
+                                <td className="p-1">
+                                  <Input
+                                    className="h-7 text-xs"
+                                    value={d.sku}
+                                    onChange={(e) => updateDraft(idx, { sku: e.target.value })}
+                                  />
+                                </td>
+                                <td className="p-1 w-20">
+                                  <Input
+                                    className="h-7 text-xs"
+                                    type="number"
+                                    min="0"
+                                    value={d.current_stock}
+                                    onChange={(e) =>
+                                      updateDraft(idx, {
+                                        current_stock: Number(e.target.value),
+                                        opening_stock: d.id ? d.opening_stock : Number(e.target.value),
+                                      })
+                                    }
+                                  />
+                                </td>
+                                <td className="p-1 w-24">
+                                  <Input
+                                    className="h-7 text-xs"
+                                    type="number"
+                                    min="0"
+                                    value={d.cost_price}
+                                    onChange={(e) => updateDraft(idx, { cost_price: Number(e.target.value) })}
+                                  />
+                                </td>
+                                <td className="p-1 w-24">
+                                  <Input
+                                    className="h-7 text-xs"
+                                    type="number"
+                                    min="0"
+                                    value={d.selling_price}
+                                    onChange={(e) => updateDraft(idx, { selling_price: Number(e.target.value) })}
+                                  />
+                                </td>
+                                <td className="p-1 w-16">
+                                  <Input
+                                    className="h-7 text-xs"
+                                    type="number"
+                                    min="0"
+                                    value={d.low_stock_threshold}
+                                    onChange={(e) => updateDraft(idx, { low_stock_threshold: Number(e.target.value) })}
+                                  />
+                                </td>
+                                <td className="p-1">
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7"
+                                    onClick={() => removeDraft(idx)}
+                                  >
+                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="description">Description (Optional)</Label>
                 <Textarea
