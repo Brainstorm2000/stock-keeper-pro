@@ -34,10 +34,10 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
 }
 
 export function getStockStatus(
-  currentStock: number, 
-  lowThreshold: number, 
+  currentStock: number,
+  lowThreshold: number,
   outThreshold: number,
-  itemType?: 'product' | 'service'
+  itemType?: 'product' | 'service' | 'variable'
 ): StockStatus {
   // Services don't have stock constraints - always available
   if (itemType === 'service') return 'normal';
