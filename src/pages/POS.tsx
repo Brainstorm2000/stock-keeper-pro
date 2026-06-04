@@ -692,12 +692,18 @@ export default function POS() {
                                 }
                                 className="text-xs shrink-0"
                               >
-                                {productType === "service" ? "SVC" : "PRD"}
+                                {productType === "service"
+                                  ? "SVC"
+                                  : productType === "variable"
+                                    ? "VAR"
+                                    : "PRD"}
                               </Badge>
                             </div>
 
                             <span className="text-lg font-bold text-[#FF9E3D]">
-                              {formatCurrency(sellingPrice)}
+                              {productType === "variable"
+                                ? "Pick variation"
+                                : formatCurrency(sellingPrice)}
                             </span>
 
                             {productType === "product" && (
