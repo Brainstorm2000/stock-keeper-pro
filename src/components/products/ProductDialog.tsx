@@ -607,23 +607,25 @@ export function ProductDialog({
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="cost_price">Cost Price</Label>
-                <Input
-                  id="cost_price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  {...register("cost_price")}
-                />
-                {errors.cost_price && (
-                  <p className="text-sm text-destructive">
-                    {errors.cost_price.message}
-                  </p>
-                )}
-              </div>
+              {!isVariable && (
+                <div className="space-y-2">
+                  <Label htmlFor="cost_price">Cost Price</Label>
+                  <Input
+                    id="cost_price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    {...register("cost_price")}
+                  />
+                  {errors.cost_price && (
+                    <p className="text-sm text-destructive">
+                      {errors.cost_price.message}
+                    </p>
+                  )}
+                </div>
+              )}
 
-              {selectedCategory === "sellable" && (
+              {!isVariable && selectedCategory === "sellable" && (
                 <div className="space-y-2">
                   <Label htmlFor="selling_price">Selling Price</Label>
                   <Input
