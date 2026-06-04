@@ -12,7 +12,7 @@ interface CartItem {
   unit_price: number;
   total_price: number;
   max_quantity?: number;
-  item_type: "product" | "service";
+  item_type: "product" | "service" | "variable";
 }
 
 interface CartItemRowProps {
