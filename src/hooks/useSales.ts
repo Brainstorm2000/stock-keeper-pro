@@ -10,6 +10,7 @@ export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'on_hold';
 export interface SaleItem {
   id?: string;
   product_id: string;
+  variation_id?: string | null;
   product_name?: string;
   quantity: number;
   unit_price: number;
@@ -205,6 +206,7 @@ export function useCreateSale() {
       const saleItems = input.items.map(item => ({
         sale_id: sale.id,
         product_id: item.product_id,
+        variation_id: item.variation_id || null,
         quantity: item.quantity,
         unit_price: item.unit_price,
         cost_price: item.cost_price,
@@ -220,6 +222,33 @@ export function useCreateSale() {
 
       // Update product stock for each item (decrease current_stock for products, not services)
       for (const item of input.items) {
+        // Variation-aware stock decrement
+        if (item.variation_id) {
+          const { data: variation } = await supabase
+            .from('product_variations' as any)
+            .select('current_stock')
+            .eq('id', item.variation_id)
+            .single();
+          if (variation) {
+            const prev = Number((variation as any).current_stock);
+            const next = prev - item.quantity;
+            await supabase
+              .from('product_variations' as any)
+              .update({ current_stock: next })
+              .eq('id', item.variation_id);
+            await supabase.from('stock_history').insert({
+              product_id: item.product_id,
+              variation_id: item.variation_id,
+              previous_stock: prev,
+              new_stock: next,
+              change_amount: -item.quantity,
+              change_type: 'sale',
+              notes: `Sale: ${saleNumber}`,
+              changed_by: user?.id,
+            } as any);
+          }
+          continue;
+        }
         const { data: product } = await supabase
           .from('products')
           .select('current_stock, item_type')
@@ -445,6 +474,32 @@ export function useDeleteSale() {
 
       // Restore stock for each item (only for 'product' type items)
       for (const item of saleItems || []) {
+        if ((item as any).variation_id) {
+          const { data: variation } = await supabase
+            .from('product_variations' as any)
+            .select('current_stock')
+            .eq('id', (item as any).variation_id)
+            .single();
+          if (variation) {
+            const prev = Number((variation as any).current_stock);
+            const next = prev + Number(item.quantity);
+            await supabase
+              .from('product_variations' as any)
+              .update({ current_stock: next })
+              .eq('id', (item as any).variation_id);
+            await supabase.from('stock_history').insert({
+              product_id: item.product_id,
+              variation_id: (item as any).variation_id,
+              previous_stock: prev,
+              new_stock: next,
+              change_amount: Number(item.quantity),
+              change_type: 'increase',
+              notes: `Sale deleted: ${sale.sale_number}`,
+              changed_by: user?.id,
+            } as any);
+          }
+          continue;
+        }
         const { data: product } = await supabase
           .from('products')
           .select('current_stock, item_type')
