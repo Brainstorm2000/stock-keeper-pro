@@ -46,12 +46,16 @@ import {
   useProductAttributes,
   useCreateAttribute,
   useCreateAttributeValue,
+  useUpdateAttribute,
+  useDeleteAttribute,
+  useUpdateAttributeValue,
+  useDeleteAttributeValue,
   useProductVariations,
   saveProductVariations,
   type VariationDraft,
 } from "@/hooks/useProductVariations";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Wand2 } from "lucide-react";
+import { Plus, Trash2, Wand2, Pencil, X } from "lucide-react";
 import { generateSku } from "@/lib/sku";
 import { cn } from "@/lib/utils";
 
@@ -94,6 +98,7 @@ export function ProductDialog({
   const [variationDrafts, setVariationDrafts] = useState<VariationDraft[]>([]);
   const [newAttrName, setNewAttrName] = useState("");
   const [newValueByAttr, setNewValueByAttr] = useState<Record<string, string>>({});
+  const [selectedValueIdsByAttr, setSelectedValueIdsByAttr] = useState<Record<string, string[]>>({});
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
   const defaultBranchId = useDefaultBranchId();
@@ -103,6 +108,10 @@ export function ProductDialog({
   const { data: attributes = [] } = useProductAttributes();
   const createAttribute = useCreateAttribute();
   const createAttributeValue = useCreateAttributeValue();
+  const updateAttribute = useUpdateAttribute();
+  const deleteAttribute = useDeleteAttribute();
+  const updateAttributeValue = useUpdateAttributeValue();
+  const deleteAttributeValue = useDeleteAttributeValue();
   const { data: existingVariations = [] } = useProductVariations(
     product?.item_type === "variable" ? product?.id : null,
   );
