@@ -46,12 +46,16 @@ import {
   useProductAttributes,
   useCreateAttribute,
   useCreateAttributeValue,
+  useUpdateAttribute,
+  useDeleteAttribute,
+  useUpdateAttributeValue,
+  useDeleteAttributeValue,
   useProductVariations,
   saveProductVariations,
   type VariationDraft,
 } from "@/hooks/useProductVariations";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Wand2 } from "lucide-react";
+import { Plus, Trash2, Wand2, Pencil, X } from "lucide-react";
 import { generateSku } from "@/lib/sku";
 import { cn } from "@/lib/utils";
 
@@ -94,6 +98,7 @@ export function ProductDialog({
   const [variationDrafts, setVariationDrafts] = useState<VariationDraft[]>([]);
   const [newAttrName, setNewAttrName] = useState("");
   const [newValueByAttr, setNewValueByAttr] = useState<Record<string, string>>({});
+  const [selectedValueIdsByAttr, setSelectedValueIdsByAttr] = useState<Record<string, string[]>>({});
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
   const defaultBranchId = useDefaultBranchId();
@@ -103,6 +108,10 @@ export function ProductDialog({
   const { data: attributes = [] } = useProductAttributes();
   const createAttribute = useCreateAttribute();
   const createAttributeValue = useCreateAttributeValue();
+  const updateAttribute = useUpdateAttribute();
+  const deleteAttribute = useDeleteAttribute();
+  const updateAttributeValue = useUpdateAttributeValue();
+  const deleteAttributeValue = useDeleteAttributeValue();
   const { data: existingVariations = [] } = useProductVariations(
     product?.item_type === "variable" ? product?.id : null,
   );
@@ -182,6 +191,7 @@ export function ProductDialog({
       });
       setSelectedAttributeIds([]);
       setVariationDrafts([]);
+      setSelectedValueIdsByAttr({});
     }
   }, [product, reset, defaultBranchId]);
 
@@ -189,10 +199,17 @@ export function ProductDialog({
   useEffect(() => {
     if (product?.item_type === "variable" && existingVariations.length > 0) {
       const attrIds = new Set<string>();
+      const valuesByAttr: Record<string, Set<string>> = {};
       existingVariations.forEach((v) =>
-        v.attributes?.forEach((a) => attrIds.add(a.attribute_id)),
+        v.attributes?.forEach((a) => {
+          attrIds.add(a.attribute_id);
+          (valuesByAttr[a.attribute_id] ||= new Set()).add(a.value_id);
+        }),
       );
       setSelectedAttributeIds(Array.from(attrIds));
+      setSelectedValueIdsByAttr(
+        Object.fromEntries(Object.entries(valuesByAttr).map(([k, s]) => [k, Array.from(s)])),
+      );
       setVariationDrafts(
         existingVariations.map((v) => ({
           id: v.id,
@@ -313,20 +330,75 @@ export function ProductDialog({
       organization_id: organization.id,
     });
     setSelectedAttributeIds((prev) => [...prev, created.id]);
+    setSelectedValueIdsByAttr((prev) => ({ ...prev, [created.id]: [] }));
     setNewAttrName("");
   };
 
   const handleAddValue = async (attributeId: string) => {
     const value = newValueByAttr[attributeId]?.trim();
     if (!value) return;
-    await createAttributeValue.mutateAsync({ attribute_id: attributeId, value });
+    const created = await createAttributeValue.mutateAsync({ attribute_id: attributeId, value });
+    setSelectedValueIdsByAttr((prev) => ({
+      ...prev,
+      [attributeId]: [...(prev[attributeId] || []), (created as any).id],
+    }));
     setNewValueByAttr((prev) => ({ ...prev, [attributeId]: "" }));
   };
 
   const toggleAttribute = (attrId: string) => {
-    setSelectedAttributeIds((prev) =>
-      prev.includes(attrId) ? prev.filter((id) => id !== attrId) : [...prev, attrId],
-    );
+    setSelectedAttributeIds((prev) => {
+      if (prev.includes(attrId)) return prev.filter((id) => id !== attrId);
+      // When newly selecting an attribute, default-select all its values
+      const attr = attributes.find((a) => a.id === attrId);
+      setSelectedValueIdsByAttr((m) => ({
+        ...m,
+        [attrId]: m[attrId]?.length ? m[attrId] : (attr?.values || []).map((v) => v.id),
+      }));
+      return [...prev, attrId];
+    });
+  };
+
+  const toggleValue = (attrId: string, valueId: string) => {
+    setSelectedValueIdsByAttr((prev) => {
+      const current = prev[attrId] || [];
+      return {
+        ...prev,
+        [attrId]: current.includes(valueId)
+          ? current.filter((id) => id !== valueId)
+          : [...current, valueId],
+      };
+    });
+  };
+
+  const handleRenameAttribute = async (attrId: string, currentName: string) => {
+    const name = window.prompt("Rename attribute", currentName)?.trim();
+    if (!name || name === currentName) return;
+    await updateAttribute.mutateAsync({ id: attrId, name });
+  };
+
+  const handleDeleteAttribute = async (attrId: string, name: string) => {
+    if (!window.confirm(`Delete attribute "${name}"? This will fail if it's used by any variation.`)) return;
+    await deleteAttribute.mutateAsync(attrId);
+    setSelectedAttributeIds((prev) => prev.filter((id) => id !== attrId));
+    setSelectedValueIdsByAttr((prev) => {
+      const { [attrId]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const handleRenameValue = async (valueId: string, currentValue: string) => {
+    const value = window.prompt("Rename value", currentValue)?.trim();
+    if (!value || value === currentValue) return;
+    await updateAttributeValue.mutateAsync({ id: valueId, value });
+  };
+
+  const handleDeleteValue = async (attrId: string, valueId: string, value: string) => {
+    if (!window.confirm(`Delete value "${value}"? This will fail if it's used by any variation.`)) return;
+    await deleteAttributeValue.mutateAsync(valueId);
+    setSelectedValueIdsByAttr((prev) => ({
+      ...prev,
+      [attrId]: (prev[attrId] || []).filter((id) => id !== valueId),
+    }));
   };
 
   const generateVariations = () => {
@@ -335,9 +407,16 @@ export function ProductDialog({
       toast({ title: "Select at least one attribute", variant: "destructive" });
       return;
     }
-    const withValues = selectedAttrs.filter((a) => (a.values?.length || 0) > 0);
+    // Only use values selected for each attribute
+    const filteredAttrs = selectedAttrs.map((a) => ({
+      ...a,
+      values: (a.values || []).filter((v) =>
+        (selectedValueIdsByAttr[a.id] || []).includes(v.id),
+      ),
+    }));
+    const withValues = filteredAttrs.filter((a) => (a.values?.length || 0) > 0);
     if (withValues.length !== selectedAttrs.length) {
-      toast({ title: "Each attribute needs at least one value", variant: "destructive" });
+      toast({ title: "Select at least one value per attribute", variant: "destructive" });
       return;
     }
     // Cartesian product
@@ -741,19 +820,39 @@ export function ProductDialog({
                     <Label className="text-sm">Attributes</Label>
                     <div className="flex flex-wrap gap-2">
                       {attributes.map((a) => (
-                        <button
-                          type="button"
+                        <div
                           key={a.id}
-                          onClick={() => toggleAttribute(a.id)}
                           className={cn(
-                            "px-3 py-1 rounded-full text-xs border transition-colors",
+                            "inline-flex items-center gap-1 pl-3 pr-1 py-0.5 rounded-full text-xs border transition-colors",
                             selectedAttributeIds.includes(a.id)
                               ? "bg-primary text-primary-foreground border-primary"
                               : "bg-background hover:bg-muted",
                           )}
                         >
-                          {a.name}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleAttribute(a.id)}
+                            className="py-0.5"
+                          >
+                            {a.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRenameAttribute(a.id, a.name)}
+                            className="p-1 rounded-full hover:bg-foreground/10"
+                            aria-label={`Rename ${a.name}`}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAttribute(a.id, a.name)}
+                            className="p-1 rounded-full hover:bg-destructive/20"
+                            aria-label={`Delete ${a.name}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                     <div className="flex gap-2">
@@ -780,16 +879,45 @@ export function ProductDialog({
                     if (!attr) return null;
                     return (
                       <div key={attrId} className="space-y-2 pl-3 border-l-2 border-primary/40">
-                        <Label className="text-sm">{attr.name} values</Label>
+                        <Label className="text-sm">{attr.name} values <span className="text-xs text-muted-foreground font-normal">(click to select for generation)</span></Label>
                         <div className="flex flex-wrap gap-1">
-                          {(attr.values || []).map((v) => (
-                            <span
-                              key={v.id}
-                              className="px-2 py-0.5 rounded bg-background border text-xs"
-                            >
-                              {v.value}
-                            </span>
-                          ))}
+                          {(attr.values || []).map((v) => {
+                            const selected = (selectedValueIdsByAttr[attrId] || []).includes(v.id);
+                            return (
+                              <div
+                                key={v.id}
+                                className={cn(
+                                  "inline-flex items-center gap-1 pl-2 pr-0.5 py-0.5 rounded border text-xs transition-colors",
+                                  selected
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background hover:bg-muted",
+                                )}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => toggleValue(attrId, v.id)}
+                                >
+                                  {v.value}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRenameValue(v.id, v.value)}
+                                  className="p-0.5 rounded hover:bg-foreground/10"
+                                  aria-label={`Rename ${v.value}`}
+                                >
+                                  <Pencil className="h-2.5 w-2.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteValue(attrId, v.id, v.value)}
+                                  className="p-0.5 rounded hover:bg-destructive/20"
+                                  aria-label={`Delete ${v.value}`}
+                                >
+                                  <X className="h-2.5 w-2.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
                           {(attr.values || []).length === 0 && (
                             <span className="text-xs text-muted-foreground">No values yet</span>
                           )}

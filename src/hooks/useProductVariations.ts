@@ -111,6 +111,82 @@ export function useCreateAttributeValue() {
   });
 }
 
+export function useUpdateAttribute() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await supabase
+        .from('product_attributes' as any)
+        .update({ name: name.trim() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['product-attributes'] }),
+    onError: (e: Error) => {
+      const { title, description } = parseDbError(e, 'rename attribute');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteAttribute() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('product_attributes' as any)
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['product-attributes'] }),
+    onError: (e: Error) => {
+      const { title, description } = parseDbError(e, 'delete attribute');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateAttributeValue() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: string }) => {
+      const { error } = await supabase
+        .from('product_attribute_values' as any)
+        .update({ value: value.trim() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['product-attributes'] }),
+    onError: (e: Error) => {
+      const { title, description } = parseDbError(e, 'rename value');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteAttributeValue() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('product_attribute_values' as any)
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['product-attributes'] }),
+    onError: (e: Error) => {
+      const { title, description } = parseDbError(e, 'delete value');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
 export async function fetchVariationsForProduct(productId: string): Promise<ProductVariation[]> {
   const { data: variations, error } = await supabase
     .from('product_variations' as any)
