@@ -7,6 +7,7 @@ import {
   Minus,
   Search,
   History,
+  Download,
 } from "lucide-react";
 import {
   Table,
@@ -27,10 +28,26 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { StatusBadge, getStockStatus } from "./StatusBadge";
 import { StockUpdateDialog } from "./StockUpdateDialog";
 import { PriceHistoryDialog } from "./PriceHistoryDialog";
-import type { Product } from "@/hooks/useProducts";
+import { BulkEditProductsDialog } from "./BulkEditProductsDialog";
+import { useBulkDeleteProducts, type Product } from "@/hooks/useProducts";
+import { useBranches } from "@/hooks/useBranches";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { useBrands } from "@/hooks/useBrands";
+import { exportProductsToCSV, downloadCSV } from "@/lib/csv-utils";
 import { useAuth } from "@/lib/auth";
 
 interface ProductTableProps {
@@ -64,6 +81,13 @@ export function ProductTable({
   const [priceHistoryProduct, setPriceHistoryProduct] =
     useState<Product | null>(null);
   const { isAdmin } = useAuth();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const bulkDelete = useBulkDeleteProducts();
+  const { data: branchesAll = [] } = useBranches();
+  const { data: suppliersAll = [] } = useSuppliers();
+  const { data: brandsAll = [] } = useBrands();
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
@@ -86,6 +110,53 @@ export function ProductTable({
 
     return status === statusFilter;
   });
+
+  const visibleSelectableIds = filteredProducts.map((p) => p.id);
+  const allVisibleSelected =
+    visibleSelectableIds.length > 0 &&
+    visibleSelectableIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected =
+    visibleSelectableIds.some((id) => selectedIds.has(id)) &&
+    !allVisibleSelected;
+
+  const toggleAllVisible = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) visibleSelectableIds.forEach((id) => next.add(id));
+      else visibleSelectableIds.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+
+  const handleBulkExport = () => {
+    const csv = exportProductsToCSV(
+      selectedProducts,
+      branchesAll,
+      suppliersAll,
+      brandsAll,
+    );
+    const date = new Date().toISOString().split("T")[0];
+    downloadCSV(csv, `products_selected_${date}.csv`);
+  };
+
+  const handleBulkDelete = async () => {
+    await bulkDelete.mutateAsync(Array.from(selectedIds));
+    clearSelection();
+    setBulkDeleteOpen(false);
+  };
 
   const handleRemoveStock = (product: Product) => {
     setStockUpdateProduct(product);
@@ -122,11 +193,12 @@ export function ProductTable({
   );
 
   const renderProductRows = (productsToRender: Product[]) => {
+    const baseCols = (isAdmin ? (showBranch ? 9 : 8) : showBranch ? 8 : 7) + (isAdmin ? 1 : 0);
     if (isLoading) {
       return (
         <TableRow>
           <TableCell
-            colSpan={isAdmin ? (showBranch ? 9 : 8) : showBranch ? 8 : 7}
+            colSpan={baseCols}
             className="text-center py-8"
           >
             <div className="animate-pulse-soft text-muted-foreground">
@@ -141,7 +213,7 @@ export function ProductTable({
       return (
         <TableRow>
           <TableCell
-            colSpan={isAdmin ? (showBranch ? 9 : 8) : showBranch ? 8 : 7}
+            colSpan={baseCols}
             className="text-center py-8 text-muted-foreground"
           >
             {products.length === 0
@@ -163,6 +235,15 @@ export function ProductTable({
 
       return (
         <TableRow key={product.id} className="group">
+          {isAdmin && (
+            <TableCell className="w-[40px]">
+              <Checkbox
+                checked={selectedIds.has(product.id)}
+                onCheckedChange={(c) => toggleOne(product.id, !!c)}
+                aria-label={`Select ${product.name}`}
+              />
+            </TableCell>
+          )}
           <TableCell className="font-medium">
             <div>
               {product.name}
@@ -304,6 +385,32 @@ export function ProductTable({
           </div>
         </CardHeader>
         <CardContent>
+          {isAdmin && selectedIds.size > 0 && (
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-md border bg-muted/40 px-4 py-2">
+              <div className="text-sm font-medium">
+                {selectedIds.size} selected
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => setBulkEditOpen(true)}>
+                  <Pencil className="mr-2 h-4 w-4" /> Bulk Edit
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleBulkExport}>
+                  <Download className="mr-2 h-4 w-4" /> Export Selected
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setBulkDeleteOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Selected
+                </Button>
+                <Button size="sm" variant="ghost" onClick={clearSelection}>
+                  Clear
+                </Button>
+              </div>
+            </div>
+          )}
+
           <Tabs
             value={categoryTab}
             onValueChange={(v) => setCategoryTab(v as typeof categoryTab)}
@@ -326,6 +433,21 @@ export function ProductTable({
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isAdmin && (
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        checked={
+                          allVisibleSelected
+                            ? true
+                            : someVisibleSelected
+                            ? "indeterminate"
+                            : false
+                        }
+                        onCheckedChange={(c) => toggleAllVisible(!!c)}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Product Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Unit</TableHead>
@@ -359,6 +481,37 @@ export function ProductTable({
         open={!!priceHistoryProduct}
         onOpenChange={(open) => !open && setPriceHistoryProduct(null)}
       />
+
+      <BulkEditProductsDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        selectedIds={Array.from(selectedIds)}
+        onDone={clearSelection}
+      />
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} products?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Products linked to existing
+              transactions may fail to delete.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleBulkDelete();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
