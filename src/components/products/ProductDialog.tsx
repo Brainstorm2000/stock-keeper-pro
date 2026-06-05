@@ -820,19 +820,39 @@ export function ProductDialog({
                     <Label className="text-sm">Attributes</Label>
                     <div className="flex flex-wrap gap-2">
                       {attributes.map((a) => (
-                        <button
-                          type="button"
+                        <div
                           key={a.id}
-                          onClick={() => toggleAttribute(a.id)}
                           className={cn(
-                            "px-3 py-1 rounded-full text-xs border transition-colors",
+                            "inline-flex items-center gap-1 pl-3 pr-1 py-0.5 rounded-full text-xs border transition-colors",
                             selectedAttributeIds.includes(a.id)
                               ? "bg-primary text-primary-foreground border-primary"
                               : "bg-background hover:bg-muted",
                           )}
                         >
-                          {a.name}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleAttribute(a.id)}
+                            className="py-0.5"
+                          >
+                            {a.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRenameAttribute(a.id, a.name)}
+                            className="p-1 rounded-full hover:bg-foreground/10"
+                            aria-label={`Rename ${a.name}`}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAttribute(a.id, a.name)}
+                            className="p-1 rounded-full hover:bg-destructive/20"
+                            aria-label={`Delete ${a.name}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                     <div className="flex gap-2">
@@ -859,16 +879,45 @@ export function ProductDialog({
                     if (!attr) return null;
                     return (
                       <div key={attrId} className="space-y-2 pl-3 border-l-2 border-primary/40">
-                        <Label className="text-sm">{attr.name} values</Label>
+                        <Label className="text-sm">{attr.name} values <span className="text-xs text-muted-foreground font-normal">(click to select for generation)</span></Label>
                         <div className="flex flex-wrap gap-1">
-                          {(attr.values || []).map((v) => (
-                            <span
-                              key={v.id}
-                              className="px-2 py-0.5 rounded bg-background border text-xs"
-                            >
-                              {v.value}
-                            </span>
-                          ))}
+                          {(attr.values || []).map((v) => {
+                            const selected = (selectedValueIdsByAttr[attrId] || []).includes(v.id);
+                            return (
+                              <div
+                                key={v.id}
+                                className={cn(
+                                  "inline-flex items-center gap-1 pl-2 pr-0.5 py-0.5 rounded border text-xs transition-colors",
+                                  selected
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-background hover:bg-muted",
+                                )}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => toggleValue(attrId, v.id)}
+                                >
+                                  {v.value}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRenameValue(v.id, v.value)}
+                                  className="p-0.5 rounded hover:bg-foreground/10"
+                                  aria-label={`Rename ${v.value}`}
+                                >
+                                  <Pencil className="h-2.5 w-2.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteValue(attrId, v.id, v.value)}
+                                  className="p-0.5 rounded hover:bg-destructive/20"
+                                  aria-label={`Delete ${v.value}`}
+                                >
+                                  <X className="h-2.5 w-2.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
                           {(attr.values || []).length === 0 && (
                             <span className="text-xs text-muted-foreground">No values yet</span>
                           )}
