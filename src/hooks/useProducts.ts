@@ -252,6 +252,48 @@ export function useDeleteProduct() {
   });
 }
 
+export function useBulkDeleteProducts() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!ids.length) return;
+      const { error } = await supabase.from('products').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: `Deleted ${ids.length} product${ids.length === 1 ? '' : 's'}` });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'Product');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
+export function useBulkUpdateProducts() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ ids, patch }: { ids: string[]; patch: Record<string, unknown> }) => {
+      if (!ids.length) return;
+      const { error } = await supabase.from('products').update(patch).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, { ids }) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: `Updated ${ids.length} product${ids.length === 1 ? '' : 's'}` });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'update products');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
 export function useUpdateStock() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
