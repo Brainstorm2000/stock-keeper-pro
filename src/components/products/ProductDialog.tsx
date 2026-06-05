@@ -191,6 +191,7 @@ export function ProductDialog({
       });
       setSelectedAttributeIds([]);
       setVariationDrafts([]);
+      setSelectedValueIdsByAttr({});
     }
   }, [product, reset, defaultBranchId]);
 
@@ -198,10 +199,17 @@ export function ProductDialog({
   useEffect(() => {
     if (product?.item_type === "variable" && existingVariations.length > 0) {
       const attrIds = new Set<string>();
+      const valuesByAttr: Record<string, Set<string>> = {};
       existingVariations.forEach((v) =>
-        v.attributes?.forEach((a) => attrIds.add(a.attribute_id)),
+        v.attributes?.forEach((a) => {
+          attrIds.add(a.attribute_id);
+          (valuesByAttr[a.attribute_id] ||= new Set()).add(a.value_id);
+        }),
       );
       setSelectedAttributeIds(Array.from(attrIds));
+      setSelectedValueIdsByAttr(
+        Object.fromEntries(Object.entries(valuesByAttr).map(([k, s]) => [k, Array.from(s)])),
+      );
       setVariationDrafts(
         existingVariations.map((v) => ({
           id: v.id,
@@ -322,20 +330,75 @@ export function ProductDialog({
       organization_id: organization.id,
     });
     setSelectedAttributeIds((prev) => [...prev, created.id]);
+    setSelectedValueIdsByAttr((prev) => ({ ...prev, [created.id]: [] }));
     setNewAttrName("");
   };
 
   const handleAddValue = async (attributeId: string) => {
     const value = newValueByAttr[attributeId]?.trim();
     if (!value) return;
-    await createAttributeValue.mutateAsync({ attribute_id: attributeId, value });
+    const created = await createAttributeValue.mutateAsync({ attribute_id: attributeId, value });
+    setSelectedValueIdsByAttr((prev) => ({
+      ...prev,
+      [attributeId]: [...(prev[attributeId] || []), (created as any).id],
+    }));
     setNewValueByAttr((prev) => ({ ...prev, [attributeId]: "" }));
   };
 
   const toggleAttribute = (attrId: string) => {
-    setSelectedAttributeIds((prev) =>
-      prev.includes(attrId) ? prev.filter((id) => id !== attrId) : [...prev, attrId],
-    );
+    setSelectedAttributeIds((prev) => {
+      if (prev.includes(attrId)) return prev.filter((id) => id !== attrId);
+      // When newly selecting an attribute, default-select all its values
+      const attr = attributes.find((a) => a.id === attrId);
+      setSelectedValueIdsByAttr((m) => ({
+        ...m,
+        [attrId]: m[attrId]?.length ? m[attrId] : (attr?.values || []).map((v) => v.id),
+      }));
+      return [...prev, attrId];
+    });
+  };
+
+  const toggleValue = (attrId: string, valueId: string) => {
+    setSelectedValueIdsByAttr((prev) => {
+      const current = prev[attrId] || [];
+      return {
+        ...prev,
+        [attrId]: current.includes(valueId)
+          ? current.filter((id) => id !== valueId)
+          : [...current, valueId],
+      };
+    });
+  };
+
+  const handleRenameAttribute = async (attrId: string, currentName: string) => {
+    const name = window.prompt("Rename attribute", currentName)?.trim();
+    if (!name || name === currentName) return;
+    await updateAttribute.mutateAsync({ id: attrId, name });
+  };
+
+  const handleDeleteAttribute = async (attrId: string, name: string) => {
+    if (!window.confirm(`Delete attribute "${name}"? This will fail if it's used by any variation.`)) return;
+    await deleteAttribute.mutateAsync(attrId);
+    setSelectedAttributeIds((prev) => prev.filter((id) => id !== attrId));
+    setSelectedValueIdsByAttr((prev) => {
+      const { [attrId]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const handleRenameValue = async (valueId: string, currentValue: string) => {
+    const value = window.prompt("Rename value", currentValue)?.trim();
+    if (!value || value === currentValue) return;
+    await updateAttributeValue.mutateAsync({ id: valueId, value });
+  };
+
+  const handleDeleteValue = async (attrId: string, valueId: string, value: string) => {
+    if (!window.confirm(`Delete value "${value}"? This will fail if it's used by any variation.`)) return;
+    await deleteAttributeValue.mutateAsync(valueId);
+    setSelectedValueIdsByAttr((prev) => ({
+      ...prev,
+      [attrId]: (prev[attrId] || []).filter((id) => id !== valueId),
+    }));
   };
 
   const generateVariations = () => {
@@ -344,9 +407,16 @@ export function ProductDialog({
       toast({ title: "Select at least one attribute", variant: "destructive" });
       return;
     }
-    const withValues = selectedAttrs.filter((a) => (a.values?.length || 0) > 0);
+    // Only use values selected for each attribute
+    const filteredAttrs = selectedAttrs.map((a) => ({
+      ...a,
+      values: (a.values || []).filter((v) =>
+        (selectedValueIdsByAttr[a.id] || []).includes(v.id),
+      ),
+    }));
+    const withValues = filteredAttrs.filter((a) => (a.values?.length || 0) > 0);
     if (withValues.length !== selectedAttrs.length) {
-      toast({ title: "Each attribute needs at least one value", variant: "destructive" });
+      toast({ title: "Select at least one value per attribute", variant: "destructive" });
       return;
     }
     // Cartesian product
