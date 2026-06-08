@@ -40,8 +40,8 @@ export function useProductPriceHistory(productId?: string) {
       let nameMap = new Map<string, string>();
       if (userIds.length > 0) {
         const { data: names } = await supabase.rpc('get_org_user_names', { _user_ids: userIds });
-        (names ?? []).forEach((n: { user_id: string; full_name: string | null }) => {
-          nameMap.set(n.user_id, n.full_name ?? '');
+        (names ?? []).forEach((n: { user_id: string; full_name: string | null; email: string | null }) => {
+          nameMap.set(n.user_id, n.full_name || n.email?.split('@')[0] || '');
         });
       }
 
