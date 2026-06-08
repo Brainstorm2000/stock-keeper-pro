@@ -165,10 +165,24 @@ export function ProductTable({
 
   // Calculate stock value (current_stock * selling_price) for sellable items
   const calculateStockValue = (product: Product): number => {
-    if (product.category === "sellable") {
-      return Number(product.current_stock) * Number(product.selling_price);
+    if (product.category !== "sellable") return 0;
+    if (product.item_type === "variable" && product.variations?.length) {
+      return product.variations.reduce(
+        (sum, v) => sum + Number(v.current_stock) * Number(v.selling_price),
+        0,
+      );
     }
-    return 0;
+    return Number(product.current_stock) * Number(product.selling_price);
+  };
+
+  const getDisplayStock = (product: Product): number => {
+    if (product.item_type === "variable" && product.variations?.length) {
+      return product.variations.reduce(
+        (sum, v) => sum + Number(v.current_stock),
+        0,
+      );
+    }
+    return Number(product.current_stock);
   };
 
   const formatCurrency = (value: number): string => {
@@ -283,7 +297,13 @@ export function ProductTable({
             </TableCell>
           )}
           <TableCell className="text-right font-semibold">
-            {Number(product.current_stock).toLocaleString()}
+            {getDisplayStock(product).toLocaleString()}
+            {product.item_type === "variable" && (
+              <span className="block text-[10px] text-muted-foreground font-normal">
+                {product.variations?.length || 0} variation
+                {(product.variations?.length || 0) === 1 ? "" : "s"}
+              </span>
+            )}
           </TableCell>
           <TableCell className="text-right">
             {product.category === "sellable" ? (

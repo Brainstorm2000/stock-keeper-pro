@@ -44,6 +44,12 @@ export interface Product {
     id: string;
     name: string;
   };
+  variations?: Array<{
+    id: string;
+    current_stock: number;
+    cost_price: number;
+    selling_price: number;
+  }>;
 }
 
 export interface ProductInput {
@@ -148,7 +154,35 @@ export function useProducts() {
         .order('name');
 
       if (error) throw error;
-      return data as Product[];
+      const products = data as Product[];
+
+      // Attach variations for variable products
+      const variableIds = products
+        .filter((p) => p.item_type === 'variable')
+        .map((p) => p.id);
+      if (variableIds.length > 0) {
+        const { data: vars } = await supabase
+          .from('product_variations' as never)
+          .select('id, product_id, current_stock, cost_price, selling_price')
+          .in('product_id', variableIds);
+        const byProduct = new Map<string, Product['variations']>();
+        ((vars as unknown as Array<{ id: string; product_id: string; current_stock: number; cost_price: number; selling_price: number }>) || []).forEach((v) => {
+          const arr = byProduct.get(v.product_id) || [];
+          arr!.push({
+            id: v.id,
+            current_stock: Number(v.current_stock),
+            cost_price: Number(v.cost_price),
+            selling_price: Number(v.selling_price),
+          });
+          byProduct.set(v.product_id, arr);
+        });
+        products.forEach((p) => {
+          if (p.item_type === 'variable') {
+            p.variations = byProduct.get(p.id) || [];
+          }
+        });
+      }
+      return products;
     },
   });
 }
