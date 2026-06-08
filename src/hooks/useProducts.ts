@@ -165,10 +165,11 @@ export function useProducts() {
           .from('product_variations' as never)
           .select('id, product_id, current_stock, cost_price, selling_price')
           .in('product_id', variableIds);
-        const byProduct = new Map<string, Product['variations']>();
+        type VarRow = NonNullable<Product['variations']>[number];
+        const byProduct = new Map<string, VarRow[]>();
         ((vars as unknown as Array<{ id: string; product_id: string; current_stock: number; cost_price: number; selling_price: number }>) || []).forEach((v) => {
           const arr = byProduct.get(v.product_id) || [];
-          arr!.push({
+          arr.push({
             id: v.id,
             current_stock: Number(v.current_stock),
             cost_price: Number(v.cost_price),
