@@ -1,4 +1,6 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { ProfileSettingsDialog } from '@/components/profile/ProfileSettingsDialog';
@@ -14,6 +16,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [orgSettingsDialogOpen, setOrgSettingsDialogOpen] = useState(false);
+  const { user, loading, hasCompletedOnboarding, isOrgDisabled } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user || isOrgDisabled) {
+      navigate('/auth', { replace: true });
+    } else if (hasCompletedOnboarding === false) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [user, loading, hasCompletedOnboarding, isOrgDisabled, navigate]);
+
+  if (loading || !user) return null;
 
   return (
     <SidebarProvider>
