@@ -2868,6 +2868,7 @@ export type Database = {
       get_org_user_names: {
         Args: { _user_ids: string[] }
         Returns: {
+          email: string
           full_name: string
           user_id: string
         }[]
