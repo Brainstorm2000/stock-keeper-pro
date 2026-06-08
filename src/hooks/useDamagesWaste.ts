@@ -37,8 +37,8 @@ async function fetchProfiles(userIds: string[]) {
   const { data: profiles } = await supabase
     .rpc('get_org_user_names', { _user_ids: userIds });
   if (!profiles) return {};
-  return (profiles as Array<{ user_id: string; full_name: string | null }>).reduce((acc, p) => {
-    acc[p.user_id] = { full_name: p.full_name, email: null };
+  return (profiles as Array<{ user_id: string; full_name: string | null; email: string | null }>).reduce((acc, p) => {
+    acc[p.user_id] = { full_name: p.full_name, email: p.email };
     return acc;
   }, {} as Record<string, { full_name: string | null; email: string | null }>);
 }
