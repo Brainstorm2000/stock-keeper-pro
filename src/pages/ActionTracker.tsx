@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ModuleAccessGuard, useModuleAccess } from '@/components/access/ModuleAccessGuard';
-import { useActionTasks, useUpdateActionTask, useDeleteActionTask, type ActionTask } from '@/hooks/useActionTasks';
+import { useActionTasks, useDeleteActionTask, type ActionTask } from '@/hooks/useActionTasks';
 import { TaskDialog } from '@/components/tasks/TaskDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -31,13 +31,13 @@ function ActionTrackerContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ActionTask | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [removingTaskIds, setRemovingTaskIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [commentsTask, setCommentsTask] = useState<{ id: string; title: string } | null>(null);
 
   const { data: tasks = [], isLoading } = useActionTasks();
-  const updateTask = useUpdateActionTask();
   const deleteTask = useDeleteActionTask();
   const { canCreate, canDelete } = useModuleAccess('tasks' as any);
 
@@ -55,11 +55,14 @@ function ActionTrackerContent() {
   const handleDialogClose = (open: boolean) => { setDialogOpen(open); if (!open) setEditingTask(null); };
 
   const handleMarkComplete = async (task: ActionTask) => {
-    await updateTask.mutateAsync({
-      id: task.id,
-      status: task.status === 'completed' ? 'pending' : 'completed',
-      completion_date: task.status === 'completed' ? null : new Date().toISOString(),
-    });
+    setRemovingTaskIds((prev) => [...prev, task.id]);
+    window.setTimeout(async () => {
+      try {
+        await deleteTask.mutateAsync(task.id);
+      } finally {
+        setRemovingTaskIds((prev) => prev.filter((id) => id !== task.id));
+      }
+    }, 2400);
   };
 
   return (
@@ -141,7 +144,14 @@ function ActionTrackerContent() {
                 {filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No tasks found</TableCell></TableRow>
                 ) : paginatedTasks.map(t => (
-                  <TableRow key={t.id}>
+                  <TableRow
+                    key={t.id}
+                    className={
+                      removingTaskIds.includes(t.id)
+                        ? 'transition-opacity duration-200 opacity-0'
+                        : 'transition-opacity duration-200 opacity-100'
+                    }
+                  >
                     <TableCell className="font-medium max-w-[200px] truncate">{t.title}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -169,7 +179,7 @@ function ActionTrackerContent() {
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => handleMarkComplete(t)}>
-                          {t.status === 'completed' ? 'Reopen' : 'Complete'}
+                          Complete
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => setCommentsTask({ id: t.id, title: t.title })}>
                           <MessageSquare className="h-3 w-3 mr-1" />Comments
