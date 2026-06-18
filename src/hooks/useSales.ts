@@ -340,6 +340,7 @@ export function useUpdateSale() {
         const saleItems = items.map(item => ({
           sale_id: saleId,
           product_id: item.product_id,
+          variation_id: item.variation_id || null,
           quantity: item.quantity,
           unit_price: item.unit_price,
           cost_price: item.cost_price,

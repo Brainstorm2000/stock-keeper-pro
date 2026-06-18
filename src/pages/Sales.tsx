@@ -67,6 +67,7 @@ import {
   type PaymentMethod,
   type SaleStatus,
 } from "@/hooks/useSales";
+import { useSaleReturns } from '@/hooks/useSaleReturns';
 import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
 import { SaleReturnDialog } from "@/components/sales/SaleReturnDialog";
 import { format } from "date-fns";
@@ -126,6 +127,7 @@ export default function Sales() {
   const { canEdit: canReturnEdit } = useModuleAccess("returns");
   const { data: sales = [], isLoading: salesLoading } = useSales();
   const { data: branches = [] } = useBranches();
+  const { data: saleReturns = [] } = useSaleReturns();
   const { data: organization } = useOrganization();
   const { data: selectedSale } = useSaleWithItems(selectedSaleId);
   const { data: receiptSale } = useSaleWithItems(receiptSaleId);
@@ -194,11 +196,38 @@ export default function Sales() {
     (sum, s) => sum + Number(s.total_amount),
     0,
   );
-  const completedSales = filteredSales.filter((s) => s.status === "completed");
-  const totalRevenue = completedSales.reduce(
-    (sum, s) => sum + Number(s.total_amount),
-    0,
+  // Map of return totals by sale id for quick lookup
+  const returnsBySaleId: Record<string, number> = (saleReturns || []).reduce(
+    (acc, r) => {
+      acc[r.sale_id] = (acc[r.sale_id] || 0) + Number(r.total_amount || 0);
+      return acc;
+    },
+    {} as Record<string, number>,
   );
+
+  // Adjust total sales value by subtracting returns for each sale
+  const adjustedTotalSales = filteredSales.reduce((sum, s) => {
+    const returns = Number(returnsBySaleId[s.id] || 0);
+    const adjusted = Math.max(0, Number(s.total_amount || 0) - returns);
+    return sum + adjusted;
+  }, 0);
+  // Revenue: sum of collected amounts (total_amount minus outstanding balance)
+  // Exclude cancelled sales. Then subtract any returned amounts associated
+  // with the filtered sales so returns reduce revenue.
+  const collectedRevenue = filteredSales.reduce((sum, s) => {
+    if (s.status === "cancelled") return sum;
+    const total = Number(s.total_amount || 0);
+    const outstanding = Number((s as any).balance_due || 0);
+    return sum + Math.max(0, total - outstanding);
+  }, 0);
+
+  const totalReturnsForFilteredSales = (saleReturns || []).reduce((sum, r) => {
+    // Only count returns that belong to sales in the current filtered set
+    const belongs = filteredSales.some((s) => s.id === r.sale_id);
+    return sum + (belongs ? Number(r.total_amount || 0) : 0);
+  }, 0);
+
+  const totalRevenue = Math.max(0, collectedRevenue - totalReturnsForFilteredSales);
 
   const handleOpenEdit = (sale: Sale) => {
     setEditData({
@@ -285,7 +314,7 @@ export default function Sales() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(totalSales)}
+                  {formatCurrency(adjustedTotalSales)}
                 </div>
               </CardContent>
             </Card>
@@ -432,7 +461,9 @@ export default function Sales() {
                         )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(Number(sale.total_amount))}
+                        {formatCurrency(
+                          Math.max(0, Number(sale.total_amount || 0) - Number(returnsBySaleId[sale.id] || 0)),
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -456,8 +487,8 @@ export default function Sales() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              title="Edit Sale"
-                              onClick={() => handleOpenEdit(sale)}
+                              title="Edit in POS"
+                              onClick={() => navigate(`/pos?editSaleId=${sale.id}`)}
                             >
                               <Edit2 className="h-4 w-4" />
                             </Button>
@@ -722,6 +753,18 @@ export default function Sales() {
                 onClick={() => setEditDialogOpen(false)}
               >
                 Cancel
+              </Button>
+              <Button
+                variant="secondary"
+                className="mr-auto"
+                onClick={() => {
+                  if (selectedSaleId) {
+                    navigate(`/pos?editSaleId=${selectedSaleId}`);
+                  }
+                }}
+                disabled={!selectedSaleId}
+              >
+                Edit in POS
               </Button>
               <Button onClick={handleSaveEdit} disabled={updateSale.isPending}>
                 {updateSale.isPending ? (

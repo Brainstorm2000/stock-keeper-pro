@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ShoppingCart,
   Search,
@@ -55,6 +55,7 @@ import { useAuth } from "@/lib/auth";
 import {
   useCreateSale,
   useSaleWithItems,
+  useUpdateSale,
   useHeldOrders,
   useCreateHeldOrder,
   useDeleteHeldOrder,
@@ -124,7 +125,11 @@ export default function POS() {
   const { data: customers = [] } = useCustomers();
   const { data: heldOrders = [] } = useHeldOrders();
   const { data: lastSale } = useSaleWithItems(lastSaleId);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const editSaleId = searchParams.get("editSaleId");
+  const { data: editSale } = useSaleWithItems(editSaleId);
   const createSale = useCreateSale();
+  const updateSale = useUpdateSale();
   const createHeldOrder = useCreateHeldOrder();
   const deleteHeldOrder = useDeleteHeldOrder();
   const { toast } = useToast();
@@ -136,7 +141,57 @@ export default function POS() {
     return map;
   }, [products]);
 
-  const resolveTransactionBranch = ():
+  useEffect(() => {
+    if (!editSale) return;
+
+    const mappedCart = (editSale.sale_items || []).map((item) => {
+      const product = products.find((p) => p.id === item.product_id);
+      const itemType = (product?.item_type as CartItem['item_type']) || 'product';
+      const maxQuantity = product ? Number(product.current_stock) : undefined;
+
+      return {
+        ...item,
+        product_name:
+          item.product_name || product?.name || 'Unknown',
+        item_type: itemType,
+        max_quantity: maxQuantity,
+      } as CartItem;
+    });
+
+    setCart(mappedCart);
+    setSelectedBranchId(editSale.branch_id || '');
+    setSelectedCustomerId(editSale.customer_id || 'none');
+    setCustomerName(editSale.customer_name || '');
+    setCustomerPhone(editSale.customer_phone || '');
+    setNotes(editSale.notes || '');
+    setPaymentMethod(editSale.payment_method);
+    setDiscountAmount(editSale.discount_amount);
+    setDiscountPercent(editSale.discount_percent);
+    const taxBase = editSale.subtotal - editSale.discount_amount;
+    setTaxRate(
+      taxBase > 0
+        ? Number(((editSale.tax_amount / taxBase) * 100).toFixed(2))
+        : 0,
+    );
+    setDueDate(editSale.due_date || '');
+    setSaleDate(editSale.created_at.split('T')[0] || new Date().toISOString().split('T')[0]);
+
+    if (editSale.payment_status === 'partial') {
+      setPaymentType('partial');
+      setAmountPaid(Number(editSale.amount_paid || 0));
+    } else if (editSale.payment_status === 'outstanding') {
+      setPaymentType('credit');
+      setAmountPaid(0);
+    } else {
+      setPaymentType('full');
+      setAmountPaid(Number(editSale.total_amount));
+    }
+
+    setUseSplitPayment(false);
+    setPaymentSplits([]);
+  }, [editSale, products]);
+
+  const resolveTransactionBranch = (): 
     | { ok: true; branchId?: string }
     | { ok: false; message: string } => {
     // If the org has no branches configured, keep the transaction unassigned.
@@ -494,7 +549,7 @@ export default function POS() {
       }
     }
 
-    const result = await createSale.mutateAsync({
+    const salePayload = {
       organization_id: organization.id,
       branch_id: branchResult.branchId,
       customer_id:
@@ -519,9 +574,37 @@ export default function POS() {
       items: cart.map(
         ({ max_quantity, item_type, product_name, ...item }) => item,
       ),
-    });
+    };
 
-    setLastSaleId(result.id);
+    let result;
+    if (editSaleId) {
+      result = await updateSale.mutateAsync({
+        saleId: editSaleId,
+        updates: {
+          branch_id: salePayload.branch_id,
+          customer_id: salePayload.customer_id ?? null,
+          customer_name: salePayload.customer_name ?? null,
+          customer_phone: salePayload.customer_phone ?? null,
+          subtotal: salePayload.subtotal,
+          discount_amount: salePayload.discount_amount,
+          discount_percent: salePayload.discount_percent,
+          tax_amount: salePayload.tax_amount,
+          total_amount: salePayload.total_amount,
+          amount_paid: salePayload.amount_paid,
+          balance_due: salePayload.balance_due,
+          payment_status: salePayload.payment_status,
+          due_date: salePayload.due_date ?? null,
+          payment_method: salePayload.payment_method,
+          notes: salePayload.notes ?? null,
+        },
+        items: salePayload.items,
+      });
+      setSearchParams({});
+    } else {
+      result = await createSale.mutateAsync(salePayload);
+    }
+
+    setLastSaleId(result.saleId ?? result.id ?? editSaleId);
     setCheckoutDialogOpen(false);
     setSplitPaymentDialogOpen(false);
     setReceiptDialogOpen(true);

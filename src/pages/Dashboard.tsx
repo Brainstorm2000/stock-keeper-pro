@@ -66,6 +66,7 @@ import {
 import { useBranches, useMyBranchAssignments } from "@/hooks/useBranches";
 import { useSales } from "@/hooks/useSales";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useOutstandingSales } from "@/hooks/useDebts";
 import { useAuth } from "@/lib/auth";
 
 export default function Dashboard() {
@@ -96,6 +97,7 @@ export default function Dashboard() {
   const { data: myBranchAssignments = [] } = useMyBranchAssignments();
   const { data: sales = [] } = useSales();
   const { data: expenses = [] } = useExpenses();
+  const { data: outstandingSales = [] } = useOutstandingSales();
   const deleteProduct = useDeleteProduct();
 
   const filteredProducts =
@@ -119,6 +121,10 @@ export default function Dashboard() {
     selectedBranchId === "all"
       ? expenses
       : expenses.filter((e) => e.branch_id === selectedBranchId);
+  const filteredOutstandingSales =
+    selectedBranchId === "all"
+      ? outstandingSales
+      : outstandingSales.filter((s: any) => s.branch_id === selectedBranchId);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -250,6 +256,7 @@ export default function Dashboard() {
             products={filteredProducts}
             sales={filteredSales}
             expenses={filteredExpenses}
+            outstandingSales={filteredOutstandingSales}
             hasBranchAccess={isSuperAdmin || myBranchAssignments.length > 0}
           />
         </div>

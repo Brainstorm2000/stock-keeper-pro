@@ -8,6 +8,7 @@ interface StatsCardsProps {
   products: Product[];
   sales?: Sale[];
   expenses?: Expense[];
+  outstandingSales?: any[];
   hasBranchAccess?: boolean;
 }
 
@@ -29,7 +30,7 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-export function StatsCards({ products, sales = [], expenses = [], hasBranchAccess = true }: StatsCardsProps) {
+export function StatsCards({ products, sales = [], expenses = [], outstandingSales = [], hasBranchAccess = true }: StatsCardsProps) {
   // Separate sellables and consumables
   const sellableProducts = products.filter(p => p.category === 'sellable');
   const consumableProducts = products.filter(p => p.category === 'consumable');
@@ -49,6 +50,9 @@ export function StatsCards({ products, sales = [], expenses = [], hasBranchAcces
   const totalRevenue = completedSales.reduce((sum, s) => sum + Number(s.total_amount), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
   
+  // Calculate total outstanding debts
+  const totalOutstanding = outstandingSales.reduce((sum, s) => sum + Number(s.balance_due || 0), 0);
+  
   // Calculate Cost of Goods Sold (COGS) from sale items
   const costOfGoodsSold = completedSales.reduce((sum, sale) => {
     const saleItems = (sale as any).sale_items || [];
@@ -58,8 +62,8 @@ export function StatsCards({ products, sales = [], expenses = [], hasBranchAcces
     return sum + saleCogs;
   }, 0);
   
-  // Net Profit = Revenue - COGS - Expenses
-  const netProfit = totalRevenue - costOfGoodsSold - totalExpenses;
+  // Net Profit = Revenue - COGS - Expenses - Outstanding Debts
+  const netProfit = totalRevenue - costOfGoodsSold - totalExpenses - totalOutstanding;
   const isProfit = netProfit >= 0;
 
   return (
@@ -107,7 +111,7 @@ export function StatsCards({ products, sales = [], expenses = [], hasBranchAcces
                     <p className={`text-2xl font-bold mt-1 ${isProfit ? 'text-stock-normal' : 'text-destructive'}`}>
                       {formatCurrency(Math.abs(netProfit))}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">Revenue - COGS - Expenses</p>
+                    <p className="text-xs text-muted-foreground mt-1">Revenue - COGS - Expenses - Outstanding</p>
                   </div>
                   <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isProfit ? 'bg-stock-normal/10' : 'bg-destructive/10'}`}>
                     {isProfit ? (

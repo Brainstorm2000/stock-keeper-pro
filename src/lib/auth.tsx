@@ -1,8 +1,14 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
-type AppRole = 'admin' | 'user' | 'super_admin' | 'super_super_admin';
+type AppRole = "admin" | "user" | "super_admin" | "super_super_admin";
 
 interface AuthContextType {
   user: User | null;
@@ -29,34 +35,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [isOrgDisabled, setIsOrgDisabled] = useState(false);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<
+    boolean | null
+  >(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserProfile = async (userId: string) => {
     try {
       // First check if user has super_super_admin role (no org needed)
       const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
         .single();
 
-      if (!roleError && roleData?.role === 'super_super_admin') {
+      if (!roleError && roleData?.role === "super_super_admin") {
         setOrganizationId(null);
         setHasCompletedOnboarding(true);
         setIsOrgDisabled(false);
-        return 'super_super_admin' as AppRole;
+        return "super_super_admin" as AppRole;
       }
 
       // Fetch profile to check if onboarding is complete
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('organization_id')
-        .eq('user_id', userId)
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", userId)
         .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', profileError);
+      if (profileError && profileError.code !== "PGRST116") {
+        console.error("Error fetching profile:", profileError);
       }
 
       const orgId = profile?.organization_id || null;
@@ -66,11 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Check if organization is active
       if (orgId) {
         const { data: org } = await supabase
-          .from('organizations')
-          .select('is_active')
-          .eq('id', orgId)
+          .from("organizations")
+          .select("is_active")
+          .eq("id", orgId)
           .single();
-        
+
         setIsOrgDisabled(org?.is_active === false);
       } else {
         setIsOrgDisabled(false);
@@ -78,11 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch role
       if (orgId) {
-        return roleData?.role as AppRole || null;
+        return (roleData?.role as AppRole) || null;
       }
       return null;
     } catch (err) {
-      console.error('Error in fetchUserProfile:', err);
+      console.error("Error in fetchUserProfile:", err);
       return null;
     }
   };
@@ -96,36 +104,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Defer profile/role fetching with setTimeout
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserProfile(session.user.id).then(setRole);
-          }, 0);
-        } else {
-          setRole(null);
-          setOrganizationId(null);
-          setHasCompletedOnboarding(null);
-          setIsOrgDisabled(false);
-        }
-        
-        setLoading(false);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      // Defer profile/role fetching with setTimeout
+      if (session?.user) {
+        setTimeout(() => {
+          fetchUserProfile(session.user.id).then(setRole);
+        }, 0);
+      } else {
+        setRole(null);
+        setOrganizationId(null);
+        setHasCompletedOnboarding(null);
+        setIsOrgDisabled(false);
       }
-    );
+
+      setLoading(false);
+    });
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         fetchUserProfile(session.user.id).then(setRole);
       }
-      
+
       setLoading(false);
     });
 
@@ -134,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/onboarding`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -155,13 +163,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error && data.user) {
       // Enforce is_active flag client-side (no server-side auth ban available).
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_active')
-        .eq('user_id', data.user.id)
+        .from("profiles")
+        .select("is_active")
+        .eq("user_id", data.user.id)
         .maybeSingle();
       if (profile && profile.is_active === false) {
         await supabase.auth.signOut();
-        return { error: new Error('This account has been deactivated. Please contact your administrator.') };
+        return {
+          error: new Error(
+            "This account has been deactivated. Please contact your administrator if you believe this is an error.",
+          ),
+        };
       }
     }
 
@@ -185,9 +197,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     organizationId,
     isOrgDisabled,
     hasCompletedOnboarding,
-    isAdmin: role === 'admin' || role === 'super_admin' || role === 'super_super_admin',
-    isSuperAdmin: role === 'super_admin' || role === 'super_super_admin',
-    isSuperSuperAdmin: role === 'super_super_admin',
+    isAdmin:
+      role === "admin" ||
+      role === "super_admin" ||
+      role === "super_super_admin",
+    isSuperAdmin: role === "super_admin" || role === "super_super_admin",
+    isSuperSuperAdmin: role === "super_super_admin",
     loading,
     signUp,
     signIn,
@@ -201,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
