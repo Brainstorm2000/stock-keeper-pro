@@ -7,6 +7,7 @@ import {
   Smartphone,
   Building,
   Clock,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,7 @@ const paymentMethodLabels: Record<
     icon: <Building className="h-4 w-4" />,
   },
   credit: { label: "Credit", icon: <Clock className="h-4 w-4" /> },
+  pos: { label: "POS", icon: <ShoppingCart className="h-4 w-4" /> },
 };
 
 export function SplitPaymentDialog({

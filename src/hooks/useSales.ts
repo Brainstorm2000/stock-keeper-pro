@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 
-export type PaymentMethod = 'cash' | 'card' | 'mobile_money' | 'bank_transfer' | 'credit';
+export type PaymentMethod = 'cash' | 'card' | 'mobile_money' | 'bank_transfer' | 'credit' | 'pos';
 export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'on_hold';
 
 export interface SaleItem {

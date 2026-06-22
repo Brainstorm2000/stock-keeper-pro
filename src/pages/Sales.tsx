@@ -94,6 +94,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
   mobile_money: "Mobile Money",
   bank_transfer: "Bank Transfer",
   credit: "Credit",
+  pos: "POS",
 };
 
 export default function Sales() {
@@ -152,8 +153,12 @@ export default function Sales() {
           sale.customer_name.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesStatus =
         filterStatus === "all" || sale.status === filterStatus;
+      const paymentMethods =
+        Array.isArray(sale.payment_details) && sale.payment_details.length > 0
+          ? sale.payment_details.map((pd) => pd.method)
+          : [sale.payment_method];
       const matchesPayment =
-        filterPayment === "all" || sale.payment_method === filterPayment;
+        filterPayment === "all" || paymentMethods.includes(filterPayment);
       const matchesBranch =
         filterBranch === "all" || sale.branch_id === filterBranch;
 
@@ -180,6 +185,15 @@ export default function Sales() {
     startDate,
     endDate,
   ]);
+
+  const getPaymentDisplay = (sale: any) => {
+    if (Array.isArray(sale.payment_details) && sale.payment_details.length > 1) {
+      return sale.payment_details
+        .map((pd: any) => paymentMethodLabels[pd.method] || pd.method || "Unknown")
+        .join(" | ");
+    }
+    return paymentMethodLabels[sale.payment_method] || sale.payment_method || "Unknown";
+  };
 
   const {
     paginatedItems: paginatedSales,
@@ -446,7 +460,7 @@ export default function Sales() {
                       <TableCell>{sale.customer_name || "Walk-in"}</TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {paymentMethodLabels[sale.payment_method]}
+                          {getPaymentDisplay(sale)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -560,7 +574,7 @@ export default function Sales() {
                   <div>
                     <p className="text-muted-foreground">Payment</p>
                     <p className="font-medium">
-                      {paymentMethodLabels[selectedSale.payment_method]}
+                      {getPaymentDisplay(selectedSale)}
                     </p>
                   </div>
                   <div>

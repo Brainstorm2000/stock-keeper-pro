@@ -52,9 +52,16 @@ export function SalesReportTab({ sales, saleItems, dateRange, branches, selected
   // Payment method breakdown
   const paymentBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
-    filteredSales.forEach(s => {
-      const method = s.payment_method || 'cash';
-      map[method] = (map[method] || 0) + Number(s.total_amount || 0);
+    filteredSales.forEach((s) => {
+      if (Array.isArray(s.payment_details) && s.payment_details.length > 0) {
+        s.payment_details.forEach((pd: any) => {
+          const method = pd.method || s.payment_method || 'cash';
+          map[method] = (map[method] || 0) + Number(pd.amount || 0);
+        });
+      } else {
+        const method = s.payment_method || 'cash';
+        map[method] = (map[method] || 0) + Number(s.total_amount || 0);
+      }
     });
     return Object.entries(map).map(([name, value]) => ({ name: name.replace('_', ' '), value }));
   }, [filteredSales]);

@@ -281,51 +281,29 @@ export default function POS() {
       setVariationPickerProduct(product);
       return;
     }
-    const existingIndex = cart.findIndex(
-      (item) => item.product_id === product.id,
-    );
+
+    // Only track max_quantity for new sales; ignore stock limits when editing
     const maxQty =
-      productType === "service" ? Infinity : Number(product.current_stock);
+      editSaleId || productType === "service" ? Infinity : Number(product.current_stock);
 
-    if (existingIndex > -1) {
-      const newCart = [...cart];
-      // Allow exceeding stock with warning - don't block
-      newCart[existingIndex].quantity += 1;
-      newCart[existingIndex].total_price =
-        newCart[existingIndex].quantity * newCart[existingIndex].unit_price -
-        newCart[existingIndex].discount_amount;
-      setCart(newCart);
+    const sellingPrice = Number((product as any).selling_price) || 0;
+    const costPrice = Number((product as any).cost_price) || 0;
 
-      // Show warning if exceeding stock
-      if (
-        productType === "product" &&
-        newCart[existingIndex].quantity > maxQty
-      ) {
-        toast({
-          title: "Stock warning",
-          description: `${product.name} exceeds available stock (${maxQty} available)`,
-          variant: "destructive",
-        });
-      }
-    } else {
-      const sellingPrice = Number((product as any).selling_price) || 0;
-      const costPrice = Number((product as any).cost_price) || 0;
-
-      setCart([
-        ...cart,
-        {
-          product_id: product.id,
-          product_name: product.name,
-          quantity: 1,
-          unit_price: sellingPrice,
-          cost_price: costPrice,
-          discount_amount: 0,
-          total_price: sellingPrice,
-          max_quantity: maxQty,
-          item_type: productType,
-        },
-      ]);
-    }
+    // Always add as a new line item (allows capturing same item multiple times)
+    setCart([
+      ...cart,
+      {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+        unit_price: sellingPrice,
+        cost_price: costPrice,
+        discount_amount: 0,
+        total_price: sellingPrice,
+        max_quantity: maxQty,
+        item_type: productType,
+      },
+    ]);
   };
 
   const addVariationToCart = (variation: ProductVariation) => {
@@ -683,6 +661,8 @@ export default function POS() {
     },
     { value: "credit", label: "Credit", icon: <Clock className="h-4 w-4" /> },
   ];
+  // Add POS as an explicit payment method option
+  paymentMethods.unshift({ value: "pos", label: "POS", icon: <ShoppingCart className="h-4 w-4" /> });
 
   if (authLoading) {
     return (
@@ -1205,8 +1185,8 @@ export default function POS() {
                 />
               </div>
 
-              {/* Stock Warning */}
-              {hasStockWarning && (
+              {/* Stock Warning - only show for new sales */}
+              {!editSaleId && hasStockWarning && (
                 <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <span>
@@ -1233,7 +1213,7 @@ export default function POS() {
               </Button>
               <Button
                 onClick={handleCheckout}
-                disabled={createSale.isPending}
+                disabled={createSale.isPending || (!editSaleId && hasStockWarning)}
                 className="bg-[#FF9E3D] hover:bg-[#e68a2e] text-black border-none shadow-md transition-all active:scale-95"
               >
                 {createSale.isPending ? (

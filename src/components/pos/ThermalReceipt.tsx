@@ -19,6 +19,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
       mobile_money: "MOBILE MONEY",
       bank_transfer: "TRANSFER",
       credit: "CREDIT",
+      pos: "POS",
     };
 
     const paymentDetails = sale.payment_details as PaymentDetail[] | undefined;
