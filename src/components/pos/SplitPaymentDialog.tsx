@@ -202,15 +202,15 @@ export function SplitPaymentDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            OK
           </Button>
-          <Button
+          {/* <Button
             onClick={onConfirm}
             disabled={!isBalanced || payments.length === 0 || isLoading}
             className="bg-[#FF9E3D] hover:bg-[#e68a2e] text-black shadow-md active:scale-95"
           >
             {isLoading ? "Processing..." : "Confirm Payment"}
-          </Button>
+          </Button> */}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -58,7 +58,7 @@ function getChangeIcon(changeType: string) {
     case "sale":
     case "damage":
     case "waste":
-      return <ArrowDown className="h-4 w-4 text-destructive" />;
+      return <ArrowDown className="h-4 w-4" />;
     case "adjustment":
       return <RefreshCw className="h-4 w-4 text-stock-low" />;
     default:

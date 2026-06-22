@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -51,6 +51,7 @@ import { StockForecastChart } from "@/components/dashboard/StockForecastChart";
 import { ProductTable } from "@/components/products/ProductTable";
 import { ProductDialog } from "@/components/products/ProductDialog";
 import { UnitsDialog } from "@/components/units/UnitsDialog";
+import { getStockStatus } from "@/components/products/StatusBadge";
 import { BranchesDialog } from "@/components/branches/BranchesDialog";
 import { UsersManagementDialog } from "@/components/users/UsersManagementDialog";
 import { CustomersDialog } from "@/components/customers/CustomersDialog";
@@ -88,6 +89,13 @@ export default function Dashboard() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [productStatusFilter, setProductStatusFilter] = useState<
+    "all" | "normal" | "low" | "out"
+  >("all");
+  const [productCategoryTab, setProductCategoryTab] = useState<
+    "all" | "sellable" | "consumable"
+  >("all");
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -100,10 +108,61 @@ export default function Dashboard() {
   const { data: outstandingSales = [] } = useOutstandingSales();
   const deleteProduct = useDeleteProduct();
 
-  const filteredProducts =
-    selectedBranchId === "all"
-      ? products
-      : products.filter((p) => p.branch_id === selectedBranchId);
+  const branchFilteredProducts = useMemo(
+    () =>
+      selectedBranchId === "all"
+        ? products
+        : products.filter((p) => p.branch_id === selectedBranchId),
+    [products, selectedBranchId],
+  );
+
+  const filteredBySearchAndStatus = useMemo(() => {
+    const query = productSearchQuery.trim().toLowerCase();
+
+    return branchFilteredProducts.filter((product) => {
+      const matchesSearch =
+        !query ||
+        product.name.toLowerCase().includes(query) ||
+        product.sku?.toLowerCase().includes(query);
+
+      if (!matchesSearch) return false;
+
+      if (productStatusFilter !== "all") {
+        const status = getStockStatus(
+          Number(product.current_stock),
+          Number(product.low_stock_threshold),
+          Number(product.out_of_stock_threshold),
+          product.item_type,
+        );
+        return status === productStatusFilter;
+      }
+
+      return true;
+    });
+  }, [branchFilteredProducts, productSearchQuery, productStatusFilter]);
+
+  const categoryCounts = useMemo(
+    () => ({
+      all: filteredBySearchAndStatus.length,
+      sellable: filteredBySearchAndStatus.filter(
+        (p) => p.category === "sellable",
+      ).length,
+      consumable: filteredBySearchAndStatus.filter(
+        (p) => p.category === "consumable",
+      ).length,
+    }),
+    [filteredBySearchAndStatus],
+  );
+
+  const filteredProducts = useMemo(
+    () =>
+      productCategoryTab === "all"
+        ? filteredBySearchAndStatus
+        : filteredBySearchAndStatus.filter(
+            (p) => p.category === productCategoryTab,
+          ),
+    [filteredBySearchAndStatus, productCategoryTab],
+  );
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -111,6 +170,27 @@ export default function Dashboard() {
   const paginatedProducts = filteredProducts.slice(
     indexOfFirstItem,
     indexOfLastItem,
+  );
+
+  const filteredSellableStockValue = useMemo(
+    () =>
+      filteredBySearchAndStatus
+        .filter((p) => p.category === "sellable")
+        .reduce((sum, product) => {
+          if (product.item_type === "variable" && product.variations?.length) {
+            return (
+              sum +
+              product.variations.reduce(
+                (inner, variation) =>
+                  inner +
+                  Number(variation.current_stock) * Number(variation.selling_price),
+                0,
+              )
+            );
+          }
+          return sum + Number(product.current_stock) * Number(product.selling_price);
+        }, 0),
+    [filteredBySearchAndStatus],
   );
 
   const filteredSales =
@@ -128,7 +208,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedBranchId]);
+  }, [selectedBranchId, productSearchQuery, productStatusFilter, productCategoryTab]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -295,6 +375,16 @@ export default function Dashboard() {
                 onDelete={handleDelete}
                 isLoading={productsLoading}
                 showBranch={branches.length > 0}
+                searchQuery={productSearchQuery}
+                onSearchQueryChange={setProductSearchQuery}
+                statusFilter={productStatusFilter}
+                onStatusFilterChange={setProductStatusFilter}
+                categoryTab={productCategoryTab}
+                onCategoryTabChange={setProductCategoryTab}
+                totalCount={categoryCounts.all}
+                sellableCount={categoryCounts.sellable}
+                consumableCount={categoryCounts.consumable}
+                totalSellableStockValue={filteredSellableStockValue}
               />
 
               {/* --- Responsive Pagination Controls --- */}

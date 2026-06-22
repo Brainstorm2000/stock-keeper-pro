@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   MoreHorizontal,
@@ -56,6 +56,18 @@ interface ProductTableProps {
   onDelete: (id: string) => void;
   isLoading?: boolean;
   showBranch?: boolean;
+  searchQuery?: string;
+  onSearchQueryChange?: (value: string) => void;
+  statusFilter?: "all" | "normal" | "low" | "out";
+  onStatusFilterChange?: (value: "all" | "normal" | "low" | "out") => void;
+  categoryTab?: "all" | "sellable" | "consumable";
+  onCategoryTabChange?: (value: "all" | "sellable" | "consumable") => void;
+  categoryCounts?: {
+    all: number;
+    sellable: number;
+    consumable: number;
+  };
+  totalSellableStockValue?: number;
 }
 
 export function ProductTable({
@@ -64,12 +76,20 @@ export function ProductTable({
   onDelete,
   isLoading,
   showBranch,
+  searchQuery,
+  onSearchQueryChange,
+  statusFilter,
+  onStatusFilterChange,
+  categoryTab,
+  onCategoryTabChange,
+  categoryCounts,
+  totalSellableStockValue,
 }: ProductTableProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
+  const [internalSearchQuery, setInternalSearchQuery] = useState("");
+  const [internalStatusFilter, setInternalStatusFilter] = useState<
     "all" | "normal" | "low" | "out"
   >("all");
-  const [categoryTab, setCategoryTab] = useState<
+  const [internalCategoryTab, setInternalCategoryTab] = useState<
     "all" | "sellable" | "consumable"
   >("all");
   const [stockUpdateProduct, setStockUpdateProduct] = useState<Product | null>(
@@ -89,29 +109,47 @@ export function ProductTable({
   const { data: suppliersAll = [] } = useSuppliers();
   const { data: brandsAll = [] } = useBrands();
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+  const effectiveSearchQuery =
+    searchQuery !== undefined ? searchQuery : internalSearchQuery;
+  const effectiveStatusFilter =
+    statusFilter !== undefined ? statusFilter : internalStatusFilter;
+  const effectiveCategoryTab =
+    categoryTab !== undefined ? categoryTab : internalCategoryTab;
 
-    if (!matchesSearch) return false;
+  const isControlled =
+    onSearchQueryChange !== undefined ||
+    onStatusFilterChange !== undefined ||
+    onCategoryTabChange !== undefined;
 
-    // Category filter
-    if (categoryTab !== "all" && product.category !== categoryTab) return false;
+  const filteredProducts = useMemo(() => {
+    if (isControlled) return products;
 
-    if (statusFilter === "all") return true;
+    return products.filter((product) => {
+      const matchesSearch =
+        product.name.toLowerCase().includes(effectiveSearchQuery.toLowerCase()) ||
+        product.sku?.toLowerCase().includes(effectiveSearchQuery.toLowerCase());
 
-    const status = getStockStatus(
-      Number(product.current_stock),
-      Number(product.low_stock_threshold),
-      Number(product.out_of_stock_threshold),
-      product.item_type,
-    );
+      if (!matchesSearch) return false;
 
-    return status === statusFilter;
-  });
+      // Category filter
+      if (effectiveCategoryTab !== "all" && product.category !== effectiveCategoryTab)
+        return false;
 
-  const visibleSelectableIds = filteredProducts.map((p) => p.id);
+      if (effectiveStatusFilter === "all") return true;
+
+      const status = getStockStatus(
+        Number(product.current_stock),
+        Number(product.low_stock_threshold),
+        Number(product.out_of_stock_threshold),
+        product.item_type,
+      );
+
+      return status === effectiveStatusFilter;
+    });
+  }, [products, isControlled, effectiveSearchQuery, effectiveStatusFilter, effectiveCategoryTab]);
+
+  const productsToRender = isControlled ? products : filteredProducts;
+  const visibleSelectableIds = productsToRender.map((p) => p.id);
   const allVisibleSelected =
     visibleSelectableIds.length > 0 &&
     visibleSelectableIds.every((id) => selectedIds.has(id));
@@ -201,10 +239,10 @@ export function ProductTable({
   const consumableProducts = filteredProducts.filter(
     (p) => p.category === "consumable",
   );
-  const totalStockValue = sellableProducts.reduce(
-    (sum, p) => sum + calculateStockValue(p),
-    0,
-  );
+  const totalStockValue =
+    totalSellableStockValue !== undefined
+      ? totalSellableStockValue
+      : sellableProducts.reduce((sum, p) => sum + calculateStockValue(p), 0);
 
   const renderProductRows = (productsToRender: Product[]) => {
     const baseCols = (isAdmin ? (showBranch ? 9 : 8) : showBranch ? 8 : 7) + (isAdmin ? 1 : 0);
@@ -373,27 +411,37 @@ export function ProductTable({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <CardTitle className="text-lg font-semibold">Products</CardTitle>
-              {categoryTab === "sellable" && sellableProducts.length > 0 && (
-                <Badge variant="outline" className="text-sm font-medium">
-                  Total Value: {formatCurrency(totalStockValue)}
-                </Badge>
-              )}
+              {effectiveCategoryTab === "sellable" &&
+                (categoryCounts?.sellable ?? sellableProducts.length) > 0 && (
+                  <Badge variant="outline" className="text-sm font-medium">
+                    Total Value: {formatCurrency(totalStockValue)}
+                  </Badge>
+                )}
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={effectiveSearchQuery}
+                  onChange={(e) =>
+                    onSearchQueryChange
+                      ? onSearchQueryChange(e.target.value)
+                      : setInternalSearchQuery(e.target.value)
+                  }
                   className="pl-9 w-full sm:w-64"
                 />
               </div>
               <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as typeof statusFilter)
-                }
+                value={effectiveStatusFilter}
+                onChange={(e) => {
+                  const next = e.target.value as typeof effectiveStatusFilter;
+                  if (onStatusFilterChange) {
+                    onStatusFilterChange(next);
+                  } else {
+                    setInternalStatusFilter(next);
+                  }
+                }}
                 className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="all">All Status</option>
@@ -432,19 +480,30 @@ export function ProductTable({
           )}
 
           <Tabs
-            value={categoryTab}
-            onValueChange={(v) => setCategoryTab(v as typeof categoryTab)}
+            value={effectiveCategoryTab}
+            onValueChange={(v) => {
+              const next = v as typeof effectiveCategoryTab;
+              if (onCategoryTabChange) {
+                onCategoryTabChange(next);
+              } else {
+                setInternalCategoryTab(next);
+              }
+            }}
             className="mb-4"
           >
             <TabsList>
-              <TabsTrigger value="all">All ({products.length})</TabsTrigger>
+              <TabsTrigger value="all">
+                All ({categoryCounts?.all ?? products.length})
+              </TabsTrigger>
               <TabsTrigger value="sellable">
                 Sellable (
-                {products.filter((p) => p.category === "sellable").length})
+                {categoryCounts?.sellable ??
+                  products.filter((p) => p.category === "sellable").length})
               </TabsTrigger>
               <TabsTrigger value="consumable">
                 Consumable (
-                {products.filter((p) => p.category === "consumable").length})
+                {categoryCounts?.consumable ??
+                  products.filter((p) => p.category === "consumable").length})
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -481,7 +540,7 @@ export function ProductTable({
                   )}
                 </TableRow>
               </TableHeader>
-              <TableBody>{renderProductRows(filteredProducts)}</TableBody>
+              <TableBody>{renderProductRows(productsToRender)}</TableBody>
             </Table>
           </div>
         </CardContent>

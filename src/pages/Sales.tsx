@@ -461,9 +461,7 @@ export default function Sales() {
                         )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(
-                          Math.max(0, Number(sale.total_amount || 0) - Number(returnsBySaleId[sale.id] || 0)),
-                        )}
+                        {formatCurrency(Number(sale.total_amount))}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">

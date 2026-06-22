@@ -56,6 +56,18 @@ export default function Debts() {
     });
   }, [allSales, search, statusFilter, startDate, endDate]);
 
+  const customerDebtSummary = useMemo(() => {
+    const totals = debtSales.reduce((acc: Record<string, number>, sale: any) => {
+      const customer = sale.customer_name || 'Walk-in';
+      acc[customer] = (acc[customer] || 0) + Number(sale.balance_due || 0);
+      return acc;
+    }, {});
+
+    return Object.entries(totals)
+      .map(([customer, amount]) => ({ customer, amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [debtSales]);
+
   const { paginatedItems: paginatedDebts, currentPage, totalPages, totalItems, pageSize, goToPage, setPageSize } = usePagination(debtSales);
 
   const totalOutstanding = debtSales.reduce((sum: number, s: any) => sum + Number(s.balance_due || 0), 0);
@@ -110,18 +122,41 @@ export default function Debts() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Outstanding Sales</CardTitle></CardHeader>
+                <CardContent><div className="text-2xl font-bold">{debtSales.length}</div></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Outstanding</CardTitle></CardHeader>
+                <CardContent><div className="text-2xl font-bold text-destructive">{formatCurrency(totalOutstanding)}</div></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Debtors</CardTitle></CardHeader>
+                <CardContent><div className="text-2xl font-bold">{totalDebtors}</div></CardContent>
+              </Card>
+            </div>
+
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Outstanding Sales</CardTitle></CardHeader>
-              <CardContent><div className="text-2xl font-bold">{debtSales.length}</div></CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Outstanding</CardTitle></CardHeader>
-              <CardContent><div className="text-2xl font-bold text-destructive">{formatCurrency(totalOutstanding)}</div></CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Debtors</CardTitle></CardHeader>
-              <CardContent><div className="text-2xl font-bold">{totalDebtors}</div></CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Top Debtors</CardTitle></CardHeader>
+              <CardContent>
+                {customerDebtSummary.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No debtors to show.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {customerDebtSummary.slice(0, 5).map((item, index) => (
+                      <div key={item.customer} className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">{item.customer}</p>
+                          <p className="text-xs text-muted-foreground">#{index + 1}</p>
+                        </div>
+                        <div className="text-right font-semibold">{formatCurrency(item.amount)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
             </Card>
           </div>
 
