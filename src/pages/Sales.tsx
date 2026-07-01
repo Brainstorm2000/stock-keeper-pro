@@ -158,7 +158,8 @@ export default function Sales() {
           ? sale.payment_details.map((pd) => pd.method)
           : [sale.payment_method];
       const matchesPayment =
-        filterPayment === "all" || paymentMethods.includes(filterPayment);
+        filterPayment === "all" ||
+        paymentMethods.includes(filterPayment as PaymentMethod);
       const matchesBranch =
         filterBranch === "all" || sale.branch_id === filterBranch;
 

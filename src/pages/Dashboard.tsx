@@ -381,9 +381,7 @@ export default function Dashboard() {
                 onStatusFilterChange={setProductStatusFilter}
                 categoryTab={productCategoryTab}
                 onCategoryTabChange={setProductCategoryTab}
-                totalCount={categoryCounts.all}
-                sellableCount={categoryCounts.sellable}
-                consumableCount={categoryCounts.consumable}
+                categoryCounts={categoryCounts}
                 totalSellableStockValue={filteredSellableStockValue}
               />
 

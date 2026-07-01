@@ -205,7 +205,10 @@ export function ShiftManagement() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Shift</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure? Attendance records linked to this shift won't be affected.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Are you sure? The shift will be removed even if it's referenced by attendance
+              records &mdash; those records will remain, with their shift set to "None".
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

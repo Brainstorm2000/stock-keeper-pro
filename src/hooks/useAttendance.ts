@@ -8,7 +8,7 @@ export interface Attendance {
   id: string;
   organization_id: string;
   staff_id: string;
-  shift_id: string;
+  shift_id: string | null;
   branch_id: string | null;
   department_id: string | null;
   attendance_date: string;
@@ -20,6 +20,10 @@ export interface Attendance {
   status: string;
   notes: string | null;
   created_at: string;
+  created_by: string | null;
+  clocked_out_by: string | null;
+  clocked_in_by_name?: string | null;
+  clocked_out_by_name?: string | null;
   staff?: { id: string; full_name: string; staff_id: string | null; department: string | null } | null;
   shifts?: { id: string; shift_name: string; start_time: string; end_time: string; overtime_start_time: string | null; grace_period_minutes: number; clockin_start_time: string } | null;
   branches?: { id: string; name: string } | null;
@@ -60,7 +64,30 @@ export function useAttendance(filters: AttendanceFilters = {}) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Attendance[];
+      const records = (data || []) as Attendance[];
+      // Resolve actor names for clock in/out
+      const userIds = new Set<string>();
+      for (const r of records) {
+        if (r.created_by) userIds.add(r.created_by);
+        if (r.clocked_out_by) userIds.add(r.clocked_out_by);
+      }
+      if (userIds.size > 0) {
+        try {
+          const { data: names } = await supabase.rpc('get_org_user_names', {
+            _user_ids: Array.from(userIds),
+          });
+          const nameMap = new Map<string, string>();
+          for (const n of (names as any[]) || []) {
+            const label = n.full_name || (n.email ? String(n.email).split('@')[0] : null);
+            if (n.id && label) nameMap.set(n.id, label);
+          }
+          for (const r of records) {
+            r.clocked_in_by_name = r.created_by ? nameMap.get(r.created_by) ?? null : null;
+            r.clocked_out_by_name = r.clocked_out_by ? nameMap.get(r.clocked_out_by) ?? null : null;
+          }
+        } catch {}
+      }
+      return records;
     },
   });
 }
@@ -211,10 +238,19 @@ export function useClockIn() {
 
 export function useClockOut() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ staffId, shiftId }: { staffId: string; shiftId: string }) => {
+    mutationFn: async ({
+      staffId,
+      shiftId,
+      includeOvertime = true,
+    }: {
+      staffId: string;
+      shiftId: string;
+      includeOvertime?: boolean;
+    }) => {
       const now = new Date();
       const today = now.toISOString().split('T')[0];
 
@@ -238,9 +274,14 @@ export function useClockOut() {
         autoOut.setHours(ah, am, 0);
         if (clockOut > autoOut) clockOut = autoOut;
       }
-      const { hoursWorked, overtimeHours, regularHours } = computeHours(
+      let { hoursWorked, overtimeHours, regularHours } = computeHours(
         clockIn, clockOut, shift.end_time, shift.overtime_start_time, today, shift.max_overtime_hours ?? null
       );
+      if (!includeOvertime) {
+        // Fold any overtime back into regular hours (do not record as overtime)
+        regularHours = Math.round((regularHours + overtimeHours) * 100) / 100;
+        overtimeHours = 0;
+      }
 
       let status = record.status;
       if (overtimeHours > 0) status = 'overtime';
@@ -253,6 +294,7 @@ export function useClockOut() {
           overtime_hours: overtimeHours,
           regular_hours: regularHours,
           status,
+          clocked_out_by: user?.id ?? null,
         })
         .eq('id', record.id)
         .select()

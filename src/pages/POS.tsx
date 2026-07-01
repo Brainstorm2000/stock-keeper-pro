@@ -491,7 +491,7 @@ export default function POS() {
           ? 0
           : amountPaid;
     const computedBalance = total - computedAmountPaid;
-    const computedPaymentStatus =
+    const computedPaymentStatus: "paid" | "partial" | "outstanding" =
       computedBalance <= 0
         ? "paid"
         : computedAmountPaid > 0

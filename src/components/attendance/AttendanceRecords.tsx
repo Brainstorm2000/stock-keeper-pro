@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Download, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { downloadCSV } from '@/lib/csv-utils';
+import { usePagination } from '@/hooks/usePagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 
 const statusColors: Record<string, string> = {
   early: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
@@ -22,7 +24,17 @@ const statusColors: Record<string, string> = {
 };
 
 export function AttendanceRecords() {
-  const [filters, setFilters] = useState<AttendanceFilters>({});
+  const todayStr = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  })();
+  const [filters, setFilters] = useState<AttendanceFilters>({
+    dateFrom: todayStr,
+    dateTo: todayStr,
+  });
   const { data: records = [], isLoading } = useAttendance(filters);
   const { data: staffList = [] } = useStaff();
   const { data: branches = [] } = useBranches();
@@ -44,8 +56,18 @@ export function AttendanceRecords() {
     return out;
   })();
 
+  const {
+    paginatedItems: paginatedRecords,
+    currentPage,
+    totalPages,
+    totalItems,
+    pageSize,
+    setCurrentPage,
+    setPageSize,
+  } = usePagination(records, 10);
+
   const handleExport = () => {
-    const headers = ['Staff Name', 'Department', 'Branch', 'Shift', 'Date', 'Clock In', 'Clock Out', 'Hours Worked', 'Overtime Hours', 'Days Worked', 'Status'];
+    const headers = ['Staff Name', 'Department', 'Branch', 'Shift', 'Date', 'Clock In', 'Clock In By', 'Clock Out', 'Clock Out By', 'Hours Worked', 'Overtime Hours', 'Days Worked', 'Status'];
     const rows = records.map(r => [
       r.staff?.full_name || '',
       r.departments?.name || r.staff?.department || '',
@@ -53,7 +75,9 @@ export function AttendanceRecords() {
       r.shifts?.shift_name || '',
       r.attendance_date,
       r.clock_in_time ? format(new Date(r.clock_in_time), 'HH:mm') : '',
+      r.clocked_in_by_name || '',
       r.clock_out_time ? format(new Date(r.clock_out_time), 'HH:mm') : '',
+      r.clocked_out_by_name || '',
       r.hours_worked?.toFixed(2) || '',
       r.overtime_hours?.toFixed(2) || '0',
       daysWorkedByStaff[r.staff_id] ?? 0,
@@ -137,7 +161,9 @@ export function AttendanceRecords() {
                 <TableHead className="hidden lg:table-cell">Shift</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Clock In</TableHead>
+                <TableHead className="hidden lg:table-cell">Clock In By</TableHead>
                 <TableHead>Clock Out</TableHead>
+                <TableHead className="hidden lg:table-cell">Clock Out By</TableHead>
                 <TableHead className="hidden sm:table-cell">Hours</TableHead>
                 <TableHead className="hidden sm:table-cell">Overtime</TableHead>
                 <TableHead className="hidden sm:table-cell">Days Worked</TableHead>
@@ -146,8 +172,8 @@ export function AttendanceRecords() {
             </TableHeader>
             <TableBody>
               {records.length === 0 ? (
-                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No records found</TableCell></TableRow>
-              ) : records.map(r => (
+                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-8">No records found</TableCell></TableRow>
+              ) : paginatedRecords.map(r => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.staff?.full_name || '-'}</TableCell>
                   <TableCell className="hidden md:table-cell">{r.departments?.name || r.staff?.department || '-'}</TableCell>
@@ -155,7 +181,9 @@ export function AttendanceRecords() {
                   <TableCell className="hidden lg:table-cell">{r.shifts?.shift_name || '-'}</TableCell>
                   <TableCell>{r.attendance_date}</TableCell>
                   <TableCell>{r.clock_in_time ? format(new Date(r.clock_in_time), 'HH:mm') : '-'}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-muted-foreground">{r.clocked_in_by_name || '-'}</TableCell>
                   <TableCell>{r.clock_out_time ? format(new Date(r.clock_out_time), 'HH:mm') : '-'}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-muted-foreground">{r.clocked_out_by_name || '-'}</TableCell>
                   <TableCell className="hidden sm:table-cell">{r.hours_worked ? r.hours_worked.toFixed(1) : '-'}</TableCell>
                   <TableCell className="hidden sm:table-cell">{r.overtime_hours ? r.overtime_hours.toFixed(1) : '0'}</TableCell>
                   <TableCell className="hidden sm:table-cell">{daysWorkedByStaff[r.staff_id] ?? 0}</TableCell>
@@ -168,6 +196,14 @@ export function AttendanceRecords() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
       )}
     </div>
