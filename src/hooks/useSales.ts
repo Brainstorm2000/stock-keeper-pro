@@ -303,12 +303,19 @@ export function useUpdateSale() {
     }: {
       saleId: string;
       updates: {
+        branch_id?: string | null;
+        customer_id?: string | null;
         customer_name?: string | null;
         customer_phone?: string | null;
         discount_amount?: number;
         discount_percent?: number;
         subtotal?: number;
+        tax_amount?: number;
         total_amount?: number;
+        amount_paid?: number;
+        balance_due?: number;
+        payment_status?: 'paid' | 'partial' | 'outstanding';
+        due_date?: string | null;
         payment_method?: PaymentMethod;
         status?: SaleStatus;
         notes?: string | null;
