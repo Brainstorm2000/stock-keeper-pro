@@ -2937,6 +2937,7 @@ export type Database = {
         | "mobile_money"
         | "bank_transfer"
         | "credit"
+        | "pos"
       product_category: "sellable" | "consumable"
       purchase_payment_status: "pending" | "partial" | "paid"
       sale_status: "pending" | "completed" | "cancelled" | "on_hold"
@@ -3092,6 +3093,7 @@ export const Constants = {
         "mobile_money",
         "bank_transfer",
         "credit",
+        "pos",
       ],
       product_category: ["sellable", "consumable"],
       purchase_payment_status: ["pending", "partial", "paid"],
