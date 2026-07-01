@@ -129,6 +129,7 @@ export type Database = {
           branch_id: string | null
           clock_in_time: string | null
           clock_out_time: string | null
+          clocked_out_by: string | null
           created_at: string
           created_by: string | null
           department_id: string | null
@@ -138,7 +139,7 @@ export type Database = {
           organization_id: string
           overtime_hours: number | null
           regular_hours: number | null
-          shift_id: string
+          shift_id: string | null
           staff_id: string
           status: string
           updated_at: string
@@ -148,6 +149,7 @@ export type Database = {
           branch_id?: string | null
           clock_in_time?: string | null
           clock_out_time?: string | null
+          clocked_out_by?: string | null
           created_at?: string
           created_by?: string | null
           department_id?: string | null
@@ -157,7 +159,7 @@ export type Database = {
           organization_id: string
           overtime_hours?: number | null
           regular_hours?: number | null
-          shift_id: string
+          shift_id?: string | null
           staff_id: string
           status?: string
           updated_at?: string
@@ -167,6 +169,7 @@ export type Database = {
           branch_id?: string | null
           clock_in_time?: string | null
           clock_out_time?: string | null
+          clocked_out_by?: string | null
           created_at?: string
           created_by?: string | null
           department_id?: string | null
@@ -176,7 +179,7 @@ export type Database = {
           organization_id?: string
           overtime_hours?: number | null
           regular_hours?: number | null
-          shift_id?: string
+          shift_id?: string | null
           staff_id?: string
           status?: string
           updated_at?: string
