@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAttendance, type AttendanceFilters } from '@/hooks/useAttendance';
 import { useStaff } from '@/hooks/useStaff';
 import { useBranches } from '@/hooks/useBranches';
