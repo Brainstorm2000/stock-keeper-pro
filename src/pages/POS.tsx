@@ -5,6 +5,7 @@ import {
   Search,
   Trash2,
   Pause,
+  Calculator,
   CreditCard,
   Banknote,
   Smartphone,
@@ -662,7 +663,7 @@ export default function POS() {
     { value: "credit", label: "Credit", icon: <Clock className="h-4 w-4" /> },
   ];
   // Add POS as an explicit payment method option
-  paymentMethods.unshift({ value: "pos", label: "POS", icon: <ShoppingCart className="h-4 w-4" /> });
+  paymentMethods.unshift({ value: "pos", label: "POS", icon: <Calculator className="h-4 w-4" /> });
 
   if (authLoading) {
     return (
