@@ -3,6 +3,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCircle2, XCircle, Camera, CameraOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -134,6 +135,7 @@ export function QRScanner() {
   const [processing, setProcessing] = useState(false);
   const [selectedShiftId, setSelectedShiftId] = useState<string>('');
   const [pendingClockOut, setPendingClockOut] = useState<PendingClockOut | null>(null);
+  const [includeOvertime, setIncludeOvertime] = useState(true);
   const hasScannedRef = useRef(false);
   const { organizationId } = useAuth();
   const clockIn = useClockIn();
@@ -157,6 +159,7 @@ export function QRScanner() {
       await clockOut.mutateAsync({
         staffId: pendingClockOut.staffId,
         shiftId: pendingClockOut.shiftId,
+        includeOvertime,
       });
         playClockOutSound();
       setResult({ type: 'success', message: `Clock-out successful for ${pendingClockOut.staffName}` });
@@ -166,12 +169,14 @@ export function QRScanner() {
     } finally {
       setPendingClockOut(null);
       setProcessing(false);
+      setIncludeOvertime(true);
       setTimeout(() => setResult(null), 5000);
     }
   };
 
   const handleCancelClockOut = () => {
     setPendingClockOut(null);
+    setIncludeOvertime(true);
     hasScannedRef.current = false;
     setResult(null);
   };
@@ -358,6 +363,18 @@ export function QRScanner() {
               Are you sure you want to clock out <span className="font-semibold text-foreground">{pendingClockOut?.staffName}</span>?
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <label className="flex items-center gap-2 rounded-md border p-3 cursor-pointer select-none">
+            <Checkbox
+              checked={includeOvertime}
+              onCheckedChange={(v) => setIncludeOvertime(v === true)}
+            />
+            <div>
+              <div className="text-sm font-medium">Add overtime hours</div>
+              <div className="text-xs text-muted-foreground">
+                If unchecked, extra time will not be recorded as overtime.
+              </div>
+            </div>
+          </label>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelClockOut}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmClockOut}>
