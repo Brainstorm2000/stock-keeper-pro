@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
+import { buildSaleStockAdjustments } from '@/lib/sale-stock';
 
 export type PaymentMethod = 'cash' | 'card' | 'mobile_money' | 'bank_transfer' | 'credit' | 'pos';
 export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'on_hold';
@@ -319,23 +320,64 @@ export function useUpdateSale() {
         payment_method?: PaymentMethod;
         status?: SaleStatus;
         notes?: string | null;
+        sale_date?: string;
       };
       items?: SaleItem[];
     }) => {
-      // Update sale record
+      const { data: existingSale, error: saleLookupError } = await supabase
+        .from('sales')
+        .select('created_at')
+        .eq('id', saleId)
+        .single();
+
+      if (saleLookupError) throw saleLookupError;
+
+      const { data: previousItems, error: previousItemsError } = await supabase
+        .from('sale_items')
+        .select('product_id, variation_id, quantity')
+        .eq('sale_id', saleId);
+
+      if (previousItemsError) throw previousItemsError;
+
+      const previousItemsList = (previousItems || []).map(item => ({
+        product_id: item.product_id,
+        variation_id: (item as any).variation_id || null,
+        quantity: Number(item.quantity),
+      }));
+
+      const nextItemsList = (items || previousItemsList).map(item => ({
+        product_id: item.product_id,
+        variation_id: (item as any).variation_id || null,
+        quantity: Number(item.quantity),
+      }));
+
+      const { sale_date: saleDate, ...saleUpdates } = updates;
+
       const { error: saleError } = await supabase
         .from('sales')
         .update({
-          ...updates,
+          ...saleUpdates,
           updated_at: new Date().toISOString(),
+          ...(saleDate ? (() => {
+            const now = new Date(existingSale?.created_at || new Date().toISOString());
+            const [y, m, d] = saleDate!.split('-').map(Number);
+            const dt = new Date(
+              y,
+              (m || 1) - 1,
+              d || 1,
+              now.getHours(),
+              now.getMinutes(),
+              now.getSeconds(),
+              now.getMilliseconds(),
+            );
+            return { created_at: dt.toISOString() };
+          })() : {}),
         })
         .eq('id', saleId);
 
       if (saleError) throw saleError;
 
-      // If items are provided, update them
       if (items) {
-        // Delete existing items
         const { error: deleteError } = await supabase
           .from('sale_items')
           .delete()
@@ -343,7 +385,6 @@ export function useUpdateSale() {
 
         if (deleteError) throw deleteError;
 
-        // Insert new items
         const saleItems = items.map(item => ({
           sale_id: saleId,
           product_id: item.product_id,
@@ -360,6 +401,61 @@ export function useUpdateSale() {
           .insert(saleItems);
 
         if (insertError) throw insertError;
+      }
+
+      const adjustments = buildSaleStockAdjustments(previousItemsList, nextItemsList);
+      for (const adjustment of adjustments) {
+        if (adjustment.variation_id) {
+          const { data: variation } = await supabase
+            .from('product_variations' as any)
+            .select('current_stock')
+            .eq('id', adjustment.variation_id)
+            .single();
+
+          if (variation) {
+            const prev = Number((variation as any).current_stock);
+            const next = prev - adjustment.quantity;
+            await supabase
+              .from('product_variations' as any)
+              .update({ current_stock: next })
+              .eq('id', adjustment.variation_id);
+            await supabase.from('stock_history').insert({
+              product_id: adjustment.product_id,
+              variation_id: adjustment.variation_id,
+              previous_stock: prev,
+              new_stock: next,
+              change_amount: -adjustment.quantity,
+              change_type: 'sale',
+              notes: `Sale edited`,
+            } as any);
+          }
+          continue;
+        }
+
+        const { data: product } = await supabase
+          .from('products')
+          .select('current_stock, item_type')
+          .eq('id', adjustment.product_id)
+          .single();
+
+        if (product && product.item_type === 'product') {
+          const prev = Number(product.current_stock);
+          const next = prev - adjustment.quantity;
+
+          await supabase
+            .from('products')
+            .update({ current_stock: next })
+            .eq('id', adjustment.product_id);
+
+          await supabase.from('stock_history').insert({
+            product_id: adjustment.product_id,
+            previous_stock: prev,
+            new_stock: next,
+            change_amount: -adjustment.quantity,
+            change_type: 'sale',
+            notes: `Sale edited`,
+          });
+        }
       }
 
       return { saleId };

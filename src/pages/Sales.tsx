@@ -113,12 +113,14 @@ export default function Sales() {
     payment_method: PaymentMethod;
     status: SaleStatus;
     notes: string;
+    sale_date: string;
   }>({
     customer_name: "",
     customer_phone: "",
     payment_method: "cash",
     status: "completed",
     notes: "",
+    sale_date: format(new Date(), "yyyy-MM-dd"),
   });
   const [deleteConfirmSale, setDeleteConfirmSale] = useState<Sale | null>(null);
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
@@ -251,6 +253,7 @@ export default function Sales() {
       payment_method: sale.payment_method,
       status: sale.status,
       notes: sale.notes || "",
+      sale_date: sale.created_at?.split("T")[0] || format(new Date(), "yyyy-MM-dd"),
     });
     setSelectedSaleId(sale.id);
     setEditDialogOpen(true);
@@ -267,6 +270,7 @@ export default function Sales() {
         payment_method: editData.payment_method,
         status: editData.status,
         notes: editData.notes || null,
+        sale_date: editData.sale_date,
       },
     });
 
@@ -704,6 +708,17 @@ export default function Sales() {
                     placeholder="Optional"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Sale Date</Label>
+                <Input
+                  type="date"
+                  value={editData.sale_date}
+                  onChange={(e) =>
+                    setEditData((prev) => ({ ...prev, sale_date: e.target.value }))
+                  }
+                />
               </div>
 
               <div className="space-y-2">

@@ -575,6 +575,7 @@ export default function POS() {
           due_date: salePayload.due_date ?? null,
           payment_method: salePayload.payment_method,
           notes: salePayload.notes ?? null,
+          sale_date: salePayload.sale_date,
         },
         items: salePayload.items,
       });

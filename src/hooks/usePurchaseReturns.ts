@@ -150,6 +150,54 @@ export function useCreatePurchaseReturn() {
 
       const totalAmount = input.items.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
 
+      const { data: purchaseItems, error: purchaseItemsError } = await supabase
+        .from('purchase_items')
+        .select('product_id, quantity')
+        .eq('purchase_id', input.purchase_id);
+
+      if (purchaseItemsError) throw purchaseItemsError;
+
+      const { data: returnedItems, error: returnedItemsError } = await supabase
+        .from('purchase_return_items')
+        .select('product_id, quantity, purchase_returns!inner(purchase_id)')
+        .eq('purchase_returns.purchase_id', input.purchase_id);
+
+      if (returnedItemsError) throw returnedItemsError;
+
+      const purchasedQuantities = new Map<string, number>();
+      for (const item of purchaseItems || []) {
+        purchasedQuantities.set(item.product_id, Number(item.quantity));
+      }
+
+      const alreadyReturnedQuantities = new Map<string, number>();
+      for (const item of returnedItems || []) {
+        alreadyReturnedQuantities.set(item.product_id, (alreadyReturnedQuantities.get(item.product_id) || 0) + Number(item.quantity));
+      }
+
+      for (const item of input.items) {
+        const purchasedQuantity = purchasedQuantities.get(item.product_id);
+        if (purchasedQuantity === undefined) {
+          throw new Error('Selected item was not found on the purchase.');
+        }
+
+        const alreadyReturnedQuantity = alreadyReturnedQuantities.get(item.product_id) || 0;
+        const remainingAllowed = Math.max(0, purchasedQuantity - alreadyReturnedQuantity);
+        if (item.quantity > remainingAllowed) {
+          throw new Error('Return quantity cannot exceed the quantity purchased and not already returned.');
+        }
+
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('current_stock')
+          .eq('id', item.product_id)
+          .single();
+
+        if (productError) throw productError;
+        if (!product || Number(product.current_stock) < item.quantity) {
+          throw new Error('Return quantity cannot exceed the current stock available.');
+        }
+      }
+
       const { data: ret, error: retErr } = await supabase
         .from('purchase_returns')
         .insert({

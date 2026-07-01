@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 import { useCreatePurchaseReturn, useAlreadyReturnedPurchaseQuantities } from '@/hooks/usePurchaseReturns';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useProducts } from '@/hooks/useProducts';
 import type { Purchase } from '@/hooks/usePurchases';
 import { formatCurrency } from '@/lib/currency';
+import { getMaxReturnableQuantity } from '@/lib/purchase-products';
+import { useToast } from '@/hooks/use-toast';
 
 interface PurchaseReturnDialogProps {
   purchase: Purchase | null;
@@ -29,17 +32,30 @@ interface ReturnItem {
 
 export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseReturnDialogProps) {
   const { data: organization } = useOrganization();
+  const { data: products = [] } = useProducts();
   const createReturn = useCreatePurchaseReturn();
+  const { toast } = useToast();
   const { data: alreadyReturned = {} } = useAlreadyReturnedPurchaseQuantities(purchase?.id);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ReturnItem[]>([]);
 
+  const stockByProductId = useMemo(() => {
+    return products.reduce<Record<string, number>>((acc, product) => {
+      acc[product.id] = Number(product.current_stock) || 0;
+      return acc;
+    }, {});
+  }, [products]);
+
   useEffect(() => {
     if (open && purchase?.purchase_items) {
       setItems(purchase.purchase_items.map(pi => {
         const alreadyReturnedQty = alreadyReturned[pi.product_id] || 0;
-        const maxReturnable = Math.max(0, pi.quantity - alreadyReturnedQty);
+        const maxReturnable = getMaxReturnableQuantity(
+          Number(pi.quantity),
+          stockByProductId[pi.product_id] || 0,
+          alreadyReturnedQty,
+        );
         return {
           product_id: pi.product_id,
           product_name: pi.products?.name || 'Unknown',
@@ -52,13 +68,20 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
       setReason('');
       setNotes('');
     }
-  }, [open, purchase, alreadyReturned]);
+  }, [open, purchase, alreadyReturned, stockByProductId]);
 
   const selectedItems = items.filter(i => i.selected && i.quantity > 0);
   const totalReturn = selectedItems.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
 
   const handleSubmit = async () => {
     if (!organization?.id || !purchase || selectedItems.length === 0) return;
+
+    const hasInvalidSelection = selectedItems.some(item => item.quantity > item.max_quantity);
+    if (hasInvalidSelection) {
+      toast({ title: 'Invalid return quantity', description: 'Return quantity cannot exceed the available stock or purchased quantity.', variant: 'destructive' });
+      return;
+    }
+
     await createReturn.mutateAsync({
       organization_id: organization.id,
       purchase_id: purchase.id,

@@ -16,6 +16,7 @@ import { useBranches, useDefaultBranchId } from '@/hooks/useBranches';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
+import { getPurchasableProductsForPurchase } from '@/lib/purchase-products';
 
 interface PurchaseDialogProps {
   open: boolean;
@@ -55,8 +56,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
 
   // Filter products by selected branch
   const availableProducts = useMemo(() => {
-    if (!branchId) return [];
-    return products.filter(p => p.branch_id === branchId || !p.branch_id);
+    return getPurchasableProductsForPurchase(products, branchId);
   }, [products, branchId]);
 
   const filteredProducts = useMemo(() => {
