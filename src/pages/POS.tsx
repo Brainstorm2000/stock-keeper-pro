@@ -1129,11 +1129,26 @@ export default function POS() {
                       {paymentSplits.map((split, index) => (
                         <div key={index} className="flex justify-between">
                           <span className="capitalize">
-                            {split.method.replace("_", " ")}
+                            {split.method_name ?? split.method.replace("_", " ")}
                           </span>
                           <span>{formatCurrency(split.amount)}</span>
                         </div>
                       ))}
+                      {(() => {
+                        const paid = paymentSplits.reduce(
+                          (s, p) => s + (p.amount || 0),
+                          0,
+                        );
+                        const rem = total - paid;
+                        if (rem > 0.01)
+                          return (
+                            <p className="text-xs text-warning pt-1 border-t mt-1">
+                              {formatCurrency(rem)} remaining will be recorded
+                              as outstanding debt.
+                            </p>
+                          );
+                        return null;
+                      })()}
                     </div>
                   )}
                 </div>
