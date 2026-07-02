@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
+import { getDefaultAttendanceHours } from '@/lib/attendance-hours';
 
 export interface Attendance {
   id: string;
@@ -128,14 +129,19 @@ function computeStatus(clockInTime: Date, shiftStartTime: string, graceMinutes: 
   return 'late';
 }
 
+function parseTimeStringToDate(attendanceDate: string, timeValue: string): Date {
+  const [hours, minutes] = timeValue.split(':').map(Number);
+  const parsed = new Date(attendanceDate + 'T00:00:00');
+  parsed.setHours(hours, minutes, 0, 0);
+  return parsed;
+}
+
 function computeHours(clockIn: Date, clockOut: Date, shiftEndTime: string, overtimeStartTime: string | null, attendanceDate: string, maxOvertimeHours: number | null = null) {
   const hoursWorked = (clockOut.getTime() - clockIn.getTime()) / 3600000;
 
   let overtimeHours = 0;
   if (overtimeStartTime) {
-    const [oh, om] = overtimeStartTime.split(':').map(Number);
-    const otStart = new Date(attendanceDate + 'T00:00:00');
-    otStart.setHours(oh, om, 0);
+    const otStart = parseTimeStringToDate(attendanceDate, overtimeStartTime);
     if (clockOut > otStart) {
       overtimeHours = (clockOut.getTime() - otStart.getTime()) / 3600000;
     }
@@ -144,11 +150,7 @@ function computeHours(clockIn: Date, clockOut: Date, shiftEndTime: string, overt
     overtimeHours = maxOvertimeHours;
   }
 
-  const [eh, em] = shiftEndTime.split(':').map(Number);
-  const shiftEnd = new Date(attendanceDate + 'T00:00:00');
-  shiftEnd.setHours(eh, em, 0);
-  const [sh] = shiftEndTime.split(':').map(Number);
-  // regular hours is based on shift duration
+  const shiftEnd = parseTimeStringToDate(attendanceDate, shiftEndTime);
   const regularHours = Math.max(0, hoursWorked - overtimeHours);
 
   return { hoursWorked: Math.round(hoursWorked * 100) / 100, overtimeHours: Math.round(overtimeHours * 100) / 100, regularHours: Math.round(regularHours * 100) / 100 };
@@ -195,6 +197,8 @@ export function useClockIn() {
 
       const status = computeStatus(now, shift.start_time, shift.grace_period_minutes, today);
 
+      const defaultHours = getDefaultAttendanceHours();
+
       const { data, error } = await supabase
         .from('attendance')
         .insert({
@@ -205,6 +209,9 @@ export function useClockIn() {
           department_id: departmentId || null,
           attendance_date: today,
           clock_in_time: now.toISOString(),
+          hours_worked: defaultHours.hoursWorked,
+          regular_hours: defaultHours.regularHours,
+          overtime_hours: defaultHours.overtimeHours,
           status,
           created_by: user?.id,
         })
@@ -269,9 +276,7 @@ export function useClockOut() {
       const shift = record.shifts as any;
       let clockOut = now;
       if (shift.auto_clockout_time) {
-        const [ah, am] = shift.auto_clockout_time.split(':').map(Number);
-        const autoOut = new Date(today + 'T00:00:00');
-        autoOut.setHours(ah, am, 0);
+        const autoOut = parseTimeStringToDate(today, shift.auto_clockout_time);
         if (clockOut > autoOut) clockOut = autoOut;
       }
       let { hoursWorked, overtimeHours, regularHours } = computeHours(

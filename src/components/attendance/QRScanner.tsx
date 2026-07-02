@@ -134,6 +134,7 @@ export function QRScanner() {
   const [result, setResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [processing, setProcessing] = useState(false);
   const [selectedShiftId, setSelectedShiftId] = useState<string>('');
+  const [resolvedShiftId, setResolvedShiftId] = useState<string>('');
   const [pendingClockOut, setPendingClockOut] = useState<PendingClockOut | null>(null);
   const [includeOvertime, setIncludeOvertime] = useState(true);
   const hasScannedRef = useRef(false);
@@ -222,7 +223,16 @@ export function QRScanner() {
         .single();
 
       if (staffErr || !staffMember) throw new Error('Staff not found');
-      if (!selectedShiftId) throw new Error('Please select a shift first');
+
+      let shiftIdToUse = selectedShiftId || resolvedShiftId;
+      if (!shiftIdToUse) {
+        const departmentShift = activeShifts.find((shift) => shift.department_id === staffMember.department_id && shift.is_active);
+        if (departmentShift) {
+          shiftIdToUse = departmentShift.id;
+          setResolvedShiftId(departmentShift.id);
+        }
+      }
+      if (!shiftIdToUse) throw new Error('Please select a shift first');
 
       const today = new Date().toISOString().split('T')[0];
       const { data: existing } = await supabase
@@ -230,14 +240,14 @@ export function QRScanner() {
         .select('id, clock_out_time')
         .eq('staff_id', staffMember.id)
         .eq('attendance_date', today)
-        .eq('shift_id', selectedShiftId)
+        .eq('shift_id', shiftIdToUse)
         .maybeSingle();
 
       if (!existing) {
         // Clock in directly
         await clockIn.mutateAsync({
           staffId: staffMember.id,
-          shiftId: selectedShiftId,
+          shiftId: shiftIdToUse,
           branchId: staffMember.branch_id,
           departmentId: staffMember.department_id,
         });
@@ -250,7 +260,7 @@ export function QRScanner() {
         setPendingClockOut({
           staffName: staffMember.full_name,
           staffId: staffMember.id,
-          shiftId: selectedShiftId,
+          shiftId: shiftIdToUse,
         });
         setProcessing(false);
       } else {
@@ -264,7 +274,7 @@ export function QRScanner() {
       setProcessing(false);
       setTimeout(() => setResult(null), 5000);
     }
-  }, [processing, organizationId, selectedShiftId, clockIn, clockOut, stopScanning]);
+  }, [processing, organizationId, selectedShiftId, resolvedShiftId, activeShifts, clockIn, clockOut, stopScanning]);
 
   const startScanning = async () => {
     if (!containerRef.current) return;
@@ -306,6 +316,12 @@ export function QRScanner() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!selectedShiftId && resolvedShiftId) {
+      setSelectedShiftId(resolvedShiftId);
+    }
+  }, [selectedShiftId, resolvedShiftId]);
+
   return (
     <>
       <Card className="max-w-lg mx-auto">
@@ -318,7 +334,10 @@ export function QRScanner() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Select Shift</Label>
-            <Select value={selectedShiftId} onValueChange={setSelectedShiftId}>
+            <Select value={selectedShiftId} onValueChange={(value) => {
+              setSelectedShiftId(value);
+              setResolvedShiftId(value);
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a shift" />
               </SelectTrigger>
