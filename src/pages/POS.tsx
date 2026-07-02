@@ -78,6 +78,8 @@ import {
 } from "@/components/pos/SplitPaymentDialog";
 import { VariationPickerDialog } from "@/components/pos/VariationPickerDialog";
 import type { ProductVariation } from "@/hooks/useProductVariations";
+import { usePaymentMethods } from "@/hooks/usePaymentMethods";
+import { PaymentIcon } from "@/lib/payment-icons";
 
 interface CartItem extends SaleItem {
   product_name: string;
@@ -96,6 +98,9 @@ export default function POS() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<
+    string | undefined
+  >(undefined);
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [heldOrdersDialogOpen, setHeldOrdersDialogOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
@@ -265,6 +270,22 @@ export default function POS() {
     discountPercent > 0 ? (subtotal * discountPercent) / 100 : discountAmount;
   const taxAmount = ((subtotal - discountValue) * taxRate) / 100;
   const total = subtotal - discountValue + taxAmount;
+
+  // Keep amountPaid + paymentType in sync with split payments so any
+  // remainder is automatically recorded as outstanding debt.
+  useEffect(() => {
+    if (!useSplitPayment) return;
+    const splitTotal = paymentSplits.reduce((s, p) => s + (p.amount || 0), 0);
+    const paid = Math.min(splitTotal, total);
+    setAmountPaid(paid);
+    if (paid <= 0) {
+      setPaymentType("credit");
+    } else if (paid < total - 0.01) {
+      setPaymentType("partial");
+    } else {
+      setPaymentType("full");
+    }
+  }, [useSplitPayment, paymentSplits, total]);
 
   // Check for stock warnings in cart
   const hasStockWarning = useMemo(() => {
@@ -663,8 +684,8 @@ export default function POS() {
     },
     { value: "credit", label: "Credit", icon: <Clock className="h-4 w-4" /> },
   ];
-  // Add POS as an explicit payment method option
-  paymentMethods.unshift({ value: "pos", label: "POS", icon: <Calculator className="h-4 w-4" /> });
+  // Organization-defined payment methods (overrides hardcoded list)
+  const { data: orgPaymentMethods = [] } = usePaymentMethods(true);
 
   if (authLoading) {
     return (
@@ -1035,32 +1056,57 @@ export default function POS() {
                 <div className="space-y-2">
                   <Label>Payment Method</Label>
                   <div className="grid grid-cols-3 gap-2">
-                    {paymentMethods.map((method) => (
-                      <Button
-                        key={method.value}
-                        type="button"
-                        variant={
-                          paymentMethod === method.value ? "default" : "outline"
-                        }
-                        className={`flex flex-col h-auto py-3 gap-1 transition-all duration-200 ${
-                          paymentMethod === method.value
-                            ? "bg-[#FF9E3D] hover:bg-[#e68a2e] text-black border-[#FF9E3D] shadow-sm"
-                            : "border-input hover:border-[#FF9E3D] hover:text-[#FF9E3D] hover:bg-[#FF9E3D]/5"
-                        }`}
-                        onClick={() => setPaymentMethod(method.value)}
-                      >
-                        <div
-                          className={
-                            paymentMethod === method.value
-                              ? "text-black"
-                              : "text-muted-foreground group-hover:text-[#FF9E3D]"
-                          }
+                    {(orgPaymentMethods.length > 0
+                      ? orgPaymentMethods.map((m) => ({
+                          id: m.id,
+                          value: m.mapped_type,
+                          label: m.name,
+                          iconName: m.icon,
+                        }))
+                      : paymentMethods.map((m) => ({
+                          id: m.value,
+                          value: m.value,
+                          label: m.label,
+                          iconName: null as string | null,
+                        }))
+                    ).map((method) => {
+                      const isSelected = orgPaymentMethods.length > 0
+                        ? selectedPaymentMethodId === method.id
+                        : paymentMethod === method.value;
+                      return (
+                        <Button
+                          key={method.id}
+                          type="button"
+                          variant={isSelected ? "default" : "outline"}
+                          className={`flex flex-col h-auto py-3 gap-1 transition-all duration-200 ${
+                            isSelected
+                              ? "bg-[#FF9E3D] hover:bg-[#e68a2e] text-black border-[#FF9E3D] shadow-sm"
+                              : "border-input hover:border-[#FF9E3D] hover:text-[#FF9E3D] hover:bg-[#FF9E3D]/5"
+                          }`}
+                          onClick={() => {
+                            setPaymentMethod(method.value);
+                            setSelectedPaymentMethodId(
+                              orgPaymentMethods.length > 0 ? method.id : undefined,
+                            );
+                          }}
                         >
-                          {method.icon}
-                        </div>
-                        <span className="text-xs">{method.label}</span>
-                      </Button>
-                    ))}
+                          <div
+                            className={
+                              isSelected
+                                ? "text-black"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {method.iconName ? (
+                              <PaymentIcon name={method.iconName} />
+                            ) : (
+                              (paymentMethods.find((p) => p.value === method.value)?.icon)
+                            )}
+                          </div>
+                          <span className="text-xs">{method.label}</span>
+                        </Button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1083,11 +1129,26 @@ export default function POS() {
                       {paymentSplits.map((split, index) => (
                         <div key={index} className="flex justify-between">
                           <span className="capitalize">
-                            {split.method.replace("_", " ")}
+                            {split.method_name ?? split.method.replace("_", " ")}
                           </span>
                           <span>{formatCurrency(split.amount)}</span>
                         </div>
                       ))}
+                      {(() => {
+                        const paid = paymentSplits.reduce(
+                          (s, p) => s + (p.amount || 0),
+                          0,
+                        );
+                        const rem = total - paid;
+                        if (rem > 0.01)
+                          return (
+                            <p className="text-xs text-warning pt-1 border-t mt-1">
+                              {formatCurrency(rem)} remaining will be recorded
+                              as outstanding debt.
+                            </p>
+                          );
+                        return null;
+                      })()}
                     </div>
                   )}
                 </div>

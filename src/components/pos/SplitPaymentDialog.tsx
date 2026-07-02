@@ -1,14 +1,4 @@
-import { useState, useEffect } from "react";
-import {
-  Plus,
-  Trash2,
-  CreditCard,
-  Banknote,
-  Smartphone,
-  Building,
-  Clock,
-  ShoppingCart,
-} from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,15 +16,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 import type { PaymentMethod } from "@/hooks/useSales";
+import { usePaymentMethods } from "@/hooks/usePaymentMethods";
+import { PaymentIcon } from "@/lib/payment-icons";
 
 export interface PaymentSplit {
   method: PaymentMethod;
   amount: number;
+  method_id?: string;
+  method_name?: string;
 }
 
 interface SplitPaymentDialogProps {
@@ -47,24 +40,6 @@ interface SplitPaymentDialogProps {
   isLoading?: boolean;
 }
 
-const paymentMethodLabels: Record<
-  PaymentMethod,
-  { label: string; icon: React.ReactNode }
-> = {
-  cash: { label: "Cash", icon: <Banknote className="h-4 w-4" /> },
-  card: { label: "Card", icon: <CreditCard className="h-4 w-4" /> },
-  mobile_money: {
-    label: "Mobile Money",
-    icon: <Smartphone className="h-4 w-4" />,
-  },
-  bank_transfer: {
-    label: "Bank Transfer",
-    icon: <Building className="h-4 w-4" />,
-  },
-  credit: { label: "Credit", icon: <Clock className="h-4 w-4" /> },
-  pos: { label: "POS", icon: <ShoppingCart className="h-4 w-4" /> },
-};
-
 export function SplitPaymentDialog({
   open,
   onOpenChange,
@@ -74,13 +49,16 @@ export function SplitPaymentDialog({
   onConfirm,
   isLoading,
 }: SplitPaymentDialogProps) {
+  const { data: orgMethods = [] } = usePaymentMethods(true);
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = totalAmount - totalPaid;
-  const isBalanced = Math.abs(remaining) < 0.01;
 
   const addPayment = () => {
+    const first = orgMethods[0];
     const newPayment: PaymentSplit = {
-      method: "cash",
+      method: first?.mapped_type ?? "cash",
+      method_id: first?.id,
+      method_name: first?.name,
       amount: Math.max(0, remaining),
     };
     onPaymentsChange([...payments, newPayment]);
@@ -123,7 +101,7 @@ export function SplitPaymentDialog({
                 className={cn(
                   "font-semibold",
                   remaining > 0
-                    ? "text-destructive"
+                    ? "text-warning"
                     : remaining < 0
                       ? "text-warning"
                       : "text-accent-foreground",
@@ -136,6 +114,12 @@ export function SplitPaymentDialog({
                     : "Balanced"}
               </span>
             </div>
+            {remaining > 0.01 && (
+              <p className="text-xs text-muted-foreground pt-1">
+                The remaining {formatCurrency(remaining)} will be recorded as
+                outstanding debt on this sale.
+              </p>
+            )}
           </div>
 
           {/* Payment Lines */}
@@ -149,25 +133,30 @@ export function SplitPaymentDialog({
               payments.map((payment, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <Select
-                    value={payment.method}
-                    onValueChange={(value: PaymentMethod) =>
-                      updatePayment(index, { method: value })
-                    }
+                    value={payment.method_id ?? payment.method}
+                    onValueChange={(value) => {
+                      const m = orgMethods.find((x) => x.id === value);
+                      if (m) {
+                        updatePayment(index, {
+                          method: m.mapped_type,
+                          method_id: m.id,
+                          method_name: m.name,
+                        });
+                      }
+                    }}
                   >
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-[160px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(paymentMethodLabels).map(
-                        ([value, { label, icon }]) => (
-                          <SelectItem key={value} value={value}>
-                            <div className="flex items-center gap-2">
-                              {icon}
-                              <span>{label}</span>
-                            </div>
-                          </SelectItem>
-                        ),
-                      )}
+                      {orgMethods.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          <div className="flex items-center gap-2">
+                            <PaymentIcon name={m.icon} />
+                            <span>{m.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Input

@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganization, useUpdateOrganization } from '@/hooks/useOrganization';
 import { LogoUpload } from '@/components/onboarding/LogoUpload';
-import { Loader2, Building2 } from 'lucide-react';
+import { Loader2, Building2, CreditCard } from 'lucide-react';
+import { PaymentMethodsDialog } from '@/components/organization/PaymentMethodsDialog';
 
 interface OrganizationSettingsDialogProps {
   open: boolean;
@@ -23,6 +24,7 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
 
   // Sync state with organization data when dialog opens
   useEffect(() => {
@@ -145,9 +147,23 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
                 'Save Changes'
               )}
             </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setPaymentMethodsOpen(true)}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Manage Payment Methods
+            </Button>
           </form>
         )}
       </DialogContent>
+      <PaymentMethodsDialog
+        open={paymentMethodsOpen}
+        onOpenChange={setPaymentMethodsOpen}
+      />
     </Dialog>
   );
 }
