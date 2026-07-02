@@ -78,6 +78,8 @@ import {
 } from "@/components/pos/SplitPaymentDialog";
 import { VariationPickerDialog } from "@/components/pos/VariationPickerDialog";
 import type { ProductVariation } from "@/hooks/useProductVariations";
+import { usePaymentMethods } from "@/hooks/usePaymentMethods";
+import { PaymentIcon } from "@/lib/payment-icons";
 
 interface CartItem extends SaleItem {
   product_name: string;
@@ -96,6 +98,9 @@ export default function POS() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<
+    string | undefined
+  >(undefined);
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [heldOrdersDialogOpen, setHeldOrdersDialogOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
@@ -663,8 +668,8 @@ export default function POS() {
     },
     { value: "credit", label: "Credit", icon: <Clock className="h-4 w-4" /> },
   ];
-  // Add POS as an explicit payment method option
-  paymentMethods.unshift({ value: "pos", label: "POS", icon: <Calculator className="h-4 w-4" /> });
+  // Organization-defined payment methods (overrides hardcoded list)
+  const { data: orgPaymentMethods = [] } = usePaymentMethods(true);
 
   if (authLoading) {
     return (
