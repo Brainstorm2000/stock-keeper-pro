@@ -1040,32 +1040,57 @@ export default function POS() {
                 <div className="space-y-2">
                   <Label>Payment Method</Label>
                   <div className="grid grid-cols-3 gap-2">
-                    {paymentMethods.map((method) => (
-                      <Button
-                        key={method.value}
-                        type="button"
-                        variant={
-                          paymentMethod === method.value ? "default" : "outline"
-                        }
-                        className={`flex flex-col h-auto py-3 gap-1 transition-all duration-200 ${
-                          paymentMethod === method.value
-                            ? "bg-[#FF9E3D] hover:bg-[#e68a2e] text-black border-[#FF9E3D] shadow-sm"
-                            : "border-input hover:border-[#FF9E3D] hover:text-[#FF9E3D] hover:bg-[#FF9E3D]/5"
-                        }`}
-                        onClick={() => setPaymentMethod(method.value)}
-                      >
-                        <div
-                          className={
-                            paymentMethod === method.value
-                              ? "text-black"
-                              : "text-muted-foreground group-hover:text-[#FF9E3D]"
-                          }
+                    {(orgPaymentMethods.length > 0
+                      ? orgPaymentMethods.map((m) => ({
+                          id: m.id,
+                          value: m.mapped_type,
+                          label: m.name,
+                          iconName: m.icon,
+                        }))
+                      : paymentMethods.map((m) => ({
+                          id: m.value,
+                          value: m.value,
+                          label: m.label,
+                          iconName: null as string | null,
+                        }))
+                    ).map((method) => {
+                      const isSelected = orgPaymentMethods.length > 0
+                        ? selectedPaymentMethodId === method.id
+                        : paymentMethod === method.value;
+                      return (
+                        <Button
+                          key={method.id}
+                          type="button"
+                          variant={isSelected ? "default" : "outline"}
+                          className={`flex flex-col h-auto py-3 gap-1 transition-all duration-200 ${
+                            isSelected
+                              ? "bg-[#FF9E3D] hover:bg-[#e68a2e] text-black border-[#FF9E3D] shadow-sm"
+                              : "border-input hover:border-[#FF9E3D] hover:text-[#FF9E3D] hover:bg-[#FF9E3D]/5"
+                          }`}
+                          onClick={() => {
+                            setPaymentMethod(method.value);
+                            setSelectedPaymentMethodId(
+                              orgPaymentMethods.length > 0 ? method.id : undefined,
+                            );
+                          }}
                         >
-                          {method.icon}
-                        </div>
-                        <span className="text-xs">{method.label}</span>
-                      </Button>
-                    ))}
+                          <div
+                            className={
+                              isSelected
+                                ? "text-black"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {method.iconName ? (
+                              <PaymentIcon name={method.iconName} />
+                            ) : (
+                              (paymentMethods.find((p) => p.value === method.value)?.icon)
+                            )}
+                          </div>
+                          <span className="text-xs">{method.label}</span>
+                        </Button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
