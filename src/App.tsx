@@ -27,6 +27,7 @@ import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 import Debts from "./pages/Debts";
 import Returns from "./pages/Returns";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <OfflineBanner />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
