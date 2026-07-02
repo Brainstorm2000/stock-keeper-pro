@@ -271,6 +271,22 @@ export default function POS() {
   const taxAmount = ((subtotal - discountValue) * taxRate) / 100;
   const total = subtotal - discountValue + taxAmount;
 
+  // Keep amountPaid + paymentType in sync with split payments so any
+  // remainder is automatically recorded as outstanding debt.
+  useEffect(() => {
+    if (!useSplitPayment) return;
+    const splitTotal = paymentSplits.reduce((s, p) => s + (p.amount || 0), 0);
+    const paid = Math.min(splitTotal, total);
+    setAmountPaid(paid);
+    if (paid <= 0) {
+      setPaymentType("credit");
+    } else if (paid < total - 0.01) {
+      setPaymentType("partial");
+    } else {
+      setPaymentType("full");
+    }
+  }, [useSplitPayment, paymentSplits, total]);
+
   // Check for stock warnings in cart
   const hasStockWarning = useMemo(() => {
     return cart.some(
