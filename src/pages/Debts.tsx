@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
-import { Search, Loader2, DollarSign, Download, CreditCard } from 'lucide-react';
+import { Search, Loader2, DollarSign, Download, CreditCard, Plus, Trash2, SplitSquareHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
 import { useOutstandingSales, useRecordDebtPayment, useDebtPayments } from '@/hooks/useDebts';
 import { useSales } from '@/hooks/useSales';
+import { usePaymentMethods } from '@/hooks/usePaymentMethods';
+import { PaymentIcon } from '@/lib/payment-icons';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/currency';
 
@@ -34,10 +36,13 @@ export default function Debts() {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [historyDialog, setHistoryDialog] = useState<string | null>(null);
+  const [useSplit, setUseSplit] = useState(false);
+  const [splits, setSplits] = useState<{ amount: string; method: string }[]>([]);
 
   const { data: allSales = [], isLoading } = useSales();
   const recordPayment = useRecordDebtPayment();
   const { data: debtPayments = [] } = useDebtPayments(historyDialog);
+  const { data: orgMethods = [] } = usePaymentMethods(true);
 
   // Show all sales that have debt info (outstanding or partial), plus paid ones for historical view
   const debtSales = useMemo(() => {
@@ -74,17 +79,34 @@ export default function Debts() {
   const totalDebtors = new Set(debtSales.map((s: any) => s.customer_name || 'Walk-in')).size;
 
   const handleRecordPayment = async () => {
-    if (!paymentDialog || !paymentAmount) return;
-    await recordPayment.mutateAsync({
-      saleId: paymentDialog.saleId,
-      amount: Number(paymentAmount),
-      paymentMethod,
-      notes: paymentNotes || undefined,
-    });
+    if (!paymentDialog) return;
+    if (useSplit) {
+      const cleaned = splits
+        .map((s) => ({ amount: Number(s.amount), paymentMethod: s.method }))
+        .filter((s) => s.amount > 0);
+      if (cleaned.length === 0) return;
+      await recordPayment.mutateAsync({
+        saleId: paymentDialog.saleId,
+        payments: cleaned,
+        notes: paymentNotes || undefined,
+      });
+    } else {
+      if (!paymentAmount) return;
+      await recordPayment.mutateAsync({
+        saleId: paymentDialog.saleId,
+        amount: Number(paymentAmount),
+        paymentMethod,
+        notes: paymentNotes || undefined,
+      });
+    }
     setPaymentDialog(null);
     setPaymentAmount('');
     setPaymentNotes('');
+    setUseSplit(false);
+    setSplits([]);
   };
+
+  const splitTotal = splits.reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
   const exportToCSV = () => {
     const headers = ['Invoice #', 'Date', 'Customer', 'Total Amount', 'Amount Paid', 'Balance Due', 'Payment Status', 'Due Date'];
@@ -237,7 +259,7 @@ export default function Debts() {
         </div>
 
         {/* Record Payment Dialog */}
-        <Dialog open={!!paymentDialog} onOpenChange={() => setPaymentDialog(null)}>
+        <Dialog open={!!paymentDialog} onOpenChange={(o) => { if (!o) { setPaymentDialog(null); setUseSplit(false); setSplits([]); } }}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Record Payment - {paymentDialog?.customerName}</DialogTitle>
@@ -247,38 +269,146 @@ export default function Debts() {
                 <span className="text-muted-foreground">Balance Due: </span>
                 <span className="font-bold text-destructive">{formatCurrency(paymentDialog?.balance || 0)}</span>
               </div>
-              <div className="space-y-2">
-                <Label>Payment Amount *</Label>
-                <Input
-                  type="number"
-                  min="0.01"
-                  max={paymentDialog?.balance}
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={e => setPaymentAmount(e.target.value)}
-                  placeholder="Enter amount"
-                />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant={useSplit ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    const next = !useSplit;
+                    setUseSplit(next);
+                    if (next && splits.length === 0) {
+                      const first = orgMethods[0];
+                      setSplits([{ amount: String(paymentDialog?.balance ?? ''), method: first?.mapped_type ?? 'cash' }]);
+                    }
+                  }}
+                >
+                  <SplitSquareHorizontal className="h-4 w-4 mr-1" />
+                  {useSplit ? 'Single Payment' : 'Split Payment'}
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label>Payment Method</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="card">Card</SelectItem>
-                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {!useSplit ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>Payment Amount *</Label>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      max={paymentDialog?.balance}
+                      step="0.01"
+                      value={paymentAmount}
+                      onChange={e => setPaymentAmount(e.target.value)}
+                      placeholder="Enter amount"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Payment Method</Label>
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {orgMethods.length > 0 ? (
+                          orgMethods.map((m) => (
+                            <SelectItem key={m.id} value={m.mapped_type}>
+                              <div className="flex items-center gap-2">
+                                <PaymentIcon name={m.icon} />
+                                <span>{m.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="card">Card</SelectItem>
+                            <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Payment Splits</Label>
+                  {splits.map((sp, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Select
+                        value={sp.method}
+                        onValueChange={(v) => {
+                          const next = [...splits];
+                          next[i] = { ...next[i], method: v };
+                          setSplits(next);
+                        }}
+                      >
+                        <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {(orgMethods.length > 0
+                            ? orgMethods.map((m) => ({ value: m.mapped_type, label: m.name, icon: m.icon }))
+                            : [
+                                { value: 'cash', label: 'Cash', icon: 'Banknote' },
+                                { value: 'card', label: 'Card', icon: 'CreditCard' },
+                                { value: 'mobile_money', label: 'Mobile Money', icon: 'Smartphone' },
+                                { value: 'bank_transfer', label: 'Bank Transfer', icon: 'Building' },
+                              ]
+                          ).map((m) => (
+                            <SelectItem key={m.value + m.label} value={m.value}>
+                              <div className="flex items-center gap-2">
+                                <PaymentIcon name={m.icon} />
+                                <span>{m.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={sp.amount}
+                        onChange={(e) => {
+                          const next = [...splits];
+                          next[i] = { ...next[i], amount: e.target.value };
+                          setSplits(next);
+                        }}
+                        placeholder="Amount"
+                        className="flex-1"
+                      />
+                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setSplits(splits.filter((_, x) => x !== i))}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      const first = orgMethods[0];
+                      const remaining = Math.max(0, (paymentDialog?.balance ?? 0) - splitTotal);
+                      setSplits([...splits, { amount: String(remaining), method: first?.mapped_type ?? 'cash' }]);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Add Payment
+                  </Button>
+                  <div className="flex justify-between text-sm pt-2">
+                    <span className="text-muted-foreground">Total paying</span>
+                    <span className="font-semibold">{formatCurrency(splitTotal)}</span>
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Notes</Label>
                 <Textarea value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="Optional notes..." rows={2} />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setPaymentDialog(null)}>Cancel</Button>
-              <Button onClick={handleRecordPayment} disabled={!paymentAmount || Number(paymentAmount) <= 0 || recordPayment.isPending}>
+              <Button variant="outline" onClick={() => { setPaymentDialog(null); setUseSplit(false); setSplits([]); }}>Cancel</Button>
+              <Button
+                onClick={handleRecordPayment}
+                disabled={
+                  recordPayment.isPending ||
+                  (useSplit ? splitTotal <= 0 : !paymentAmount || Number(paymentAmount) <= 0)
+                }
+              >
                 {recordPayment.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Record Payment
               </Button>

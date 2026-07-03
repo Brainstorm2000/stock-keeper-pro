@@ -58,13 +58,24 @@ export function useRecordDebtPayment() {
       amount,
       paymentMethod,
       notes,
+      payments,
     }: {
       saleId: string;
-      amount: number;
-      paymentMethod: string;
+      amount?: number;
+      paymentMethod?: string;
       notes?: string;
+      payments?: { amount: number; paymentMethod: string; notes?: string }[];
     }) => {
       if (!organizationId) throw new Error('No organization');
+
+      const splits =
+        payments && payments.length > 0
+          ? payments.filter((p) => p.amount > 0)
+          : amount && paymentMethod
+            ? [{ amount, paymentMethod, notes }]
+            : [];
+      if (splits.length === 0) throw new Error('No payment amount provided');
+      const totalPaidNow = splits.reduce((s, p) => s + Number(p.amount || 0), 0);
 
       // Get current sale
       const { data: sale, error: saleError } = await supabase
@@ -74,21 +85,23 @@ export function useRecordDebtPayment() {
         .single();
       if (saleError) throw saleError;
 
-      const newAmountPaid = Number(sale.amount_paid) + amount;
+      const newAmountPaid = Number(sale.amount_paid) + totalPaidNow;
       const newBalance = Number(sale.total_amount) - newAmountPaid;
       const newStatus = newBalance <= 0 ? 'paid' : 'partial';
 
-      // Insert debt payment record
+      // Insert debt payment record(s)
       const { error: paymentError } = await supabase
         .from('debt_payments')
-        .insert({
-          organization_id: organizationId,
-          sale_id: saleId,
-          amount,
-          payment_method: paymentMethod,
-          notes: notes || null,
-          paid_by: user?.id || null,
-        });
+        .insert(
+          splits.map((p) => ({
+            organization_id: organizationId,
+            sale_id: saleId,
+            amount: p.amount,
+            payment_method: p.paymentMethod,
+            notes: p.notes || notes || null,
+            paid_by: user?.id || null,
+          })),
+        );
       if (paymentError) throw paymentError;
 
       // Update sale
