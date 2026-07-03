@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, FileText, TrendingUp, DollarSign, ShoppingCart, CreditCard } from 'lucide-react';
+import { Download, FileText, TrendingUp, DollarSign, ShoppingCart, CreditCard, Users } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
@@ -92,6 +92,18 @@ export function SalesReportTab({ sales, saleItems, dateRange, branches, selected
     });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue);
   }, [filteredSales, branches]);
+
+  // Top customers
+  const topCustomers = useMemo(() => {
+    const map: Record<string, { name: string; revenue: number; orders: number }> = {};
+    filteredSales.forEach((s) => {
+      const name = s.customer_name?.trim() || 'Walk-in';
+      if (!map[name]) map[name] = { name, revenue: 0, orders: 0 };
+      map[name].revenue += Number(s.total_amount || 0);
+      map[name].orders += 1;
+    });
+    return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+  }, [filteredSales]);
 
   const handleExportCSV = () => {
     exportToCSV(filteredSales.map(s => ({
@@ -213,6 +225,44 @@ export function SalesReportTab({ sales, saleItems, dateRange, branches, selected
                 </TableRow>
               ))}
               {!topProducts.length && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No sales data</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Top Customers Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Users className="h-4 w-4" /> Top Customers
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Customer</TableHead>
+                <TableHead className="text-right">Orders</TableHead>
+                <TableHead className="text-right">Total Spent</TableHead>
+                <TableHead className="text-right">Avg. Order</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topCustomers.map((c) => (
+                <TableRow key={c.name}>
+                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell className="text-right">{c.orders}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(c.revenue)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(c.revenue / c.orders)}</TableCell>
+                </TableRow>
+              ))}
+              {!topCustomers.length && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    No customer data
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
