@@ -512,6 +512,10 @@ export default function Dashboard() {
         open={usersDialogOpen}
         onOpenChange={setUsersDialogOpen}
       />
+      <PaymentMethodsDialog
+        open={paymentMethodsOpen}
+        onOpenChange={setPaymentMethodsOpen}
+      />
 
       <AlertDialog
         open={!!deleteProductId}
