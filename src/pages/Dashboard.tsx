@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  CreditCard,
 } from "lucide-react";
 
 // UI Components
@@ -57,6 +58,7 @@ import { UsersManagementDialog } from "@/components/users/UsersManagementDialog"
 import { CustomersDialog } from "@/components/customers/CustomersDialog";
 import { SuppliersDialog } from "@/components/suppliers/SuppliersDialog";
 import { BrandsDialog } from "@/components/brands/BrandsDialog";
+import { PaymentMethodsDialog } from "@/components/organization/PaymentMethodsDialog";
 
 // Hooks & Logic
 import {
@@ -86,6 +88,7 @@ export default function Dashboard() {
   const [unitsDialogOpen, setUnitsDialogOpen] = useState(false);
   const [branchesDialogOpen, setBranchesDialogOpen] = useState(false);
   const [usersDialogOpen, setUsersDialogOpen] = useState(false);
+  const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
@@ -282,6 +285,9 @@ export default function Dashboard() {
                   </DropdownMenuItem>
                   <SuppliersDialog />
                   <BrandsDialog />
+                  <DropdownMenuItem onClick={() => setPaymentMethodsOpen(true)}>
+                    <CreditCard className="mr-2 h-4 w-4" /> Payment Methods
+                  </DropdownMenuItem>
                   {isSuperAdmin && (
                     <>
                       <DropdownMenuItem
