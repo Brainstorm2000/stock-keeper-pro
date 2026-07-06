@@ -26,6 +26,7 @@ import { PaymentIcon } from "@/lib/payment-icons";
 export interface PaymentSplit {
   method: PaymentMethod;
   amount: number;
+  id?: string;
   method_id?: string;
   method_name?: string;
 }

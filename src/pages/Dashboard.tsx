@@ -71,6 +71,7 @@ import { useSales } from "@/hooks/useSales";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useOutstandingSales } from "@/hooks/useDebts";
 import { useAuth } from "@/lib/auth";
+import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -83,6 +84,8 @@ export default function Dashboard() {
     hasCompletedOnboarding,
     isOrgDisabled,
   } = useAuth();
+  const { canCreate: canCreateProduct, canDelete: canDeleteProduct } =
+    useModuleAccess("products");
 
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [unitsDialogOpen, setUnitsDialogOpen] = useState(false);
@@ -268,8 +271,9 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {isAdmin && (
+          {(isAdmin || canCreateProduct) && (
             <div className="grid grid-cols-2 gap-3 w-full md:flex md:w-auto">
+              {isAdmin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -305,13 +309,16 @@ export default function Dashboard() {
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
 
-              <Button
-                onClick={() => setProductDialogOpen(true)}
-                className="w-full sm:w-auto bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-md shadow-amber-500/10 transition-all active:scale-[0.98]"
-              >
-                <Plus className="mr-2 h-4 w-4" /> Product
-              </Button>
+              {canCreateProduct && (
+                <Button
+                  onClick={() => setProductDialogOpen(true)}
+                  className="w-full sm:w-auto bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-md shadow-amber-500/10 transition-all active:scale-[0.98]"
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Product
+                </Button>
+              )}
             </div>
           )}
         </div>

@@ -11,13 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Pencil, Loader2, CreditCard } from "lucide-react";
 import {
@@ -35,15 +28,6 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const MAPPED_TYPES: { value: PaymentMethod; label: string }[] = [
-  { value: "cash", label: "Cash" },
-  { value: "card", label: "Card" },
-  { value: "mobile_money", label: "Mobile Money" },
-  { value: "bank_transfer", label: "Bank Transfer" },
-  { value: "credit", label: "Credit" },
-  { value: "pos", label: "POS" },
-];
 
 export function PaymentMethodsDialog({ open, onOpenChange }: Props) {
   const { data: methods = [], isLoading } = usePaymentMethods();
@@ -122,9 +106,6 @@ export function PaymentMethodsDialog({ open, onOpenChange }: Props) {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Counts as: {m.mapped_type.replace("_", " ")}
-                    </p>
                   </div>
                   <Switch
                     checked={m.is_active}
@@ -169,48 +150,25 @@ export function PaymentMethodsDialog({ open, onOpenChange }: Props) {
                   placeholder="e.g. Opay, PayPal, Voucher"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Category (for reporting)</Label>
-                  <Select
-                    value={form.mapped_type}
-                    onValueChange={(v) =>
-                      setForm({ ...form, mapped_type: v as PaymentMethod })
-                    }
-                    disabled={editing?.is_builtin}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MAPPED_TYPES.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Icon</Label>
-                  <div className="flex items-center gap-2 p-2 border rounded-md bg-background max-h-24 overflow-y-auto flex-wrap">
-                    {PAYMENT_ICON_NAMES.map((name) => (
-                      <button
-                        key={name}
-                        type="button"
-                        onClick={() => setForm({ ...form, icon: name })}
-                        className={cn(
-                          "p-2 rounded-md border transition-colors",
-                          form.icon === name
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-transparent hover:bg-muted",
-                        )}
-                        title={name}
-                      >
-                        <PaymentIcon name={name} />
-                      </button>
-                    ))}
-                  </div>
+              <div className="space-y-2">
+                <Label>Icon</Label>
+                <div className="flex items-center gap-2 p-2 border rounded-md bg-background max-h-32 overflow-y-auto flex-wrap">
+                  {PAYMENT_ICON_NAMES.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => setForm({ ...form, icon: name })}
+                      className={cn(
+                        "p-2 rounded-md border transition-colors",
+                        form.icon === name
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-transparent hover:bg-muted",
+                      )}
+                      title={name}
+                    >
+                      <PaymentIcon name={name} />
+                    </button>
+                  ))}
                 </div>
               </div>
               <div className="flex justify-end gap-2">

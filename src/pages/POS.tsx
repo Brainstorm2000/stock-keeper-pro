@@ -573,6 +573,10 @@ export default function POS() {
       payment_status: computedPaymentStatus,
       due_date: dueDate || undefined,
       payment_method: primaryPaymentMethod,
+      payment_method_id:
+        useSplitPayment && paymentSplits.length > 0
+          ? paymentSplits[0].method_id ?? null
+          : selectedPaymentMethodId ?? null,
       payment_details: paymentDetails,
       notes: notes || undefined,
       items: cart.map(
