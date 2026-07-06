@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
+import { ModuleAccessGuard, useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { useOutstandingSales, useRecordDebtPayment, useDebtPayments } from '@/hooks/useDebts';
 import { useSales } from '@/hooks/useSales';
 import { usePaymentMethods } from '@/hooks/usePaymentMethods';
@@ -45,6 +45,7 @@ export default function Debts() {
   const recordPayment = useRecordDebtPayment();
   const { data: debtPayments = [] } = useDebtPayments(historyDialog);
   const { data: orgMethods = [] } = usePaymentMethods(true);
+  const { canEdit: canEditDebt } = useModuleAccess('debts');
 
   // Show all sales that have debt info (outstanding or partial), plus paid ones for historical view
   const debtSales = useMemo(() => {
@@ -247,7 +248,7 @@ export default function Debts() {
                       <TableCell>{sale.due_date ? format(new Date(sale.due_date), 'MMM dd, yyyy') : '-'}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          {Number(sale.balance_due || 0) > 0 && (
+                          {canEditDebt && Number(sale.balance_due || 0) > 0 && (
                             <Button variant="outline" size="sm" onClick={() => setPaymentDialog({
                               saleId: sale.id,
                               balance: Number(sale.balance_due),
