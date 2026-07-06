@@ -450,6 +450,7 @@ export type Database = {
           organization_id: string
           paid_by: string | null
           payment_method: string
+          payment_method_id: string | null
           sale_id: string
           sale_return_id: string | null
         }
@@ -461,6 +462,7 @@ export type Database = {
           organization_id: string
           paid_by?: string | null
           payment_method?: string
+          payment_method_id?: string | null
           sale_id: string
           sale_return_id?: string | null
         }
@@ -472,6 +474,7 @@ export type Database = {
           organization_id?: string
           paid_by?: string | null
           payment_method?: string
+          payment_method_id?: string | null
           sale_id?: string
           sale_return_id?: string | null
         }
@@ -481,6 +484,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debt_payments_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           },
           {
@@ -2109,6 +2119,7 @@ export type Database = {
           organization_id: string
           payment_details: Json | null
           payment_method: Database["public"]["Enums"]["payment_method"]
+          payment_method_id: string | null
           payment_status: string
           sale_number: string
           status: Database["public"]["Enums"]["sale_status"]
@@ -2134,6 +2145,7 @@ export type Database = {
           organization_id: string
           payment_details?: Json | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
+          payment_method_id?: string | null
           payment_status?: string
           sale_number: string
           status?: Database["public"]["Enums"]["sale_status"]
@@ -2159,6 +2171,7 @@ export type Database = {
           organization_id?: string
           payment_details?: Json | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
+          payment_method_id?: string | null
           payment_status?: string
           sale_number?: string
           status?: Database["public"]["Enums"]["sale_status"]
@@ -2187,6 +2200,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           },
         ]
