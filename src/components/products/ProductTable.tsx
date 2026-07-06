@@ -49,6 +49,7 @@ import { useSuppliers } from "@/hooks/useSuppliers";
 import { useBrands } from "@/hooks/useBrands";
 import { exportProductsToCSV, downloadCSV } from "@/lib/csv-utils";
 import { useAuth } from "@/lib/auth";
+import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
 
 interface ProductTableProps {
   products: Product[];
@@ -85,6 +86,8 @@ export function ProductTable({
   categoryCounts,
   totalSellableStockValue,
 }: ProductTableProps) {
+  const { canEdit: canEditProduct, canDelete: canDeleteProduct } =
+    useModuleAccess("products");
   const [internalSearchQuery, setInternalSearchQuery] = useState("");
   const [internalStatusFilter, setInternalStatusFilter] = useState<
     "all" | "normal" | "low" | "out"
