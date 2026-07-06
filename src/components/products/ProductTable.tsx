@@ -466,19 +466,23 @@ export function ProductTable({
                 {selectedIds.size} selected
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => setBulkEditOpen(true)}>
-                  <Pencil className="mr-2 h-4 w-4" /> Bulk Edit
-                </Button>
+                {canEditProduct && (
+                  <Button size="sm" variant="outline" onClick={() => setBulkEditOpen(true)}>
+                    <Pencil className="mr-2 h-4 w-4" /> Bulk Edit
+                  </Button>
+                )}
                 <Button size="sm" variant="outline" onClick={handleBulkExport}>
                   <Download className="mr-2 h-4 w-4" /> Export Selected
                 </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => setBulkDeleteOpen(true)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete Selected
-                </Button>
+                {canDeleteProduct && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setBulkDeleteOpen(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete Selected
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={clearSelection}>
                   Clear
                 </Button>
