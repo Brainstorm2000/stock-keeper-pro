@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { WifiOff, AlertTriangle } from "lucide-react";
+import { WifiOff, AlertTriangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,15 +12,18 @@ export function OfflineBanner() {
   );
   const [isSlow, setIsSlow] = useState(false);
   const [justRecovered, setJustRecovered] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     const goOffline = () => {
       setIsOffline(true);
       setJustRecovered(false);
+      setDismissed(false);
     };
     const goOnline = () => {
       setIsOffline(false);
       setJustRecovered(true);
+      setDismissed(false);
       setTimeout(() => setJustRecovered(false), 2500);
     };
     window.addEventListener("offline", goOffline);
@@ -34,10 +37,11 @@ export function OfflineBanner() {
     const checkSpeed = () => {
       if (!conn) return;
       const slowTypes = ["slow-2g", "2g"];
-      setIsSlow(
+      const slow =
         slowTypes.includes(conn.effectiveType) ||
-          (typeof conn.downlink === "number" && conn.downlink > 0 && conn.downlink < 0.3),
-      );
+        (typeof conn.downlink === "number" && conn.downlink > 0 && conn.downlink < 0.3);
+      setIsSlow(slow);
+      if (slow) setDismissed(false);
     };
     checkSpeed();
     conn?.addEventListener?.("change", checkSpeed);
@@ -50,6 +54,7 @@ export function OfflineBanner() {
   }, []);
 
   if (!isOffline && !isSlow && !justRecovered) return null;
+  if (dismissed) return null;
 
   const variant = isOffline
     ? "offline"
@@ -89,6 +94,14 @@ export function OfflineBanner() {
         </>
       )}
       {variant === "recovered" && <span>Back online</span>}
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={() => setDismissed(true)}
+        className="ml-2 p-1 rounded hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-white/50 transition-colors"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }
