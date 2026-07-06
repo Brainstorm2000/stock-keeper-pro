@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { downloadCSV } from '@/lib/csv-utils';
+import { exportAttendanceToExcel } from '@/lib/csv-utils';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 
@@ -67,24 +67,7 @@ export function AttendanceRecords() {
   } = usePagination(records, 10);
 
   const handleExport = () => {
-    const headers = ['Staff Name', 'Department', 'Branch', 'Shift', 'Date', 'Clock In', 'Clock In By', 'Clock Out', 'Clock Out By', 'Hours Worked', 'Overtime Hours', 'Days Worked', 'Status'];
-    const rows = records.map(r => [
-      r.staff?.full_name || '',
-      r.departments?.name || r.staff?.department || '',
-      r.branches?.name || '',
-      r.shifts?.shift_name || '',
-      r.attendance_date,
-      r.clock_in_time ? format(new Date(r.clock_in_time), 'HH:mm') : '',
-      r.clocked_in_by_name || '',
-      r.clock_out_time ? format(new Date(r.clock_out_time), 'HH:mm') : '',
-      r.clocked_out_by_name || '',
-      r.hours_worked?.toFixed(2) || '',
-      r.overtime_hours?.toFixed(2) || '0',
-      daysWorkedByStaff[r.staff_id] ?? 0,
-      r.status,
-    ].map(v => String(v).includes(',') ? `"${v}"` : v));
-    const content = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    downloadCSV(content, `attendance-${new Date().toISOString().split('T')[0]}.csv`);
+    exportAttendanceToExcel(records, daysWorkedByStaff, `attendance-${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   return (

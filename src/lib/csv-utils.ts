@@ -1,3 +1,4 @@
+import * as XLSX from 'xlsx';
 import type { Product } from '@/hooks/useProducts';
 import type { ProductVariation } from '@/hooks/useProductVariations';
 
@@ -462,6 +463,66 @@ export function exportToCSV<T extends Record<string, unknown>>(data: T[], filena
   
   const content = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
   downloadCSV(content, filename);
+}
+
+function formatTime(value: unknown): string {
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+export function exportAttendanceToExcel(
+  records: any[],
+  daysWorkedByStaff: Record<string, number>,
+  filename = `attendance-${new Date().toISOString().split('T')[0]}.xlsx`,
+): void {
+  const attendanceRows = records.map((r) => ({
+    'Staff Name': r.staff?.full_name || '',
+    Department: r.departments?.name || r.staff?.department || '',
+    Branch: r.branches?.name || '',
+    Shift: r.shifts?.shift_name || '',
+    Date: r.attendance_date,
+    'Clock In': r.clock_in_time ? formatTime(r.clock_in_time) : '',
+    'Clock In By': r.clocked_in_by_name || '',
+    'Clock Out': r.clock_out_time ? formatTime(r.clock_out_time) : '',
+    'Clock Out By': r.clocked_out_by_name || '',
+    'Hours Worked': Number(r.hours_worked || 0),
+    'Overtime Hours': Number(r.overtime_hours || 0),
+    Status: r.status || '',
+  }));
+
+  const summaryMap = new Map<string, Record<string, string | number>>();
+  for (const record of records) {
+    const staffId = record.staff_id;
+    if (!staffId) continue;
+
+    const existing = summaryMap.get(staffId);
+    const hoursWorked = Number(record.hours_worked || 0);
+    const overtimeHours = Number(record.overtime_hours || 0);
+
+    if (existing) {
+      existing['Total Hours Worked'] = Number(existing['Total Hours Worked']) + hoursWorked;
+      existing['Total Overtime Hours'] = Number(existing['Total Overtime Hours']) + overtimeHours;
+    } else {
+      summaryMap.set(staffId, {
+        'Staff Name': record.staff?.full_name || '',
+        Department: record.departments?.name || record.staff?.department || '',
+        Branch: record.branches?.name || '',
+        'Total Hours Worked': hoursWorked,
+        'Total Overtime Hours': overtimeHours,
+        'Days Worked': daysWorkedByStaff[staffId] ?? 0,
+      });
+    }
+  }
+
+  const summaryRows = Array.from(summaryMap.values());
+
+  const workbook = XLSX.utils.book_new();
+  const attendanceSheet = XLSX.utils.json_to_sheet(attendanceRows);
+  const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+  XLSX.utils.book_append_sheet(workbook, attendanceSheet, 'Attendance Records');
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Staff Summary');
+  XLSX.writeFile(workbook, filename);
 }
 
 // Parse generic CSV file

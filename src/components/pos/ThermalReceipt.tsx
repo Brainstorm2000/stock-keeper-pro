@@ -24,6 +24,9 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
 
     const paymentDetails = sale.payment_details as PaymentDetail[] | undefined;
     const hasSplitPayment = paymentDetails && paymentDetails.length > 1;
+    const amountPaid = Number(sale.amount_paid ?? 0);
+    const balanceDue = Number(sale.balance_due ?? Math.max(0, Number(sale.total_amount) - amountPaid));
+    const shouldShowBalance = sale.payment_status === 'partial' || sale.payment_status === 'outstanding';
 
     return (
       <div
@@ -207,20 +210,76 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
                   <span>{formatCurrency(Number(payment.amount))}</span>
                 </div>
               ))}
+              {shouldShowBalance && (
+                <>
+                  <div className="receipt-divider" />
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginTop: "2px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <span>AMOUNT PAID:</span>
+                    <span>{formatCurrency(amountPaid)}</span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginTop: "2px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <span>BALANCE DUE:</span>
+                    <span>{formatCurrency(balanceDue)}</span>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontWeight: "700",
-              }}
-            >
-              <span>METHOD:</span>
-              <span>
-                {paymentMethodLabels[sale.payment_method] ||
-                  sale.payment_method.toUpperCase()}
-              </span>
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontWeight: "700",
+                }}
+              >
+                <span>METHOD:</span>
+                <span>
+                  {paymentMethodLabels[sale.payment_method] ||
+                    sale.payment_method.toUpperCase()}
+                </span>
+              </div>
+              {shouldShowBalance && (
+                <>
+                  <div className="receipt-divider" />
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginTop: "2px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <span>AMOUNT PAID:</span>
+                    <span>{formatCurrency(amountPaid)}</span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginTop: "2px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    <span>BALANCE DUE:</span>
+                    <span>{formatCurrency(balanceDue)}</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

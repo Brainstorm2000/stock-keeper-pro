@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, FileText, TrendingUp, DollarSign, ShoppingCart, CreditCard, Users } from 'lucide-react';
+import { Download, FileText, TrendingUp, DollarSign, ShoppingCart, CreditCard, Users, Medal } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
@@ -248,9 +248,26 @@ export function SalesReportTab({ sales, saleItems, dateRange, branches, selected
               </TableRow>
             </TableHeader>
             <TableBody>
-              {topCustomers.map((c) => (
+              {topCustomers.map((c, index) => (
                 <TableRow key={c.name}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell className="font-medium">
+                    
+                    {index < 3 ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Medal
+                          className={`h-4 w-4 ${
+                            index === 0
+                              ? 'text-amber-400'
+                              : index === 1
+                                ? 'text-slate-400'
+                                : 'text-orange-600'
+                          }`} />
+                    {c.name}    
+                      </span>
+                    ) : (
+                      c.name
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">{c.orders}</TableCell>
                   <TableCell className="text-right">{formatCurrency(c.revenue)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(c.revenue / c.orders)}</TableCell>

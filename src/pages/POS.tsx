@@ -114,6 +114,10 @@ export default function POS() {
   );
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [dueDate, setDueDate] = useState("");
+
+  const generateSplitPaymentId = () =>
+    crypto.randomUUID?.() ??
+    `payment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const [saleDate, setSaleDate] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -1038,7 +1042,13 @@ export default function POS() {
                   onCheckedChange={(checked) => {
                     setUseSplitPayment(checked === true);
                     if (checked) {
-                      setPaymentSplits([{ method: "cash", amount: total }]);
+                      setPaymentSplits([
+                        {
+                          id: generateSplitPaymentId(),
+                          method: "cash",
+                          amount: total,
+                        },
+                      ]);
                     } else {
                       setPaymentSplits([]);
                     }
