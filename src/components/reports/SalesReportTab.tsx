@@ -10,6 +10,7 @@ import { formatCurrency } from '@/lib/currency';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
 import { DateRange } from '@/components/reports/DateRangeFilter';
 import { useOrganization } from '@/hooks/useOrganization';
+import { usePaymentMethods } from '@/hooks/usePaymentMethods';
 
 interface SalesReportTabProps {
   sales: any[];
@@ -23,6 +24,11 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 
 export function SalesReportTab({ sales, saleItems, dateRange, branches, selectedBranch }: SalesReportTabProps) {
   const { data: org } = useOrganization();
+  const { data: orgPaymentMethods = [] } = usePaymentMethods();
+  const methodById = useMemo(
+    () => Object.fromEntries(orgPaymentMethods.map((m) => [m.id, m])),
+    [orgPaymentMethods]
+  );
   const filteredSales = useMemo(() => {
     return sales.filter(s => {
       const d = new Date(s.created_at);
@@ -52,19 +58,23 @@ export function SalesReportTab({ sales, saleItems, dateRange, branches, selected
   // Payment method breakdown
   const paymentBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
+    const labelFor = (methodId: string | null | undefined, fallbackEnum: string) => {
+      if (methodId && methodById[methodId]) return methodById[methodId].name;
+      return (fallbackEnum || 'cash').replace('_', ' ');
+    };
     filteredSales.forEach((s) => {
       if (Array.isArray(s.payment_details) && s.payment_details.length > 0) {
         s.payment_details.forEach((pd: any) => {
-          const method = pd.method || s.payment_method || 'cash';
-          map[method] = (map[method] || 0) + Number(pd.amount || 0);
+          const key = labelFor(pd.method_id, pd.method || s.payment_method);
+          map[key] = (map[key] || 0) + Number(pd.amount || 0);
         });
       } else {
-        const method = s.payment_method || 'cash';
-        map[method] = (map[method] || 0) + Number(s.total_amount || 0);
+        const key = labelFor(s.payment_method_id, s.payment_method);
+        map[key] = (map[key] || 0) + Number(s.total_amount || 0);
       }
     });
-    return Object.entries(map).map(([name, value]) => ({ name: name.replace('_', ' '), value }));
-  }, [filteredSales]);
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [filteredSales, methodById]);
 
   // Top products
   const topProducts = useMemo(() => {
