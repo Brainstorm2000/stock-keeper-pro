@@ -10,6 +10,7 @@ export interface DebtPayment {
   sale_id: string;
   amount: number;
   payment_method: string;
+  payment_method_id?: string | null;
   notes: string | null;
   paid_by: string | null;
   created_at: string;
@@ -57,14 +58,16 @@ export function useRecordDebtPayment() {
       saleId,
       amount,
       paymentMethod,
+      paymentMethodId,
       notes,
       payments,
     }: {
       saleId: string;
       amount?: number;
       paymentMethod?: string;
+      paymentMethodId?: string | null;
       notes?: string;
-      payments?: { amount: number; paymentMethod: string; notes?: string }[];
+      payments?: { amount: number; paymentMethod: string; paymentMethodId?: string | null; notes?: string }[];
     }) => {
       if (!organizationId) throw new Error('No organization');
 
@@ -72,7 +75,7 @@ export function useRecordDebtPayment() {
         payments && payments.length > 0
           ? payments.filter((p) => p.amount > 0)
           : amount && paymentMethod
-            ? [{ amount, paymentMethod, notes }]
+            ? [{ amount, paymentMethod, paymentMethodId, notes }]
             : [];
       if (splits.length === 0) throw new Error('No payment amount provided');
       const totalPaidNow = splits.reduce((s, p) => s + Number(p.amount || 0), 0);
@@ -98,9 +101,10 @@ export function useRecordDebtPayment() {
             sale_id: saleId,
             amount: p.amount,
             payment_method: p.paymentMethod,
+            payment_method_id: (p as any).paymentMethodId ?? null,
             notes: p.notes || notes || null,
             paid_by: user?.id || null,
-          })),
+          })) as any,
         );
       if (paymentError) throw paymentError;
 
