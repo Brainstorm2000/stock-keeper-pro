@@ -37,7 +37,9 @@ export default function Debts() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [historyDialog, setHistoryDialog] = useState<string | null>(null);
   const [useSplit, setUseSplit] = useState(false);
+  // `method` holds the payment_methods.id when available, else fallback enum string
   const [splits, setSplits] = useState<{ amount: string; method: string }[]>([]);
+  const [paymentMethodId, setPaymentMethodId] = useState<string | undefined>(undefined);
 
   const { data: allSales = [], isLoading } = useSales();
   const recordPayment = useRecordDebtPayment();
@@ -82,7 +84,14 @@ export default function Debts() {
     if (!paymentDialog) return;
     if (useSplit) {
       const cleaned = splits
-        .map((s) => ({ amount: Number(s.amount), paymentMethod: s.method }))
+        .map((s) => {
+          const m = orgMethods.find((om) => om.id === s.method);
+          return {
+            amount: Number(s.amount),
+            paymentMethod: m ? m.mapped_type : s.method,
+            paymentMethodId: m?.id,
+          };
+        })
         .filter((s) => s.amount > 0);
       if (cleaned.length === 0) return;
       await recordPayment.mutateAsync({
@@ -92,16 +101,19 @@ export default function Debts() {
       });
     } else {
       if (!paymentAmount) return;
+      const m = orgMethods.find((om) => om.id === paymentMethodId);
       await recordPayment.mutateAsync({
         saleId: paymentDialog.saleId,
         amount: Number(paymentAmount),
-        paymentMethod,
+        paymentMethod: m ? m.mapped_type : paymentMethod,
+        paymentMethodId: m?.id,
         notes: paymentNotes || undefined,
       });
     }
     setPaymentDialog(null);
     setPaymentAmount('');
     setPaymentNotes('');
+    setPaymentMethodId(undefined);
     setUseSplit(false);
     setSplits([]);
   };
@@ -279,7 +291,7 @@ export default function Debts() {
                     setUseSplit(next);
                     if (next && splits.length === 0) {
                       const first = orgMethods[0];
-                      setSplits([{ amount: String(paymentDialog?.balance ?? ''), method: first?.mapped_type ?? 'cash' }]);
+                    setSplits([{ amount: String(paymentDialog?.balance ?? ''), method: first?.id ?? 'cash' }]);
                     }
                   }}
                 >
@@ -303,12 +315,24 @@ export default function Debts() {
                   </div>
                   <div className="space-y-2">
                     <Label>Payment Method</Label>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <Select
+                      value={paymentMethodId ?? paymentMethod}
+                      onValueChange={(v) => {
+                        const m = orgMethods.find((om) => om.id === v);
+                        if (m) {
+                          setPaymentMethodId(m.id);
+                          setPaymentMethod(m.mapped_type);
+                        } else {
+                          setPaymentMethodId(undefined);
+                          setPaymentMethod(v);
+                        }
+                      }}
+                    >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {orgMethods.length > 0 ? (
                           orgMethods.map((m) => (
-                            <SelectItem key={m.id} value={m.mapped_type}>
+                            <SelectItem key={m.id} value={m.id}>
                               <div className="flex items-center gap-2">
                                 <PaymentIcon name={m.icon} />
                                 <span>{m.name}</span>
@@ -343,7 +367,7 @@ export default function Debts() {
                         <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {(orgMethods.length > 0
-                            ? orgMethods.map((m) => ({ value: m.mapped_type, label: m.name, icon: m.icon }))
+                            ? orgMethods.map((m) => ({ value: m.id, label: m.name, icon: m.icon }))
                             : [
                                 { value: 'cash', label: 'Cash', icon: 'Banknote' },
                                 { value: 'card', label: 'Card', icon: 'CreditCard' },
@@ -384,7 +408,7 @@ export default function Debts() {
                     onClick={() => {
                       const first = orgMethods[0];
                       const remaining = Math.max(0, (paymentDialog?.balance ?? 0) - splitTotal);
-                      setSplits([...splits, { amount: String(remaining), method: first?.mapped_type ?? 'cash' }]);
+                      setSplits([...splits, { amount: String(remaining), method: first?.id ?? 'cash' }]);
                     }}
                   >
                     <Plus className="h-4 w-4 mr-2" /> Add Payment
