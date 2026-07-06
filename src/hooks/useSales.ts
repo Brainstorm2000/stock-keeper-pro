@@ -23,6 +23,8 @@ export interface SaleItem {
 export interface PaymentDetail {
   method: PaymentMethod;
   amount: number;
+  method_id?: string;
+  method_name?: string;
 }
 
 export interface Sale {
@@ -39,6 +41,7 @@ export interface Sale {
   tax_amount: number;
   total_amount: number;
   payment_method: PaymentMethod;
+  payment_method_id?: string | null;
   payment_details?: PaymentDetail[];
   status: SaleStatus;
   payment_status?: 'paid' | 'partial' | 'outstanding';
@@ -69,6 +72,7 @@ export interface CreateSaleInput {
   payment_status?: string;
   due_date?: string;
   payment_method: PaymentMethod;
+  payment_method_id?: string | null;
   payment_details?: PaymentDetail[];
   status?: SaleStatus;
   notes?: string;
@@ -177,6 +181,7 @@ export function useCreateSale() {
           payment_status: input.payment_status ?? 'paid',
           due_date: input.due_date || null,
           payment_method: input.payment_method,
+          payment_method_id: input.payment_method_id ?? null,
           payment_details: input.payment_details ? JSON.parse(JSON.stringify(input.payment_details)) : null,
           status: input.status || 'completed',
           notes: input.notes || null,
