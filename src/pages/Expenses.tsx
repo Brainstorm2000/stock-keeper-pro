@@ -77,6 +77,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
+import { exportToXLSX } from "@/lib/export-utils";
 
 export default function Expenses() {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
