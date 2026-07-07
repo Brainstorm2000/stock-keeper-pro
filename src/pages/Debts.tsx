@@ -51,9 +51,11 @@ export default function Debts() {
   const debtSales = useMemo(() => {
     return allSales.filter((s: any) => {
       const ps = s.payment_status || 'paid';
-      const matchSearch = !search ||
-        s.sale_number?.toLowerCase().includes(search.toLowerCase()) ||
-        s.customer_name?.toLowerCase().includes(search.toLowerCase());
+      const q = search.toLowerCase();
+      const displayName = (s.customer_name || 'Walk-in').toLowerCase();
+      const matchSearch = !q ||
+        s.sale_number?.toLowerCase().includes(q) ||
+        displayName.includes(q);
       const matchStatus = statusFilter === 'all' || ps === statusFilter;
       const saleDate = new Date(s.created_at);
       const matchStart = !startDate || saleDate >= new Date(startDate);
