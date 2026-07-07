@@ -11,6 +11,7 @@ import {
   Edit2,
   Trash2,
   RotateCcw,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +73,7 @@ import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
 import { SaleReturnDialog } from "@/components/sales/SaleReturnDialog";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
+import { exportToXLSX } from "@/lib/export-utils";
 
 const statusColors: Record<SaleStatus, string> = {
   completed:
