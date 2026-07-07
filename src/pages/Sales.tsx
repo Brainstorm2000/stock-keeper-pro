@@ -315,6 +315,34 @@ export default function Sales() {
             >
               Go to POS
             </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                exportToXLSX(
+                  filteredSales.map((s) => ({
+                    "Invoice #": s.sale_number,
+                    Date: format(new Date(s.created_at), "yyyy-MM-dd HH:mm"),
+                    Customer: s.customer_name || "Walk-in",
+                    Payment: s.payment_method,
+                    Status: s.status,
+                    "Payment Status": s.payment_status || "-",
+                    Subtotal: Number(s.subtotal || 0),
+                    Discount: Number(s.discount_amount || 0),
+                    Tax: Number(s.tax_amount || 0),
+                    Total: Number(s.total_amount || 0),
+                    "Amount Paid": Number(s.amount_paid || 0),
+                    "Balance Due": Number(s.balance_due || 0),
+                    Branch: branches.find((b) => b.id === s.branch_id)?.name || "-",
+                  })),
+                  "sales",
+                  "Sales",
+                )
+              }
+              disabled={filteredSales.length === 0}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Export Excel
+            </Button>
           </div>
 
           {/* Summary Cards */}
