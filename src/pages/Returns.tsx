@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { format } from 'date-fns';
-import { RotateCcw, Undo2, Search, Loader2 } from 'lucide-react';
+import { RotateCcw, Undo2, Search, Loader2, FileSpreadsheet } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useSaleReturns, useUndoSaleReturn, type SaleReturn } from '@/hooks/useSaleReturns';
 import { usePurchaseReturns, useUndoPurchaseReturn, type PurchaseReturn } from '@/hooks/usePurchaseReturns';
 import { formatCurrency } from '@/lib/currency';
+import { exportToXLSX } from '@/lib/export-utils';
 
 export default function Returns() {
   const { data: saleReturns = [], isLoading: saleLoading } = useSaleReturns();
@@ -62,11 +63,53 @@ export default function Returns() {
     <ModuleAccessGuard module="returns" minLevel="view">
       <DashboardLayout>
         <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <RotateCcw className="h-6 w-6" /> Returns
-            </h1>
-            <p className="text-muted-foreground">View all sales and purchase returns</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <RotateCcw className="h-6 w-6" /> Returns
+              </h1>
+              <p className="text-muted-foreground">View all sales and purchase returns</p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() =>
+                exportToXLSX(
+                  [],
+                  'returns',
+                  'Returns',
+                  [
+                    {
+                      name: 'Sale Returns',
+                      data: filteredSaleReturns.map((r: any) => ({
+                        'Return #': r.return_number,
+                        'Sale #': r.sales?.sale_number || '-',
+                        Date: format(new Date(r.return_date), 'yyyy-MM-dd'),
+                        Branch: r.branches?.name || '-',
+                        'Refund Method': r.refund_method || '-',
+                        Reason: r.reason || '-',
+                        Items: r.sale_return_items?.length || 0,
+                        Amount: Number(r.total_amount || 0),
+                      })),
+                    },
+                    {
+                      name: 'Purchase Returns',
+                      data: filteredPurchaseReturns.map((r: any) => ({
+                        'Return #': r.return_number,
+                        'Purchase #': r.purchases?.purchase_number || '-',
+                        Date: format(new Date(r.return_date), 'yyyy-MM-dd'),
+                        Branch: r.branches?.name || '-',
+                        Reason: r.reason || '-',
+                        Items: r.purchase_return_items?.length || 0,
+                        Amount: Number(r.total_amount || 0),
+                      })),
+                    },
+                  ],
+                )
+              }
+              disabled={saleReturns.length === 0 && purchaseReturns.length === 0}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Export Excel
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

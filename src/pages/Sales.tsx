@@ -11,6 +11,7 @@ import {
   Edit2,
   Trash2,
   RotateCcw,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +73,7 @@ import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
 import { SaleReturnDialog } from "@/components/sales/SaleReturnDialog";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
+import { exportToXLSX } from "@/lib/export-utils";
 
 const statusColors: Record<SaleStatus, string> = {
   completed:
@@ -149,10 +151,12 @@ export default function Sales() {
   // Filter sales
   const filteredSales = useMemo(() => {
     return sales.filter((sale) => {
+      const q = searchQuery.toLowerCase();
+      const displayName = (sale.customer_name || "Walk-in").toLowerCase();
       const matchesSearch =
-        sale.sale_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (sale.customer_name &&
-          sale.customer_name.toLowerCase().includes(searchQuery.toLowerCase()));
+        !q ||
+        sale.sale_number.toLowerCase().includes(q) ||
+        displayName.includes(q);
       const matchesStatus =
         filterStatus === "all" || sale.status === filterStatus;
       const paymentMethods =
@@ -310,6 +314,34 @@ export default function Sales() {
               className="w-full sm:w-auto bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-md shadow-amber-500/10 transition-all active:scale-[0.98]"
             >
               Go to POS
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                exportToXLSX(
+                  filteredSales.map((s) => ({
+                    "Invoice #": s.sale_number,
+                    Date: format(new Date(s.created_at), "yyyy-MM-dd HH:mm"),
+                    Customer: s.customer_name || "Walk-in",
+                    Payment: s.payment_method,
+                    Status: s.status,
+                    "Payment Status": s.payment_status || "-",
+                    Subtotal: Number(s.subtotal || 0),
+                    Discount: Number(s.discount_amount || 0),
+                    Tax: Number(s.tax_amount || 0),
+                    Total: Number(s.total_amount || 0),
+                    "Amount Paid": Number(s.amount_paid || 0),
+                    "Balance Due": Number(s.balance_due || 0),
+                    Branch: branches.find((b) => b.id === s.branch_id)?.name || "-",
+                  })),
+                  "sales",
+                  "Sales",
+                )
+              }
+              disabled={filteredSales.length === 0}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Export Excel
             </Button>
           </div>
 

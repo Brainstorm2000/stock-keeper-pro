@@ -1,4 +1,24 @@
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
+
+export function exportToXLSX(
+  data: Record<string, any>[],
+  filename: string,
+  sheetName: string = 'Sheet1',
+  sheets?: { name: string; data: Record<string, any>[] }[],
+) {
+  const wb = XLSX.utils.book_new();
+  if (sheets && sheets.length) {
+    sheets.forEach((s) => {
+      const ws = XLSX.utils.json_to_sheet(s.data);
+      XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0, 31));
+    });
+  } else {
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
+  }
+  XLSX.writeFile(wb, `${filename}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+}
 
 export function exportToCSV(data: Record<string, any>[], filename: string) {
   if (!data.length) return;

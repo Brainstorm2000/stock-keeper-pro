@@ -19,6 +19,7 @@ import { usePaymentMethods } from '@/hooks/usePaymentMethods';
 import { PaymentIcon } from '@/lib/payment-icons';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/currency';
+import { exportToXLSX } from '@/lib/export-utils';
 
 const statusColors: Record<string, string> = {
   paid: 'bg-green-500/10 text-green-700 dark:text-green-300',
@@ -51,9 +52,11 @@ export default function Debts() {
   const debtSales = useMemo(() => {
     return allSales.filter((s: any) => {
       const ps = s.payment_status || 'paid';
-      const matchSearch = !search ||
-        s.sale_number?.toLowerCase().includes(search.toLowerCase()) ||
-        s.customer_name?.toLowerCase().includes(search.toLowerCase());
+      const q = search.toLowerCase();
+      const displayName = (s.customer_name || 'Walk-in').toLowerCase();
+      const matchSearch = !q ||
+        s.sale_number?.toLowerCase().includes(q) ||
+        displayName.includes(q);
       const matchStatus = statusFilter === 'all' || ps === statusFilter;
       const saleDate = new Date(s.created_at);
       const matchStart = !startDate || saleDate >= new Date(startDate);
@@ -121,26 +124,21 @@ export default function Debts() {
 
   const splitTotal = splits.reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
-  const exportToCSV = () => {
-    const headers = ['Invoice #', 'Date', 'Customer', 'Total Amount', 'Amount Paid', 'Balance Due', 'Payment Status', 'Due Date'];
-    const rows = debtSales.map((s: any) => [
-      s.sale_number,
-      format(new Date(s.created_at), 'yyyy-MM-dd'),
-      s.customer_name || 'Walk-in',
-      Number(s.total_amount).toFixed(2),
-      Number(s.amount_paid || 0).toFixed(2),
-      Number(s.balance_due || 0).toFixed(2),
-      s.payment_status || 'paid',
-      s.due_date || '',
-    ]);
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `debts-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportExcel = () => {
+    exportToXLSX(
+      debtSales.map((s: any) => ({
+        'Invoice #': s.sale_number,
+        Date: format(new Date(s.created_at), 'yyyy-MM-dd'),
+        Customer: s.customer_name || 'Walk-in',
+        'Total Amount': Number(s.total_amount || 0),
+        'Amount Paid': Number(s.amount_paid || 0),
+        'Balance Due': Number(s.balance_due || 0),
+        'Payment Status': s.payment_status || 'paid',
+        'Due Date': s.due_date || '',
+      })),
+      'debts',
+      'Debts',
+    );
   };
 
   return (
@@ -152,8 +150,8 @@ export default function Debts() {
               <h1 className="text-2xl font-bold text-foreground">Debts & Outstanding Payments</h1>
               <p className="text-muted-foreground">Track and manage unpaid and partially paid sales</p>
             </div>
-            <Button variant="outline" onClick={exportToCSV} disabled={debtSales.length === 0}>
-              <Download className="h-4 w-4 mr-2" />Export CSV
+            <Button variant="outline" onClick={exportExcel} disabled={debtSales.length === 0}>
+              <Download className="h-4 w-4 mr-2" />Export Excel
             </Button>
           </div>
 

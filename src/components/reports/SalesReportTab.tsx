@@ -187,12 +187,34 @@ export function SalesReportTab({ sales, saleItems, dateRange, branches, selected
           <CardHeader><CardTitle className="text-sm">Payment Methods</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={paymentBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                  {paymentBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              </PieChart>
+              {(() => {
+                const total = paymentBreakdown.reduce((s, x) => s + Number(x.value || 0), 0);
+                return (
+                  <PieChart>
+                    <Pie
+                      data={paymentBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      label={({ name, value }: any) => {
+                        const pct = total > 0 ? ((Number(value) / total) * 100).toFixed(1) : '0';
+                        return `${name} ${pct}%`;
+                      }}
+                    >
+                      {paymentBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v: number, name: string) => {
+                        const pct = total > 0 ? ((Number(v) / total) * 100).toFixed(1) : '0';
+                        return [`${formatCurrency(v)} (${pct}%)`, name];
+                      }}
+                    />
+                    <Legend />
+                  </PieChart>
+                );
+              })()}
             </ResponsiveContainer>
           </CardContent>
         </Card>

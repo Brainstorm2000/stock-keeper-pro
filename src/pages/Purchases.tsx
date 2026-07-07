@@ -14,6 +14,7 @@ import {
   Pencil,
   RotateCcw,
   Loader2,
+  FileSpreadsheet,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -79,6 +80,7 @@ import { PurchaseDetailsDialog } from "@/components/purchases/PurchaseDetailsDia
 import { EditPurchaseDialog } from "@/components/purchases/EditPurchaseDialog";
 
 import { PurchaseReturnDialog } from "@/components/purchases/PurchaseReturnDialog";
+import { exportToXLSX } from "@/lib/export-utils";
 
 export default function Purchases() {
   const { isAdmin } = useAuth();
@@ -221,6 +223,32 @@ export default function Purchases() {
                 New Purchase
               </Button>
             )}
+            <Button
+              variant="outline"
+              onClick={() =>
+                exportToXLSX(
+                  filteredPurchases.map((p: any) => ({
+                    "PO Number": p.purchase_number,
+                    Date: format(new Date(p.purchase_date || p.created_at), "yyyy-MM-dd"),
+                    Supplier: p.suppliers?.name || "-",
+                    Branch: p.branches?.name || "-",
+                    Items: p.purchase_items?.length || 0,
+                    Subtotal: Number(p.subtotal || 0),
+                    Tax: Number(p.tax_amount || 0),
+                    Total: Number(p.total_amount || 0),
+                    "Amount Paid": Number(p.amount_paid || 0),
+                    "Balance Due": Number((p.total_amount || 0) - (p.amount_paid || 0)),
+                    "Payment Status": p.payment_status,
+                  })),
+                  "purchases",
+                  "Purchases",
+                )
+              }
+              disabled={filteredPurchases.length === 0}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Export Excel
+            </Button>
           </div>
 
           {/* SUMMARY */}

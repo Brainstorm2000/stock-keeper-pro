@@ -13,6 +13,7 @@ import {
   Loader2,
   FileText,
   ExternalLink,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +77,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
+import { exportToXLSX } from "@/lib/export-utils";
 
 export default function Expenses() {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -325,6 +327,27 @@ export default function Expenses() {
                 >
                   <Tags className="mr-2 h-4 w-4" />
                   Categories
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    exportToXLSX(
+                      filteredExpenses.map((e: any) => ({
+                        Date: e.expense_date || format(new Date(e.created_at), "yyyy-MM-dd"),
+                        Description: e.description,
+                        Category: e.expense_categories?.name || "-",
+                        Amount: Number(e.amount || 0),
+                        Branch: e.branches?.name || "-",
+                        Notes: e.notes || "",
+                      })),
+                      "expenses",
+                      "Expenses",
+                    )
+                  }
+                  disabled={filteredExpenses.length === 0}
+                >
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Export Excel
                 </Button>
                 <Button
                   onClick={() => {
