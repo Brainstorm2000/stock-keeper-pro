@@ -149,10 +149,12 @@ export default function Sales() {
   // Filter sales
   const filteredSales = useMemo(() => {
     return sales.filter((sale) => {
+      const q = searchQuery.toLowerCase();
+      const displayName = (sale.customer_name || "Walk-in").toLowerCase();
       const matchesSearch =
-        sale.sale_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (sale.customer_name &&
-          sale.customer_name.toLowerCase().includes(searchQuery.toLowerCase()));
+        !q ||
+        sale.sale_number.toLowerCase().includes(q) ||
+        displayName.includes(q);
       const matchesStatus =
         filterStatus === "all" || sale.status === filterStatus;
       const paymentMethods =
