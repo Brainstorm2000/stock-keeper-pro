@@ -86,6 +86,7 @@ export default function Dashboard() {
   } = useAuth();
   const { canCreate: canCreateProduct, canDelete: canDeleteProduct } =
     useModuleAccess("products");
+  const { canView: canViewFinancials } = useModuleAccess("dashboard_financials");
 
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [unitsDialogOpen, setUnitsDialogOpen] = useState(false);
@@ -350,7 +351,10 @@ export default function Dashboard() {
             sales={filteredSales}
             expenses={filteredExpenses}
             outstandingSales={filteredOutstandingSales}
-            hasBranchAccess={isSuperAdmin || myBranchAssignments.length > 0}
+            hasBranchAccess={
+              (isSuperAdmin || myBranchAssignments.length > 0) &&
+              (isAdmin || isSuperAdmin || canViewFinancials)
+            }
           />
         </div>
 
