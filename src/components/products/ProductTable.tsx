@@ -305,6 +305,11 @@ export function ProductTable({
           <TableCell className="font-medium">
             <div>
               {product.name}
+              {product.is_archived && (
+                <Badge variant="outline" className="ml-2 text-[10px]">
+                  Archived
+                </Badge>
+              )}
               {product.sku && (
                 <span className="block text-xs text-muted-foreground">
                   SKU: {product.sku}
@@ -390,6 +395,27 @@ export function ProductTable({
                      <DropdownMenuItem onClick={() => onEdit(product)}>
                        <Pencil className="mr-2 h-4 w-4" />
                        Edit
+                     </DropdownMenuItem>
+                   )}
+
+                   {canEditProduct && (
+                     <DropdownMenuItem
+                       onClick={() =>
+                         archiveMutation.mutate({
+                           id: product.id,
+                           archived: !product.is_archived,
+                         })
+                       }
+                     >
+                       {product.is_archived ? (
+                         <>
+                           <ArchiveRestore className="mr-2 h-4 w-4" /> Restore
+                         </>
+                       ) : (
+                         <>
+                           <Archive className="mr-2 h-4 w-4" /> Archive
+                         </>
+                       )}
                      </DropdownMenuItem>
                    )}
 
