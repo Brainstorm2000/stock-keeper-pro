@@ -8,6 +8,8 @@ import {
   Search,
   History,
   Download,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
 import {
   Table,
@@ -43,7 +45,7 @@ import { StatusBadge, getStockStatus } from "./StatusBadge";
 import { StockUpdateDialog } from "./StockUpdateDialog";
 import { PriceHistoryDialog } from "./PriceHistoryDialog";
 import { BulkEditProductsDialog } from "./BulkEditProductsDialog";
-import { useBulkDeleteProducts, type Product } from "@/hooks/useProducts";
+import { useBulkDeleteProducts, useArchiveProduct, type Product } from "@/hooks/useProducts";
 import { useBranches } from "@/hooks/useBranches";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useBrands } from "@/hooks/useBrands";
@@ -108,6 +110,7 @@ export function ProductTable({
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const bulkDelete = useBulkDeleteProducts();
+  const archiveMutation = useArchiveProduct();
   const { data: branchesAll = [] } = useBranches();
   const { data: suppliersAll = [] } = useSuppliers();
   const { data: brandsAll = [] } = useBrands();
