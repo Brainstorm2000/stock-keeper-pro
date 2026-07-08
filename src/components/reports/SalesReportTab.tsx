@@ -57,23 +57,35 @@ export function SalesReportTab({ sales, saleItems, dateRange, branches, selected
 
   // Payment method breakdown
   const paymentBreakdown = useMemo(() => {
-    const map: Record<string, number> = {};
-    const labelFor = (methodId: string | null | undefined, fallbackEnum: string) => {
+    // Group by a normalized key so the same method never appears twice
+    // (e.g. legacy enum 'cash' vs a custom method named 'Cash').
+    const map: Record<string, { name: string; value: number }> = {};
+    const displayLabel = (methodId: string | null | undefined, fallbackEnum: string) => {
       if (methodId && methodById[methodId]) return methodById[methodId].name;
-      return (fallbackEnum || 'cash').replace('_', ' ');
+      const enumMatch = (fallbackEnum || 'cash').toLowerCase();
+      const byEnum = orgPaymentMethods.find(
+        (m) => m.name.toLowerCase().replace(/\s+/g, '_') === enumMatch,
+      );
+      if (byEnum) return byEnum.name;
+      return (fallbackEnum || 'cash')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+    const add = (label: string, amount: number) => {
+      const key = label.trim().toLowerCase();
+      if (!map[key]) map[key] = { name: label.trim(), value: 0 };
+      map[key].value += amount;
     };
     filteredSales.forEach((s) => {
       if (Array.isArray(s.payment_details) && s.payment_details.length > 0) {
         s.payment_details.forEach((pd: any) => {
-          const key = labelFor(pd.method_id, pd.method || s.payment_method);
-          map[key] = (map[key] || 0) + Number(pd.amount || 0);
+          add(displayLabel(pd.method_id, pd.method || s.payment_method), Number(pd.amount || 0));
         });
       } else {
-        const key = labelFor(s.payment_method_id, s.payment_method);
-        map[key] = (map[key] || 0) + Number(s.total_amount || 0);
+        add(displayLabel(s.payment_method_id, s.payment_method), Number(s.total_amount || 0));
       }
     });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
+    return Object.values(map).filter((x) => x.value > 0);
   }, [filteredSales, methodById]);
 
   // Top products
