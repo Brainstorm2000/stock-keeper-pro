@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/hooks/use-toast';
 
-export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production' | 'reports' | 'staff' | 'tasks' | 'debts' | 'returns' | 'products';
+export type AppModule = 'pos' | 'sales' | 'purchases' | 'expenses' | 'production' | 'reports' | 'staff' | 'tasks' | 'debts' | 'returns' | 'products' | 'dashboard_financials';
 export type CrudPermission = 'view' | 'create' | 'edit' | 'delete';
 export type AppRole = 'admin' | 'user' | 'super_admin' | 'super_super_admin';
 
@@ -38,7 +38,7 @@ export interface UserModulePermission {
   can_delete: boolean;
 }
 
-export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses', 'production', 'reports', 'staff', 'tasks', 'debts', 'returns', 'products'];
+export const ALL_MODULES: AppModule[] = ['pos', 'sales', 'purchases', 'expenses', 'production', 'reports', 'staff', 'tasks', 'debts', 'returns', 'products', 'dashboard_financials'];
 
 export const MODULE_LABELS: Record<AppModule, string> = {
   pos: 'Point of Sale',
@@ -52,6 +52,7 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   debts: 'Debts',
   returns: 'Returns',
   products: 'Products',
+  dashboard_financials: 'Dashboard Financial Overview',
 };
 
 export const CRUD_LABELS: Record<CrudPermission, string> = {
