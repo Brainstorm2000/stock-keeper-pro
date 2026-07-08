@@ -86,6 +86,7 @@ export default function Dashboard() {
   } = useAuth();
   const { canCreate: canCreateProduct, canDelete: canDeleteProduct } =
     useModuleAccess("products");
+  const { canView: canViewFinancials } = useModuleAccess("dashboard_financials");
 
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [unitsDialogOpen, setUnitsDialogOpen] = useState(false);
@@ -102,11 +103,14 @@ export default function Dashboard() {
   const [productCategoryTab, setProductCategoryTab] = useState<
     "all" | "sellable" | "consumable"
   >("all");
+  const [showArchived, setShowArchived] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: products = [], isLoading: productsLoading } = useProducts({
+    includeArchived: true,
+  });
   const { data: branches = [] } = useBranches();
   const { data: myBranchAssignments = [] } = useMyBranchAssignments();
   const { data: sales = [] } = useSales();
@@ -122,10 +126,18 @@ export default function Dashboard() {
     [products, selectedBranchId],
   );
 
+  const archiveFilteredProducts = useMemo(
+    () =>
+      showArchived
+        ? branchFilteredProducts.filter((p) => p.is_archived)
+        : branchFilteredProducts.filter((p) => !p.is_archived),
+    [branchFilteredProducts, showArchived],
+  );
+
   const filteredBySearchAndStatus = useMemo(() => {
     const query = productSearchQuery.trim().toLowerCase();
 
-    return branchFilteredProducts.filter((product) => {
+    return archiveFilteredProducts.filter((product) => {
       const matchesSearch =
         !query ||
         product.name.toLowerCase().includes(query) ||
@@ -145,7 +157,7 @@ export default function Dashboard() {
 
       return true;
     });
-  }, [branchFilteredProducts, productSearchQuery, productStatusFilter]);
+  }, [archiveFilteredProducts, productSearchQuery, productStatusFilter]);
 
   const categoryCounts = useMemo(
     () => ({
@@ -341,6 +353,14 @@ export default function Dashboard() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant={showArchived ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowArchived((v) => !v)}
+            className="md:ml-auto"
+          >
+            {showArchived ? "Showing archived" : "Show archived"}
+          </Button>
         </div>
 
         {/* --- Stats Cards (Handled within component but wrapped for padding) --- */}
@@ -350,7 +370,10 @@ export default function Dashboard() {
             sales={filteredSales}
             expenses={filteredExpenses}
             outstandingSales={filteredOutstandingSales}
-            hasBranchAccess={isSuperAdmin || myBranchAssignments.length > 0}
+            hasBranchAccess={
+              (isSuperAdmin || myBranchAssignments.length > 0) &&
+              (isAdmin || isSuperAdmin || canViewFinancials)
+            }
           />
         </div>
 

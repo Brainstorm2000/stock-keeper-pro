@@ -8,6 +8,8 @@ import {
   Search,
   History,
   Download,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
 import {
   Table,
@@ -43,7 +45,7 @@ import { StatusBadge, getStockStatus } from "./StatusBadge";
 import { StockUpdateDialog } from "./StockUpdateDialog";
 import { PriceHistoryDialog } from "./PriceHistoryDialog";
 import { BulkEditProductsDialog } from "./BulkEditProductsDialog";
-import { useBulkDeleteProducts, type Product } from "@/hooks/useProducts";
+import { useBulkDeleteProducts, useArchiveProduct, type Product } from "@/hooks/useProducts";
 import { useBranches } from "@/hooks/useBranches";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useBrands } from "@/hooks/useBrands";
@@ -108,6 +110,7 @@ export function ProductTable({
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const bulkDelete = useBulkDeleteProducts();
+  const archiveMutation = useArchiveProduct();
   const { data: branchesAll = [] } = useBranches();
   const { data: suppliersAll = [] } = useSuppliers();
   const { data: brandsAll = [] } = useBrands();
@@ -302,6 +305,11 @@ export function ProductTable({
           <TableCell className="font-medium">
             <div>
               {product.name}
+              {product.is_archived && (
+                <Badge variant="outline" className="ml-2 text-[10px]">
+                  Archived
+                </Badge>
+              )}
               {product.sku && (
                 <span className="block text-xs text-muted-foreground">
                   SKU: {product.sku}
@@ -387,6 +395,27 @@ export function ProductTable({
                      <DropdownMenuItem onClick={() => onEdit(product)}>
                        <Pencil className="mr-2 h-4 w-4" />
                        Edit
+                     </DropdownMenuItem>
+                   )}
+
+                   {canEditProduct && (
+                     <DropdownMenuItem
+                       onClick={() =>
+                         archiveMutation.mutate({
+                           id: product.id,
+                           archived: !product.is_archived,
+                         })
+                       }
+                     >
+                       {product.is_archived ? (
+                         <>
+                           <ArchiveRestore className="mr-2 h-4 w-4" /> Restore
+                         </>
+                       ) : (
+                         <>
+                           <Archive className="mr-2 h-4 w-4" /> Archive
+                         </>
+                       )}
                      </DropdownMenuItem>
                    )}
 

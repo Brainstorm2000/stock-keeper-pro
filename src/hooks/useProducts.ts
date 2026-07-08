@@ -25,6 +25,7 @@ export interface Product {
   item_type: ItemType;
   cost_price: number;
   selling_price: number;
+  is_archived: boolean;
   created_at: string;
   updated_at: string;
   units?: {
@@ -138,11 +139,12 @@ export async function checkProductDuplicate(
   return { isDuplicate: false };
 }
 
-export function useProducts() {
+export function useProducts(options?: { includeArchived?: boolean }) {
+  const includeArchived = options?.includeArchived ?? false;
   return useQuery({
-    queryKey: ['products'],
+    queryKey: ['products', { includeArchived }],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select(`
           *,
@@ -152,6 +154,10 @@ export function useProducts() {
           brands (id, name)
         `)
         .order('name');
+      if (!includeArchived) {
+        query = query.eq('is_archived', false);
+      }
+      const { data, error } = await query;
 
       if (error) throw error;
       const products = data as Product[];
@@ -324,6 +330,29 @@ export function useBulkUpdateProducts() {
     },
     onError: (error: Error) => {
       const { title, description } = parseDbError(error, 'update products');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
+export function useArchiveProduct() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, archived }: { id: string; archived: boolean }) => {
+      const { error } = await supabase
+        .from('products')
+        .update({ is_archived: archived })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { archived }) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: archived ? 'Item archived' : 'Item restored' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'archive product');
       toast({ title, description, variant: 'destructive' });
     },
   });
