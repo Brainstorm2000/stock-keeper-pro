@@ -1358,6 +1358,7 @@ export type Database = {
           current_stock: number
           description: string | null
           id: string
+          is_archived: boolean
           item_type: Database["public"]["Enums"]["item_type"]
           low_stock_threshold: number
           name: string
@@ -1380,6 +1381,7 @@ export type Database = {
           current_stock?: number
           description?: string | null
           id?: string
+          is_archived?: boolean
           item_type?: Database["public"]["Enums"]["item_type"]
           low_stock_threshold?: number
           name: string
@@ -1402,6 +1404,7 @@ export type Database = {
           current_stock?: number
           description?: string | null
           id?: string
+          is_archived?: boolean
           item_type?: Database["public"]["Enums"]["item_type"]
           low_stock_threshold?: number
           name?: string
@@ -2995,6 +2998,7 @@ export type Database = {
         | "debts"
         | "returns"
         | "products"
+        | "dashboard_financials"
       app_role: "admin" | "user" | "super_admin" | "super_super_admin"
       item_type: "product" | "service" | "variable"
       module_access_level: "none" | "view" | "create" | "full"
@@ -3150,6 +3154,7 @@ export const Constants = {
         "debts",
         "returns",
         "products",
+        "dashboard_financials",
       ],
       app_role: ["admin", "user", "super_admin", "super_super_admin"],
       item_type: ["product", "service", "variable"],
