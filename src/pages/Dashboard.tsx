@@ -353,6 +353,14 @@ export default function Dashboard() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant={showArchived ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowArchived((v) => !v)}
+            className="md:ml-auto"
+          >
+            {showArchived ? "Showing archived" : "Show archived"}
+          </Button>
         </div>
 
         {/* --- Stats Cards (Handled within component but wrapped for padding) --- */}
