@@ -103,11 +103,14 @@ export default function Dashboard() {
   const [productCategoryTab, setProductCategoryTab] = useState<
     "all" | "sellable" | "consumable"
   >("all");
+  const [showArchived, setShowArchived] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: products = [], isLoading: productsLoading } = useProducts({
+    includeArchived: true,
+  });
   const { data: branches = [] } = useBranches();
   const { data: myBranchAssignments = [] } = useMyBranchAssignments();
   const { data: sales = [] } = useSales();
@@ -123,10 +126,18 @@ export default function Dashboard() {
     [products, selectedBranchId],
   );
 
+  const archiveFilteredProducts = useMemo(
+    () =>
+      showArchived
+        ? branchFilteredProducts.filter((p) => p.is_archived)
+        : branchFilteredProducts.filter((p) => !p.is_archived),
+    [branchFilteredProducts, showArchived],
+  );
+
   const filteredBySearchAndStatus = useMemo(() => {
     const query = productSearchQuery.trim().toLowerCase();
 
-    return branchFilteredProducts.filter((product) => {
+    return archiveFilteredProducts.filter((product) => {
       const matchesSearch =
         !query ||
         product.name.toLowerCase().includes(query) ||
@@ -146,7 +157,7 @@ export default function Dashboard() {
 
       return true;
     });
-  }, [branchFilteredProducts, productSearchQuery, productStatusFilter]);
+  }, [archiveFilteredProducts, productSearchQuery, productStatusFilter]);
 
   const categoryCounts = useMemo(
     () => ({
