@@ -132,26 +132,31 @@ export function AppSidebar({
     <Sidebar collapsible="icon" className="border-r border-white/5">
       <SidebarHeader className="h-15 flex justify-center bg-[#000B26] dark:bg-[#020817] px-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 flex items-center justify-center shrink-0">
-            <img
-              src={organization?.logo_url || "/stoqkip-logo.png"}
-              alt="StoqKip"
-              className="h-10 w-10 object-contain"
-            />
-          </div>
-          {!collapsed && (
-            <div className="overflow-hidden">
-              <h1 className="text-lg font-inter text-white tracking-tight leading-none">
-                Stoq<span className="text-[#FF9E3D]">Kip</span>
-              </h1>
-              {organization && (
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate mt-1">
-                  {organization.name}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+  {/* Left Icon */}
+  <div className="h-10 w-10 flex items-center justify-center shrink-0">
+    <img
+      src={organization?.logo_url || "/stoqkip-logo-only.png"}
+      alt="StoqKip"
+      className="h-10 w-10 object-contain"
+    />
+  </div>
+
+  {/* Right Text Content */}
+  {!collapsed && (
+    <div className="flex flex-col justify-center min-w-0 overflow-hidden">
+      <img
+        src="/stoqkip-text.png"
+        alt="StoqKip text"
+        className="h-5 w-auto object-contain object-left shrink-0"
+      />
+      {organization && (
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate mt-0.5 leading-none">
+          {organization.name}
+        </p>
+      )}
+    </div>
+  )}
+</div>
       </SidebarHeader>
 
       <SidebarContent className="bg-[#000B26] dark:bg-[#020817] px-3 pt-4">
