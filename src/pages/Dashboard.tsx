@@ -118,6 +118,20 @@ export default function Dashboard() {
   const { data: outstandingSales = [] } = useOutstandingSales();
   const deleteProduct = useDeleteProduct();
 
+  // Handle setting default selected branch dynamically based on user role
+  useEffect(() => {
+    if (!authLoading && branches.length > 0) {
+      if (isSuperAdmin) {
+        setSelectedBranchId("all");
+      } else {
+        const firstAvailableBranch = branches[0]?.id;
+        if (firstAvailableBranch) {
+          setSelectedBranchId(firstAvailableBranch);
+        }
+      }
+    }
+  }, [branches, isSuperAdmin, authLoading]);
+
   const branchFilteredProducts = useMemo(
     () =>
       selectedBranchId === "all"
@@ -340,12 +354,21 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest md:px-3">
             <Filter className="h-3 w-3" /> Branch Filter
           </div>
-          <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+          <Select
+            value={selectedBranchId}
+            onValueChange={setSelectedBranchId}
+          >
             <SelectTrigger className="w-full md:w-[240px] bg-slate-50 dark:bg-slate-950 border-none font-semibold">
               <SelectValue placeholder="All Branches" />
             </SelectTrigger>
+
             <SelectContent>
-              <SelectItem value="all">All Branches</SelectItem>
+              {isSuperAdmin && (
+                <SelectItem value="all">
+                  All Branches
+                </SelectItem>
+              )}
+
               {branches.map((b) => (
                 <SelectItem key={b.id} value={b.id}>
                   {b.name}
@@ -365,16 +388,18 @@ export default function Dashboard() {
 
         {/* --- Stats Cards (Handled within component but wrapped for padding) --- */}
         <div className="overflow-x-hidden">
-          <StatsCards
-            products={filteredProducts}
-            sales={filteredSales}
-            expenses={filteredExpenses}
-            outstandingSales={filteredOutstandingSales}
-            hasBranchAccess={
-              (isSuperAdmin || myBranchAssignments.length > 0) &&
-              (isAdmin || isSuperAdmin || canViewFinancials)
-            }
-          />
+          {isSuperAdmin && (
+  <StatsCards
+    products={filteredProducts}
+    sales={filteredSales}
+    expenses={filteredExpenses}
+    outstandingSales={filteredOutstandingSales}
+    hasBranchAccess={
+      (isSuperAdmin || myBranchAssignments.length > 0) &&
+      (isAdmin || isSuperAdmin || canViewFinancials)
+    }
+  />
+)}
         </div>
 
         {/* --- Tabs with Horizontal Scroll for Mobile --- */}

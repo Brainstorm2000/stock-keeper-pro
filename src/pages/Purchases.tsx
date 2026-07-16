@@ -83,7 +83,7 @@ import { PurchaseReturnDialog } from "@/components/purchases/PurchaseReturnDialo
 import { exportToXLSX } from "@/lib/export-utils";
 
 export default function Purchases() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
 
   const { canCreate, canEdit, canDelete } = useModuleAccess("purchases");
 
@@ -112,6 +112,20 @@ export default function Purchases() {
   );
 
   const deletePurchase = useDeletePurchase();
+
+  // Automatically manage default branch selections based on user privilege levels
+  useEffect(() => {
+    if (branches.length > 0) {
+      if (isSuperAdmin) {
+        setSelectedBranch("");
+      } else {
+        const standardDefault = branches[0]?.id;
+        if (standardDefault) {
+          setSelectedBranch(standardDefault);
+        }
+      }
+    }
+  }, [branches, isSuperAdmin]);
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat("en-NG", {
@@ -329,15 +343,17 @@ export default function Purchases() {
                   </SelectTrigger>
 
                   <SelectContent>
-                    <SelectItem value="all">All Branches</SelectItem>
+                    {isSuperAdmin && (
+                      <SelectItem value="all">
+                        All Branches
+                      </SelectItem>
+                    )}
 
-                    {branches
-                      .filter((branch) => branch.id)
-                      .map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id}>
-                          {branch.name}
-                        </SelectItem>
-                      ))}
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
@@ -553,129 +569,7 @@ export default function Purchases() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedPurchases.map((purchase) => (
-                        <TableRow key={purchase.id} className="group">
-                          <TableCell className="font-medium">
-                            {purchase.purchase_number}
-
-                            {purchase.reference_number && (
-                              <span className="block text-xs text-muted-foreground">
-                                Ref: {purchase.reference_number}
-                              </span>
-                            )}
-                          </TableCell>
-
-                          <TableCell>
-                            {format(
-                              new Date(purchase.purchase_date),
-                              "MMM d, yyyy",
-                            )}
-                          </TableCell>
-
-                          <TableCell>
-                            {purchase.suppliers?.name || "—"}
-                          </TableCell>
-
-                          <TableCell>
-                            {purchase.branches?.name || "—"}
-                          </TableCell>
-
-                          <TableCell>
-                            {purchase.purchase_items?.length || 0} items
-                          </TableCell>
-
-                          <TableCell className="text-right font-semibold">
-                            {formatCurrency(Number(purchase.total_amount))}
-                          </TableCell>
-
-                          <TableCell>
-                            {getPaymentStatusBadge(purchase.payment_status)}
-                          </TableCell>
-
-                          {isAdmin && (
-                            <TableCell>
-                              <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() =>
-                                    setDetailsDialogPurchase(purchase)
-                                  }
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-
-                                {canEdit && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setEditDialogPurchase(purchase)
-                                    }
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                )}
-
-                                {canEdit && canReturnEdit && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setReturnDialogPurchase(purchase)
-                                    }
-                                  >
-                                    <RotateCcw className="h-4 w-4" />
-                                  </Button>
-                                )}
-
-                                {canDelete && (
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>
-                                          Delete Purchase?
-                                        </AlertDialogTitle>
-
-                                        <AlertDialogDescription>
-                                          This will delete{" "}
-                                          {purchase.purchase_number} and reverse
-                                          stock additions.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>
-                                          Cancel
-                                        </AlertDialogCancel>
-
-                                        <AlertDialogAction
-                                          className="bg-destructive text-destructive-foreground"
-                                          onClick={() =>
-                                            deletePurchase.mutate(purchase)
-                                          }
-                                        >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                )}
-                              </div>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))
+                      <ParagraphPurchasesList />
                     )}
                   </TableBody>
                 </Table>
@@ -725,4 +619,131 @@ export default function Purchases() {
       </ModuleAccessGuard>
     </DashboardLayout>
   );
+
+  // Helper inside element rendering block to properly format inner rows
+  function ParagraphPurchasesList() {
+    return paginatedPurchases.map((purchase) => (
+      <TableRow key={purchase.id} className="group">
+        <TableCell className="font-medium">
+          {purchase.purchase_number}
+
+          {purchase.reference_number && (
+            <span className="block text-xs text-muted-foreground">
+              Ref: {purchase.reference_number}
+            </span>
+          )}
+        </TableCell>
+
+        <TableCell>
+          {format(
+            new Date(purchase.purchase_date),
+            "MMM d, yyyy",
+          )}
+        </TableCell>
+
+        <TableCell>
+          {purchase.suppliers?.name || "—"}
+        </TableCell>
+
+        <TableCell>
+          {purchase.branches?.name || "—"}
+        </TableCell>
+
+        <TableCell>
+          {purchase.purchase_items?.length || 0} items
+        </TableCell>
+
+        <TableCell className="text-right font-semibold">
+          {formatCurrency(Number(purchase.total_amount))}
+        </TableCell>
+
+        <TableCell>
+          {getPaymentStatusBadge(purchase.payment_status)}
+        </TableCell>
+
+        {isAdmin && (
+          <TableCell>
+            <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  setDetailsDialogPurchase(purchase)
+                }
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    setEditDialogPurchase(purchase)
+                  }
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+
+              {canEdit && canReturnEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    setReturnDialogPurchase(purchase)
+                  }
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
+
+              {canDelete && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Delete Purchase?
+                      </AlertDialogTitle>
+
+                      <AlertDialogDescription>
+                        This will delete{" "}
+                        {purchase.purchase_number} and reverse
+                        stock additions.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>
+                        Cancel
+                      </AlertDialogCancel>
+
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground"
+                        onClick={() =>
+                          deletePurchase.mutate(purchase)
+                        }
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          </TableCell>
+        )}
+      </TableRow>
+    ));
+  }
 }

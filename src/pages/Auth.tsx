@@ -111,12 +111,20 @@ export default function Auth() {
       {/* Left Side: Brand Visual (Hidden on Mobile) */}
       <div className="hidden lg:flex lg:w-1/2 bg-slate-50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-slate-800 items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute top-10 left-10">
-          <img
-            src="/stoqkip-logo.png"
-            alt="stoqkip logo"
-            className="h-20 w-auto object-contain"
-          />
-        </div>
+  {/* Light Mode Logo (Visible by default, hidden in dark mode) */}
+  <img
+    src="/stoqkip-logo-light.png"
+    alt="stoqkip logo"
+    className="h-20 w-auto object-contain block dark:hidden"
+  />
+  
+  {/* Dark Mode Logo (Hidden by default, visible in dark mode) */}
+  <img
+    src="/stoqkip-logo-dark.png" 
+    alt="stoqkip logo"
+    className="h-20 w-auto object-contain hidden dark:block"
+  />
+</div>
 
         <div className="max-w-md space-y-6 z-10">
           <h2 className="text-4xl font-bold tracking-tight leading-[1.1]">

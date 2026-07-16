@@ -141,7 +141,7 @@ export function AppSidebar({
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <h1 className="text-lg font-black text-white tracking-tight leading-none">
+              <h1 className="text-lg font-inter text-white tracking-tight leading-none">
                 Stoq<span className="text-[#FF9E3D]">Kip</span>
               </h1>
               {organization && (

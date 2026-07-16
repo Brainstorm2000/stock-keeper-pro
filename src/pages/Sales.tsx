@@ -127,7 +127,7 @@ export default function Sales() {
   const [deleteConfirmSale, setDeleteConfirmSale] = useState<Sale | null>(null);
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
 
-  const { user, loading: authLoading, hasCompletedOnboarding } = useAuth();
+  const { user, loading: authLoading, hasCompletedOnboarding, isSuperAdmin } = useAuth();
   const { canEdit, canDelete } = useModuleAccess("sales");
   const { canEdit: canReturnEdit } = useModuleAccess("returns");
   const { data: sales = [], isLoading: salesLoading } = useSales();
@@ -147,6 +147,20 @@ export default function Sales() {
       navigate("/onboarding");
     }
   }, [user, authLoading, hasCompletedOnboarding, navigate]);
+
+  // Handle setting default branch based on user role
+  useEffect(() => {
+    if (!authLoading && branches.length > 0) {
+      if (isSuperAdmin) {
+        setFilterBranch("all");
+      } else {
+        const nextAvailableBranch = branches[0]?.id;
+        if (nextAvailableBranch) {
+          setFilterBranch(nextAvailableBranch);
+        }
+      }
+    }
+  }, [branches, isSuperAdmin, authLoading]);
 
   // Filter sales
   const filteredSales = useMemo(() => {
@@ -425,7 +439,7 @@ export default function Sales() {
                   <SelectValue placeholder="Branch" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Branches</SelectItem>
+                  {isSuperAdmin && <SelectItem value="all">All Branches</SelectItem>}
                   {branches.map((branch) => (
                     <SelectItem key={branch.id} value={branch.id}>
                       {branch.name}
@@ -900,3 +914,4 @@ export default function Sales() {
     </DashboardLayout>
   );
 }
+
