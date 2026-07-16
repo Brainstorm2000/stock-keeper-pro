@@ -89,6 +89,7 @@ interface CartItem extends SaleItem {
 
 export default function POS() {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [activeTab, setActiveTab] = useState<"products" | "cart">("products");
   const [searchQuery, setSearchQuery] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -702,9 +703,46 @@ export default function POS() {
   return (
     <DashboardLayout>
       <ModuleAccessGuard module="pos" minLevel="create">
+        {/* Mobile Tabs Header List */}
+        <div className="flex lg:hidden mb-4 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-lg">
+          <Button
+            variant={activeTab === "products" ? "default" : "ghost"}
+            className={cn(
+              "flex-1 h-9 font-semibold text-xs rounded-md transition-all",
+              activeTab === "products" 
+                ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm" 
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+            )}
+            onClick={() => setActiveTab("products")}
+          >
+            Products
+          </Button>
+          <Button
+            variant={activeTab === "cart" ? "default" : "ghost"}
+            className={cn(
+              "flex-1 h-9 font-semibold text-xs rounded-md transition-all relative flex items-center justify-center gap-1.5",
+              activeTab === "cart" 
+                ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm" 
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+            )}
+            onClick={() => setActiveTab("cart")}
+          >
+            Cart
+            <Badge 
+              variant="secondary" 
+              className={cn(
+                "px-1.5 py-0.5 text-[10px] font-bold rounded-full",
+                cart.length > 0 ? "bg-[#FF9E3D] text-[#000B26]" : "bg-slate-200 dark:bg-slate-700"
+              )}
+            >
+              {cart.length}
+            </Badge>
+          </Button>
+        </div>
+
         <div className="h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-4">
           {/* Products Section */}
-          <div className="flex-1 flex flex-col">
+          <div className={cn("flex-1 flex flex-col", activeTab !== "products" && "hidden lg:flex")}>
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -812,7 +850,7 @@ export default function POS() {
           </div>
 
           {/* Cart Section */}
-          <Card className="lg:w-96 flex flex-col">
+          <Card className={cn("lg:w-96 flex flex-col", activeTab !== "cart" && "hidden lg:flex")}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
