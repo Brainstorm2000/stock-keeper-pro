@@ -360,42 +360,44 @@ export default function Sales() {
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Sales
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{filteredSales.length}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Value
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(adjustedTotalSales)}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Revenue (Completed)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-[#FF9E3D]">
-                  {formatCurrency(totalRevenue)}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {isSuperAdmin && (
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Total Sales
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{filteredSales.length}</div>
+      </CardContent>
+    </Card>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Total Value
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">
+          {formatCurrency(adjustedTotalSales)}
+        </div>
+      </CardContent>
+    </Card>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Revenue (Completed)
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold text-[#FF9E3D]">
+          {formatCurrency(totalRevenue)}
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+)}
 
           {/* Filters */}
           <div className="flex flex-wrap gap-3">

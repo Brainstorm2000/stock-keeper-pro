@@ -144,11 +144,19 @@ export default function Auth() {
         <div className="w-full max-w-[400px] flex flex-col space-y-8">
           {/* --- Mobile Logo Display --- */}
           <div className="lg:hidden flex justify-center mb-2">
-            <img
-              src="/stoqkip-logo.png"
-              alt="stoqkip logo"
-              className="h-16 w-auto object-contain"
-            />
+            {/* Light Mode Logo (Visible by default, hidden in dark mode) */}
+  <img
+    src="/stoqkip-logo-light.png"
+    alt="stoqkip logo"
+    className="h-20 w-auto object-contain block dark:hidden"
+  />
+  
+  {/* Dark Mode Logo (Hidden by default, visible in dark mode) */}
+  <img
+    src="/stoqkip-logo-dark.png" 
+    alt="stoqkip logo"
+    className="h-20 w-auto object-contain hidden dark:block"
+  />
           </div>
 
           <div className="flex flex-col space-y-2 text-center lg:text-left">

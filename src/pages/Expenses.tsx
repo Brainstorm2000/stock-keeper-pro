@@ -109,6 +109,7 @@ export default function Expenses() {
     user,
     loading: authLoading,
     isAdmin,
+    isSuperAdmin,
     hasCompletedOnboarding,
   } = useAuth();
   const { canCreate, canEdit, canDelete } = useModuleAccess("expenses");
@@ -364,7 +365,8 @@ export default function Expenses() {
           </div>
 
           {/* Summary Card */}
-          <Card>
+          {isSuperAdmin && (
+              <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total Expenses
@@ -379,6 +381,8 @@ export default function Expenses() {
               </p>
             </CardContent>
           </Card>
+          )}
+          
 
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-3">

@@ -20,6 +20,7 @@ import { PaymentIcon } from '@/lib/payment-icons';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/currency';
 import { exportToXLSX } from '@/lib/export-utils';
+import { useAuth } from "@/lib/auth";
 
 const statusColors: Record<string, string> = {
   paid: 'bg-green-500/10 text-green-700 dark:text-green-300',
@@ -28,6 +29,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Debts() {
+  const { isSuperAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
@@ -155,7 +157,8 @@ export default function Debts() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+          {isSuperAdmin && (
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Outstanding Sales</CardTitle></CardHeader>
@@ -192,6 +195,8 @@ export default function Debts() {
               </CardContent>
             </Card>
           </div>
+          )}
+          
 
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px]">

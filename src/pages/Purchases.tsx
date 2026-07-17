@@ -266,7 +266,8 @@ export default function Purchases() {
           </div>
 
           {/* SUMMARY */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {isSuperAdmin && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
@@ -325,6 +326,8 @@ export default function Purchases() {
               </CardContent>
             </Card>
           </div>
+          )}
+          
 
           {/* FILTERS */}
           <Card>

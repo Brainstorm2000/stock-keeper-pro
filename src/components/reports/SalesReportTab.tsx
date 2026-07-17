@@ -210,10 +210,6 @@ export function SalesReportTab({ sales, saleItems, dateRange, branches, selected
                       cx="50%"
                       cy="50%"
                       outerRadius={90}
-                      label={({ name, value }: any) => {
-                        const pct = total > 0 ? ((Number(value) / total) * 100).toFixed(1) : '0';
-                        return `${name} ${pct}%`;
-                      }}
                     >
                       {paymentBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
