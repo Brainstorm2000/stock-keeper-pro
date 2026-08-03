@@ -80,7 +80,7 @@ export function useAttendance(filters: AttendanceFilters = {}) {
           const nameMap = new Map<string, string>();
           for (const n of (names as any[]) || []) {
             const label = n.full_name || (n.email ? String(n.email).split('@')[0] : null);
-            if (n.id && label) nameMap.set(n.id, label);
+            if (n.user_id && label) nameMap.set(n.user_id, label);
           }
           for (const r of records) {
             r.clocked_in_by_name = r.created_by ? nameMap.get(r.created_by) ?? null : null;
