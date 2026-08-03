@@ -21,6 +21,7 @@ import {
   ScanLine,
   BadgeDollarSign,
   RotateCcw,
+  PackageX,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/lib/auth";
@@ -66,6 +67,12 @@ const navItems: NavItem[] = [
   },
   { href: "/debts", label: "Debts", icon: BadgeDollarSign, module: "debts" },
   { href: "/returns", label: "Returns", icon: RotateCcw, module: "returns" },
+  {
+    href: "/damages",
+    label: "Damages",
+    icon: PackageX,
+    module: "products" as AppModule,
+  },
   { href: "/expenses", label: "Expenses", icon: Wallet, module: "expenses" },
   {
     href: "/production",

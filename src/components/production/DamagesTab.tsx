@@ -24,8 +24,10 @@ import {
 import { useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { formatCurrency } from '@/lib/currency';
 
-export function DamagesTab({ branchFilter }: { branchFilter?: string }) {
-  const { data: products = [] } = useProducts();
+export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilter?: string; productsOnly?: boolean }) {
+  const { data: allProducts = [] } = useProducts();
+  // Services can never be damaged (no stock)
+  const products = allProducts.filter((p) => p.item_type !== 'service');
   const { data: materials = [] } = useRawMaterials();
   const { data: damageHistory = [], isLoading: damageLoading } = useDamageHistory();
   const { data: wasteHistory = [], isLoading: wasteLoading } = useWasteHistory();
@@ -162,11 +164,15 @@ export function DamagesTab({ branchFilter }: { branchFilter?: string }) {
   return (
     <div className="space-y-4">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${productsOnly ? 'sm:grid-cols-2' : 'sm:grid-cols-4'}`}>
         <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Damage Records</p><p className="text-2xl font-bold">{damageHistory.length}</p></CardContent></Card>
         <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Damage Cost</p><p className="text-2xl font-bold text-destructive">{formatCurrency(totalDamageCost)}</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Waste Records</p><p className="text-2xl font-bold">{wasteHistory.length}</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Waste Cost</p><p className="text-2xl font-bold text-destructive">{formatCurrency(totalWasteCost)}</p></CardContent></Card>
+        {!productsOnly && (
+          <>
+            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Waste Records</p><p className="text-2xl font-bold">{wasteHistory.length}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Waste Cost</p><p className="text-2xl font-bold text-destructive">{formatCurrency(totalWasteCost)}</p></CardContent></Card>
+          </>
+        )}
       </div>
 
       {/* Actions & Search */}
@@ -179,15 +185,17 @@ export function DamagesTab({ branchFilter }: { branchFilter?: string }) {
           <Button variant="destructive" onClick={() => setDamageDialogOpen(true)}>
             <Package className="h-4 w-4 mr-2" />Record Damage
           </Button>
-          <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10" onClick={() => setWasteDialogOpen(true)}>
-            <Beaker className="h-4 w-4 mr-2" />Record Waste
-          </Button>
+          {!productsOnly && (
+            <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10" onClick={() => setWasteDialogOpen(true)}>
+              <Beaker className="h-4 w-4 mr-2" />Record Waste
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Tabs for Damage vs Waste */}
       <Tabs defaultValue="damage" className="space-y-4">
-        <TabsList>
+        <TabsList className={productsOnly ? 'hidden' : undefined}>
           <TabsTrigger value="damage" className="gap-2"><Package className="h-4 w-4" />Finished Goods Damage ({filteredDamage.length})</TabsTrigger>
           <TabsTrigger value="waste" className="gap-2"><Beaker className="h-4 w-4" />Raw Material Waste ({filteredWaste.length})</TabsTrigger>
         </TabsList>

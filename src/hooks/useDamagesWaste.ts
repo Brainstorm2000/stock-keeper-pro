@@ -14,7 +14,7 @@ export interface DamageRecord {
   notes: string | null;
   changed_by: string | null;
   created_at: string;
-  products?: { id: string; name: string; current_stock: number; cost_price: number; branch_id?: string | null };
+  products?: { id: string; name: string; current_stock: number; cost_price: number; branch_id?: string | null; item_type?: string };
   changed_by_user?: { full_name: string | null; email: string | null } | null;
 }
 
@@ -49,7 +49,7 @@ export function useDamageHistory() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_history')
-        .select('*, products (id, name, current_stock, cost_price, branch_id)')
+        .select('*, products (id, name, current_stock, cost_price, branch_id, item_type)')
         .in('change_type', ['damage', 'damaged'])
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -57,7 +57,9 @@ export function useDamageHistory() {
       const userIds = [...new Set(data?.map(d => d.changed_by).filter(Boolean) as string[])];
       const profilesMap = await fetchProfiles(userIds);
 
-      return data.map(entry => ({
+      return data
+        .filter(entry => (entry as any).products?.item_type !== 'service')
+        .map(entry => ({
         ...entry,
         changed_by_user: entry.changed_by ? profilesMap[entry.changed_by] || null : null,
       })) as DamageRecord[];
