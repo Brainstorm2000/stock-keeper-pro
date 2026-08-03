@@ -1407,6 +1407,7 @@ export default function POS() {
           onOpenChange={setReceiptDialogOpen}
           sale={lastSale || null}
           organizationName={organization?.name}
+          organizationLogoUrl={organization?.logo_url || undefined}
           organizationAddress={organization?.address || undefined}
           organizationEmail={organization?.email || undefined}
           showSuccessMessage={true}

@@ -1,17 +1,27 @@
 import { forwardRef } from "react";
 import { format } from "date-fns";
 import type { Sale, PaymentDetail } from "@/hooks/useSales";
+import { useAuth } from "@/lib/auth";
+import { useUserProfile } from "@/hooks/useOrganization";
 import { formatCurrency } from "@/lib/currency";
 
 interface ThermalReceiptProps {
   sale: Sale;
   organizationName?: string;
+  organizationLogoUrl?: string | null;
   organizationAddress?: string;
   organizationEmail?: string;
 }
 
 export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
-  ({ sale, organizationName, organizationAddress, organizationEmail }, ref) => {
+  ({ sale, organizationName, organizationLogoUrl, organizationAddress, organizationEmail }, ref) => {
+    const { user } = useAuth();
+    const { data: userProfile } = useUserProfile();
+    const salesBy =
+      (user?.user_metadata?.full_name as string | undefined) ||
+      userProfile?.full_name ||
+      user?.email ||
+      null;
     const currentYear = new Date().getFullYear();
     const paymentMethodLabels: Record<string, string> = {
       cash: "CASH",
@@ -64,6 +74,21 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
 
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "10px" }}>
+          {organizationLogoUrl && (
+            <div style={{ marginBottom: "8px" }}>
+              <img
+                src={organizationLogoUrl}
+                alt={organizationName ? `${organizationName} logo` : 'Organization logo'}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '60px',
+                  display: 'block',
+                  margin: '0 auto',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
+          )}
           <div
             style={{
               fontWeight: "900", // Extra bold for brand name
@@ -101,6 +126,12 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>CUSTOMER:</span>
               <span>{sale.customer_name.toUpperCase()}</span>
+            </div>
+          )}
+          {salesBy && (
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>SALES BY:</span>
+              <span>{salesBy.toUpperCase()}</span>
             </div>
           )}
         </div>

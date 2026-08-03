@@ -862,6 +862,7 @@ export default function Sales() {
           onOpenChange={(open) => !open && setReceiptSaleId(null)}
           sale={receiptSale || null}
           organizationName={organization?.name}
+          organizationLogoUrl={organization?.logo_url || undefined}
           organizationAddress={organization?.address || undefined}
           organizationEmail={organization?.email || undefined}
         />

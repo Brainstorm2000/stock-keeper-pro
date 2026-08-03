@@ -10,6 +10,7 @@ interface ReceiptDialogProps {
   onOpenChange: (open: boolean) => void;
   sale: Sale | null;
   organizationName?: string;
+  organizationLogoUrl?: string | null;
   organizationAddress?: string;
   organizationEmail?: string;
   showSuccessMessage?: boolean;
@@ -21,6 +22,7 @@ export function ReceiptDialog({
   onOpenChange,
   sale,
   organizationName,
+  organizationLogoUrl,
   organizationAddress,
   organizationEmail,
   showSuccessMessage = false,
@@ -149,6 +151,7 @@ export function ReceiptDialog({
             ref={receiptRef}
             sale={sale}
             organizationName={organizationName}
+            organizationLogoUrl={organizationLogoUrl}
             organizationAddress={organizationAddress}
             organizationEmail={organizationEmail}
           />
