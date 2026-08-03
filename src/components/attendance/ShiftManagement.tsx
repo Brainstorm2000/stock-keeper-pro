@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Pencil, Trash2, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useEffect } from 'react';
 
@@ -137,15 +137,28 @@ function ShiftDialog({ shift, open, onOpenChange }: { shift: Shift | null; open:
 }
 
 export function ShiftManagement() {
-  const { data: shifts = [], isLoading } = useShifts();
+  const { data: allShifts = [], isLoading } = useShifts();
   const deleteShift = useDeleteShift();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Shift | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const q = search.trim().toLowerCase();
+  const shifts = q
+    ? allShifts.filter(s =>
+        [s.shift_name, s.start_time, s.end_time, s.is_active ? 'active' : 'inactive']
+          .filter(Boolean)
+          .some(v => String(v).toLowerCase().includes(q)),
+      )
+    : allShifts;
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="relative w-full sm:w-[240px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search shifts..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        </div>
         <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
           <Plus className="mr-2 h-4 w-4" />Add Shift
         </Button>
