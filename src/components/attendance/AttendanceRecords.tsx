@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { exportAttendanceToExcel } from '@/lib/csv-utils';
 import { usePagination } from '@/hooks/usePagination';
@@ -35,7 +35,27 @@ export function AttendanceRecords() {
     dateFrom: todayStr,
     dateTo: todayStr,
   });
-  const { data: records = [], isLoading } = useAttendance(filters);
+  const [search, setSearch] = useState('');
+  const { data: allRecords = [], isLoading } = useAttendance(filters);
+  const q = search.trim().toLowerCase();
+  const records = q
+    ? allRecords.filter(r =>
+        [
+          r.staff?.full_name,
+          r.departments?.name,
+          r.staff?.department,
+          r.branches?.name,
+          r.shifts?.shift_name,
+          r.attendance_date,
+          r.status,
+          r.clocked_in_by_name,
+          r.clocked_out_by_name,
+          r.notes,
+        ]
+          .filter(Boolean)
+          .some(v => String(v).toLowerCase().includes(q)),
+      )
+    : allRecords;
   const { data: staffList = [] } = useStaff();
   const { data: branches = [] } = useBranches();
   const { data: departments = [] } = useDepartments();
@@ -73,6 +93,15 @@ export function AttendanceRecords() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
+        <div className="relative w-full sm:w-[240px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search records..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
         <Input
           type="date"
           className="w-[160px]"
