@@ -27,6 +27,7 @@ import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 import Debts from "./pages/Debts";
 import Returns from "./pages/Returns";
+import Damages from "./pages/Damages";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/debts" element={<Debts />} />
               <Route path="/returns" element={<Returns />} />
+              <Route path="/damages" element={<Damages />} />
               <Route path="/admin-login" element={<AdminLogin />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />
