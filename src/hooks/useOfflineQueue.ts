@@ -15,8 +15,18 @@ export function useOfflineQueue() {
   const [syncing, setSyncing] = useState(false);
   const queryClient = useQueryClient();
 
-  useEffect(() => subscribeQueue(setItems), []);
-  useEffect(() => subscribeSyncState((s) => setSyncing(s.syncing)), []);
+  useEffect(() => {
+    const unsub = subscribeQueue(setItems);
+    return () => {
+      unsub();
+    };
+  }, []);
+  useEffect(() => {
+    const unsub = subscribeSyncState((s) => setSyncing(s.syncing));
+    return () => {
+      unsub();
+    };
+  }, []);
 
   useEffect(() => {
     return startSyncWatcher(({ synced, failed }) => {
