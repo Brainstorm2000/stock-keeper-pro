@@ -1,7 +1,10 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { get, set, del, createStore } from "idb-keyval";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -30,10 +33,38 @@ import Returns from "./pages/Returns";
 import Damages from "./pages/Damages";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Serve cached data and still attempt requests while offline
+      networkMode: "offlineFirst",
+      gcTime: 1000 * 60 * 60 * 24, // keep cache for a day so screens load offline
+      staleTime: 1000 * 30,
+      retry: 1,
+    },
+    mutations: {
+      // Let mutations run so the offline interceptor can queue them
+      networkMode: "offlineFirst",
+    },
+  },
+});
+
+const idbStore = createStore("stockflow-offline", "query-cache");
+const persister = createAsyncStoragePersister({
+  storage: {
+    getItem: (key) => get<string>(key, idbStore).then((v) => v ?? null),
+    setItem: (key, value) => set(key, value, idbStore),
+    removeItem: (key) => del(key, idbStore),
+  },
+  key: "stockflow-query-cache",
+  throttleTime: 2000,
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <PersistQueryClientProvider
+    client={queryClient}
+    persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 }}
+  >
     <ThemeProvider defaultTheme="system" storageKey="stockflow-theme">
       <AuthProvider>
         <TooltipProvider>
@@ -71,7 +102,7 @@ const App = () => (
         </TooltipProvider>
       </AuthProvider>
     </ThemeProvider>
-  </QueryClientProvider>
+  </PersistQueryClientProvider>
 );
 
 export default App;
