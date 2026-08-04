@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, Search, Pencil, Trash2, Package, Beaker, Loader2 } from 'lucide-react';
+import { AlertTriangle, Search, Pencil, Trash2, Package, Beaker } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,6 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
   const [selectedProductId, setSelectedProductId] = useState('');
   const [damageQty, setDamageQty] = useState('');
   const [damageNotes, setDamageNotes] = useState('');
-  const [productSearch, setProductSearch] = useState('');
 
   // Record waste form
   const [wasteDialogOpen, setWasteDialogOpen] = useState(false);
@@ -299,22 +298,21 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
       </Tabs>
 
       {/* Record Damage Dialog */}
-      <Dialog open={damageDialogOpen} onOpenChange={(open) => { setDamageDialogOpen(open); if (!open) { setSelectedProductId(''); setDamageQty(''); setDamageNotes(''); setProductSearch(''); } }}>
+      <Dialog open={damageDialogOpen} onOpenChange={(open) => { setDamageDialogOpen(open); if (!open) { setSelectedProductId(''); setDamageQty(''); setDamageNotes(''); } }}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Record Product Damage</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Record Finished Goods Damage</DialogTitle></DialogHeader>
           <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Product *</Label>
-                <Input placeholder="Search product..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
-                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                  <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
-                  <SelectContent>
-                    {(products.filter(p => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase()))).map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name} (Stock: {Number(p.current_stock)})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Product *</Label>
+              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name} (Stock: {Number(p.current_stock)})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {selectedProduct && (
               <div className="text-sm text-muted-foreground p-3 rounded-md bg-muted">
                 <p>Current Stock: <span className="font-semibold text-foreground">{Number(selectedProduct.current_stock)}</span></p>
@@ -393,11 +391,9 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
               <Textarea value={editDamageNotes} onChange={(e) => setEditDamageNotes(e.target.value)} rows={2} />
             </div>
           </div>
-            <DialogFooter>
+          <DialogFooter>
             <Button variant="outline" onClick={() => setEditDamageDialog(null)}>Cancel</Button>
-            <Button onClick={handleEditDamage} disabled={!editDamageQty || Number(editDamageQty) <= 0 || editDamage.isPending}>
-              {editDamage.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</> : 'Update'}
-            </Button>
+            <Button onClick={handleEditDamage} disabled={!editDamageQty || Number(editDamageQty) <= 0}>Update</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -438,9 +434,7 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteDamage} disabled={deleteDamage.isPending} className="bg-destructive text-destructive-foreground">
-              {deleteDamage.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Restoring...</> : 'Delete & Restore Stock'}
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteDamage} className="bg-destructive text-destructive-foreground">Delete & Restore Stock</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
