@@ -79,8 +79,8 @@ export function OfflineBanner() {
         <>
           <WifiOff className="h-4 w-4 shrink-0" />
           <span>
-            You are offline. Your changes are saved on this device and will sync
-            automatically when the connection returns.
+            You are offline. Changes may fail to save until your connection is
+            restored.
           </span>
         </>
       )}
