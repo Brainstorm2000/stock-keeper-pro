@@ -128,6 +128,16 @@ interface PendingClockOut {
   shiftId: string;
 }
 
+interface PendingClockIn {
+  staffName: string;
+  staffId: string;
+  shiftId: string;
+  shiftName: string;
+  branchId: string | null;
+  departmentId: string | null;
+  otherShiftNames: string[];
+}
+
 export function QRScanner() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -136,6 +146,7 @@ export function QRScanner() {
   const [selectedShiftId, setSelectedShiftId] = useState<string>('');
   const [resolvedShiftId, setResolvedShiftId] = useState<string>('');
   const [pendingClockOut, setPendingClockOut] = useState<PendingClockOut | null>(null);
+  const [pendingClockIn, setPendingClockIn] = useState<PendingClockIn | null>(null);
   const [includeOvertime, setIncludeOvertime] = useState(true);
   const hasScannedRef = useRef(false);
   const { organizationId } = useAuth();
@@ -178,6 +189,39 @@ export function QRScanner() {
   const handleCancelClockOut = () => {
     setPendingClockOut(null);
     setIncludeOvertime(true);
+    hasScannedRef.current = false;
+    setResult(null);
+  };
+
+  const performClockIn = async (p: { staffId: string; shiftId: string; branchId: string | null; departmentId: string | null; staffName: string }) => {
+    setProcessing(true);
+    try {
+      await clockIn.mutateAsync({
+        staffId: p.staffId,
+        shiftId: p.shiftId,
+        branchId: p.branchId,
+        departmentId: p.departmentId,
+      });
+      playClockInSound();
+      setResult({ type: 'success', message: `Clock-in successful for ${p.staffName}` });
+    } catch (err: any) {
+      playErrorBell();
+      setResult({ type: 'error', message: err.message || 'Clock-in failed' });
+    } finally {
+      setProcessing(false);
+      setTimeout(() => setResult(null), 5000);
+    }
+  };
+
+  const handleConfirmClockIn = async () => {
+    if (!pendingClockIn) return;
+    const p = pendingClockIn;
+    setPendingClockIn(null);
+    await performClockIn(p);
+  };
+
+  const handleCancelClockIn = () => {
+    setPendingClockIn(null);
     hasScannedRef.current = false;
     setResult(null);
   };
@@ -244,17 +288,39 @@ export function QRScanner() {
         .maybeSingle();
 
       if (!existing) {
-        // Clock in directly
-        await clockIn.mutateAsync({
-          staffId: staffMember.id,
-          shiftId: shiftIdToUse,
-          branchId: staffMember.branch_id,
-          departmentId: staffMember.department_id,
-        });
-        playClockInSound();
-        setResult({ type: 'success', message: `Clock-in successful for ${staffMember.full_name}` });
-        setProcessing(false);
-        setTimeout(() => setResult(null), 5000);
+        // Check for attendance on other shifts today — require confirmation
+        const { data: otherRecords } = await supabase
+          .from('attendance')
+          .select('shift_id')
+          .eq('staff_id', staffMember.id)
+          .eq('attendance_date', today)
+          .neq('shift_id', shiftIdToUse);
+
+        const shiftName = activeShifts.find((s) => s.id === shiftIdToUse)?.shift_name || 'this shift';
+
+        if (otherRecords && otherRecords.length > 0) {
+          const otherShiftNames = otherRecords
+            .map((r) => shifts.find((s) => s.id === r.shift_id)?.shift_name)
+            .filter(Boolean) as string[];
+          setPendingClockIn({
+            staffName: staffMember.full_name,
+            staffId: staffMember.id,
+            shiftId: shiftIdToUse,
+            shiftName,
+            branchId: staffMember.branch_id,
+            departmentId: staffMember.department_id,
+            otherShiftNames,
+          });
+          setProcessing(false);
+        } else {
+          await performClockIn({
+            staffId: staffMember.id,
+            shiftId: shiftIdToUse,
+            branchId: staffMember.branch_id,
+            departmentId: staffMember.department_id,
+            staffName: staffMember.full_name,
+          });
+        }
       } else if (!existing.clock_out_time) {
         // Ask for confirmation before clock-out
         setPendingClockOut({
@@ -274,7 +340,7 @@ export function QRScanner() {
       setProcessing(false);
       setTimeout(() => setResult(null), 5000);
     }
-  }, [processing, organizationId, selectedShiftId, resolvedShiftId, activeShifts, clockIn, clockOut, stopScanning]);
+  }, [processing, organizationId, selectedShiftId, resolvedShiftId, activeShifts, shifts, clockIn, clockOut, stopScanning]);
 
   const startScanning = async () => {
     if (!containerRef.current) return;
@@ -398,6 +464,25 @@ export function QRScanner() {
             <AlertDialogCancel onClick={handleCancelClockOut}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmClockOut}>
               Confirm Clock-Out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!pendingClockIn} onOpenChange={(open) => { if (!open) handleCancelClockIn(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Clock-In</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">{pendingClockIn?.staffName}</span> already has attendance today
+              {pendingClockIn?.otherShiftNames?.length ? ` for ${pendingClockIn.otherShiftNames.join(', ')}` : ''}.
+              Do you want to clock in for <span className="font-semibold text-foreground">{pendingClockIn?.shiftName}</span>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelClockIn}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClockIn}>
+              Clock In
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
