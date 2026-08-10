@@ -126,6 +126,7 @@ interface PendingClockOut {
   staffName: string;
   staffId: string;
   shiftId: string;
+  shiftName: string;
 }
 
 interface PendingClockIn {
@@ -323,10 +324,12 @@ export function QRScanner() {
         }
       } else if (!existing.clock_out_time) {
         // Ask for confirmation before clock-out
+        const shiftName = activeShifts.find((s) => s.id === shiftIdToUse)?.shift_name || 'this shift';
         setPendingClockOut({
           staffName: staffMember.full_name,
           staffId: staffMember.id,
           shiftId: shiftIdToUse,
+          shiftName,
         });
         setProcessing(false);
       } else {
@@ -445,7 +448,7 @@ export function QRScanner() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Clock-Out</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to clock out <span className="font-semibold text-foreground">{pendingClockOut?.staffName}</span>?
+              Are you sure you want to clock out <span className="font-semibold text-foreground">{pendingClockOut?.staffName}</span> from <span className="font-semibold text-foreground">{pendingClockOut?.shiftName}</span>?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <label className="flex items-center gap-2 rounded-md border p-3 cursor-pointer select-none">
