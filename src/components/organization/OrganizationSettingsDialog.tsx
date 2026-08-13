@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganization, useUpdateOrganization } from '@/hooks/useOrganization';
 import { LogoUpload } from '@/components/onboarding/LogoUpload';
-import { Loader2, Building2, CreditCard } from 'lucide-react';
+import { Loader2, Building2, CreditCard, Mail } from 'lucide-react';
 import { PaymentMethodsDialog } from '@/components/organization/PaymentMethodsDialog';
+import { ReportEmailSettingsDialog } from '@/components/organization/ReportEmailSettingsDialog';
 
 interface OrganizationSettingsDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
   const [address, setAddress] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
+  const [reportEmailsOpen, setReportEmailsOpen] = useState(false);
 
   // Sync state with organization data when dialog opens
   useEffect(() => {
@@ -157,12 +159,26 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
               <CreditCard className="mr-2 h-4 w-4" />
               Manage Payment Methods
             </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setReportEmailsOpen(true)}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Scheduled Report Emails
+            </Button>
           </form>
         )}
       </DialogContent>
       <PaymentMethodsDialog
         open={paymentMethodsOpen}
         onOpenChange={setPaymentMethodsOpen}
+      />
+      <ReportEmailSettingsDialog
+        open={reportEmailsOpen}
+        onOpenChange={setReportEmailsOpen}
       />
     </Dialog>
   );
