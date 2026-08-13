@@ -72,7 +72,7 @@ export const ACCESS_LEVEL_LABELS: Record<ModuleAccessLevel, string> = {
 
 // Hook to get org-level module enablement
 export function useOrgModules() {
-  const { organizationId } = useAuth();
+  const { organizationId, loading: authLoading } = useAuth();
 
   return useQuery({
     queryKey: ['org-modules', organizationId],
@@ -89,7 +89,7 @@ export function useOrgModules() {
       });
       return map;
     },
-    enabled: !!organizationId,
+    enabled: !authLoading && !!organizationId,
   });
 }
 
@@ -98,11 +98,11 @@ const NO_CRUD: ModuleCrudPermissions = { can_view: false, can_create: false, can
 
 // Hook to get the current user's module access
 export function useMyModuleAccess() {
-  const { user, isSuperAdmin } = useAuth();
-  const { data: orgModules } = useOrgModules();
+  const { user, isSuperAdmin, role, organizationId, loading: authLoading } = useAuth();
+  const { data: orgModules, isLoading: orgModulesLoading } = useOrgModules();
 
   return useQuery({
-    queryKey: ['my-module-access', user?.id, orgModules],
+    queryKey: ['my-module-access', user?.id, role, organizationId, orgModules],
     queryFn: async () => {
       if (!user) return null;
 
@@ -167,7 +167,7 @@ export function useMyModuleAccess() {
 
       return access;
     },
-    enabled: !!user,
+    enabled: !authLoading && !!user && !orgModulesLoading,
   });
 }
 
