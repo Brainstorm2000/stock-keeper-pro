@@ -113,16 +113,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Defer profile/role fetching with setTimeout
       if (session?.user) {
         setTimeout(() => {
-          fetchUserProfile(session.user.id).then(setRole);
+          fetchUserProfile(session.user.id).then((r) => {
+            setRole(r);
+            setLoading(false);
+          });
         }, 0);
       } else {
         setRole(null);
         setOrganizationId(null);
         setHasCompletedOnboarding(null);
         setIsOrgDisabled(false);
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
     // THEN check for existing session
@@ -131,10 +133,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        fetchUserProfile(session.user.id).then(setRole);
+        fetchUserProfile(session.user.id).then((r) => {
+          setRole(r);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
