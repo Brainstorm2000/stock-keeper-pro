@@ -3096,6 +3096,114 @@ export type Database = {
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_super_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      stock_sales_performance_base: {
+        Args: {
+          _branch_id?: string
+          _category?: string
+          _fast_threshold?: number
+          _from: string
+          _org_id: string
+          _search?: string
+          _stock_status?: string
+          _supplier_id?: string
+          _to: string
+        }
+        Returns: {
+          branch_name: string
+          category: string
+          cogs: number
+          cost_price: number
+          current_stock: number
+          gross_profit: number
+          inventory_value: number
+          low_threshold: number
+          margin: number
+          opening_stock: number
+          out_threshold: number
+          product_id: string
+          product_name: string
+          received: number
+          retail_value: number
+          revenue: number
+          selling_price: number
+          sku: string
+          stock_status: string
+          supplier_name: string
+          units_sold: number
+          velocity: string
+        }[]
+      }
+      stock_sales_performance_rows: {
+        Args: {
+          _branch_id?: string
+          _category?: string
+          _dir?: string
+          _fast_threshold?: number
+          _from: string
+          _limit?: number
+          _offset?: number
+          _org_id: string
+          _search?: string
+          _sort?: string
+          _stock_status?: string
+          _supplier_id?: string
+          _to: string
+        }
+        Returns: {
+          branch_name: string
+          category: string
+          cogs: number
+          cost_price: number
+          current_stock: number
+          gross_profit: number
+          inventory_value: number
+          low_threshold: number
+          margin: number
+          opening_stock: number
+          out_threshold: number
+          product_id: string
+          product_name: string
+          received: number
+          retail_value: number
+          revenue: number
+          selling_price: number
+          sku: string
+          stock_status: string
+          supplier_name: string
+          total_count: number
+          units_sold: number
+          velocity: string
+        }[]
+      }
+      stock_sales_performance_summary: {
+        Args: {
+          _branch_id?: string
+          _category?: string
+          _fast_threshold?: number
+          _from: string
+          _org_id: string
+          _search?: string
+          _stock_status?: string
+          _supplier_id?: string
+          _to: string
+        }
+        Returns: {
+          active_skus: number
+          avg_margin: number
+          fast_movers: number
+          gross_profit: number
+          gross_revenue: number
+          inventory_cost_value: number
+          low_stock_items: number
+          out_of_stock_items: number
+          potential_gross_value: number
+          potential_retail_value: number
+          slow_movers: number
+          total_cogs: number
+          transactions: number
+          units_sold: number
+        }[]
+      }
     }
     Enums: {
       app_module:
