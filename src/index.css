@@ -143,3 +143,98 @@
     @apply bg-[hsl(var(--stock-out))] text-[hsl(var(--stock-out-foreground))];
   }
 }
+
+/* ---- Print-optimized Stock & Sales Performance report ---- */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .no-print,
+  [data-sidebar],
+  [data-sonner-toaster],
+  [role="toaster"],
+  [data-radix-popper-content-wrapper] {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .print-report {
+    display: block !important;
+  }
+
+  .print-report * {
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  .print-report .rounded-lg,
+  .print-report [class*="card"] {
+    background: #fff !important;
+  }
+
+  .print-kpis {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .print-kpis > * {
+    border: 1px solid #000 !important;
+    background: #fff !important;
+  }
+
+  .print-table table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 8.5pt !important;
+    table-layout: fixed;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #000 !important;
+    padding: 2px 4px !important;
+    background: #fff !important;
+    white-space: normal !important;
+    word-break: break-word;
+  }
+
+  .print-table thead {
+    display: table-header-group;
+  }
+
+  .print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-table .badge,
+  .print-table [class*="status-"] {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: 600 !important;
+  }
+}

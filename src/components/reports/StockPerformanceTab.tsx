@@ -219,7 +219,7 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
   return (
     <div className="space-y-5 print-report">
       {/* Print-only header */}
-      <div className="hidden print-only space-y-1 text-center">
+      <div className="print-only space-y-1 text-center">
         <h1 className="text-xl font-bold">{org?.name ?? 'Company'}</h1>
         <h2 className="text-base font-semibold">Stock &amp; Sales Performance Report</h2>
         <p className="text-xs">Reporting Period: {periodLabel}</p>
@@ -256,17 +256,6 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
       />
 
       <PerformanceKPICards summary={s} loading={summaryQuery.isLoading} />
-
-      {/* Print-only KPI summary */}
-      <div className="hidden print-only text-xs">
-        <p>
-          Inventory value (cost): {formatCurrency(Number(s?.inventory_cost_value ?? 0))} · Retail value:{' '}
-          {formatCurrency(Number(s?.potential_retail_value ?? 0))} · Units sold: {Number(s?.units_sold ?? 0)} ·
-          Revenue: {formatCurrency(Number(s?.gross_revenue ?? 0))} · Transactions: {Number(s?.transactions ?? 0)} ·
-          Gross profit: {formatCurrency(Number(s?.gross_profit ?? 0))} · Avg margin: {Number(s?.avg_margin ?? 0).toFixed(1)}% ·
-          Active SKUs: {Number(s?.active_skus ?? 0)} · Low: {Number(s?.low_stock_items ?? 0)} · Out: {Number(s?.out_of_stock_items ?? 0)}
-        </p>
-      </div>
 
       <Card className="shadow-sm">
         <CardContent className="p-0">
