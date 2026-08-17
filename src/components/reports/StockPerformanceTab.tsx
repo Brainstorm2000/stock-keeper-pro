@@ -196,6 +196,7 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
       setPrintRows(all);
       await new Promise((r) => setTimeout(r, 150));
       window.print();
+      setPrintRows([]);
     } catch (e) {
       toast({ title: 'Print failed', description: (e as Error).message, variant: 'destructive' });
     } finally {
