@@ -7,6 +7,7 @@ import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateRangeFilter, DateRange } from '@/components/reports/DateRangeFilter';
+import { StockPerformanceTab } from '@/components/reports/StockPerformanceTab';
 import { SalesReportTab } from '@/components/reports/SalesReportTab';
 import { InventoryReportTab } from '@/components/reports/InventoryReportTab';
 import { PurchaseReportTab } from '@/components/reports/PurchaseReportTab';
@@ -71,7 +72,7 @@ export default function Reports() {
       <ModuleAccessGuard module="reports">
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 no-print">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BarChart3 className="h-6 w-6 text-primary" />
@@ -93,13 +94,18 @@ export default function Reports() {
           </div>
 
           {/* Tabs */}
-          <Tabs defaultValue="sales" className="space-y-4">
-            <TabsList className="grid grid-cols-4 w-full max-w-lg">
+          <Tabs defaultValue="performance" className="space-y-4">
+            <TabsList className="grid grid-cols-5 w-full max-w-2xl no-print">
+              <TabsTrigger value="performance">Performance</TabsTrigger>
               <TabsTrigger value="sales">Sales</TabsTrigger>
               <TabsTrigger value="inventory">Inventory</TabsTrigger>
               <TabsTrigger value="purchases">Purchases</TabsTrigger>
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="performance">
+              <StockPerformanceTab selectedBranch={selectedBranch} branches={branches} />
+            </TabsContent>
 
             <TabsContent value="sales">
               <SalesReportTab
