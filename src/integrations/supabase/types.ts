@@ -1049,48 +1049,7 @@ export type Database = {
           },
         ]
       }
-      product_price_history: {
-        Row: {
-          change_type: string
-          changed_by: string | null
-          created_at: string
-          id: string
-          new_cost_price: number
-          new_selling_price: number
-          notes: string | null
-          organization_id: string
-          previous_cost_price: number
-          previous_selling_price: number
-          product_id: string
-        }
-        Insert: {
-          change_type?: string
-          changed_by?: string | null
-          created_at?: string
-          id?: string
-          new_cost_price?: number
-          new_selling_price?: number
-          notes?: string | null
-          organization_id: string
-          previous_cost_price?: number
-          previous_selling_price?: number
-          product_id: string
-        }
-        Update: {
-          change_type?: string
-          changed_by?: string | null
-          created_at?: string
-          id?: string
-          new_cost_price?: number
-          new_selling_price?: number
-          notes?: string | null
-          organization_id?: string
-          previous_cost_price?: number
-          previous_selling_price?: number
-          product_id?: string
-        }
-        Relationships: []
-      }
+      
       product_variation_attributes: {
         Row: {
           attribute_id: string

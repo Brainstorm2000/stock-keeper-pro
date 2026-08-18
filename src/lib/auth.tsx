@@ -10,6 +10,23 @@ import { supabase } from "@/integrations/supabase/client";
 
 type AppRole = "admin" | "user" | "super_admin" | "super_super_admin";
 
+export function isMissingRowError(error: { code?: string; message?: string; status?: number } | null | undefined) {
+  if (!error) return false;
+
+  const code = (error.code ?? "").toLowerCase();
+  const message = (error.message ?? "").toLowerCase();
+  const status = error.status;
+
+  return (
+    status === 406 ||
+    code === "pgrst116" ||
+    message.includes("pgrst116") ||
+    message.includes("no rows returned") ||
+    message.includes("multiple (or no) rows returned") ||
+    message.includes("multiple or no rows returned")
+  );
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -42,12 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      // First check if user has super_super_admin role (no org needed)
+      // First check if user has super_super_admin role (no org needed). Some users
+      // may not have a row in user_roles yet, which should be treated as "no role"
+      // rather than a fatal auth error.
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
       if (!roleError && roleData?.role === "super_super_admin") {
         setOrganizationId(null);
@@ -56,14 +75,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return "super_super_admin" as AppRole;
       }
 
-      // Fetch profile to check if onboarding is complete
+      if (roleError && !isMissingRowError(roleError)) {
+        console.error("Error fetching role:", roleError);
+      }
+
+      // Fetch profile to check if onboarding is complete.
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("organization_id")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
-      if (profileError && profileError.code !== "PGRST116") {
+      if (profileError && !isMissingRowError(profileError)) {
         console.error("Error fetching profile:", profileError);
       }
 
@@ -71,13 +94,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOrganizationId(orgId);
       setHasCompletedOnboarding(!!orgId);
 
-      // Check if organization is active
+      // Check if organization is active. A deleted org should not log the user out.
       if (orgId) {
-        const { data: org } = await supabase
+        const { data: org, error: orgError } = await supabase
           .from("organizations")
           .select("is_active")
           .eq("id", orgId)
-          .single();
+          .maybeSingle();
+
+        if (orgError && !isMissingRowError(orgError)) {
+          console.error("Error fetching organization:", orgError);
+        }
 
         setIsOrgDisabled(org?.is_active === false);
       } else {

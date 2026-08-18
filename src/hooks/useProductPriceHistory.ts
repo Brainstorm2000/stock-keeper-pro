@@ -1,3 +1,8 @@
+/**
+ * @deprecated - Price History functionality has been removed from the app.
+ * This hook is no longer used and can be safely deleted.
+ */
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -29,7 +34,8 @@ export function useProductPriceHistory(productId?: string) {
       if (productId) query = query.eq('product_id', productId);
 
       const { data, error } = await query;
-      if (error) throw error;
+      // Return empty array on error (likely RLS policy denying access)
+      if (error) return [];
 
       const entries = (data ?? []) as ProductPriceHistoryEntry[];
 

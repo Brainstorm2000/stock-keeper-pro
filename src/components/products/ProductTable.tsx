@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StatusBadge, getStockStatus } from "./StatusBadge";
 import { StockUpdateDialog } from "./StockUpdateDialog";
-import { PriceHistoryDialog } from "./PriceHistoryDialog";
 import { BulkEditProductsDialog } from "./BulkEditProductsDialog";
 import { useBulkDeleteProducts, useArchiveProduct, type Product } from "@/hooks/useProducts";
 import { useBranches } from "@/hooks/useBranches";
@@ -103,8 +102,6 @@ export function ProductTable({
   const [stockUpdateType, setStockUpdateType] = useState<
     "increase" | "decrease"
   >("increase");
-  const [priceHistoryProduct, setPriceHistoryProduct] =
-    useState<Product | null>(null);
   const { isAdmin } = useAuth();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
@@ -594,12 +591,6 @@ export function ProductTable({
           onOpenChange={(open) => !open && setStockUpdateProduct(null)}
         />
       )}
-
-      <PriceHistoryDialog
-        product={priceHistoryProduct}
-        open={!!priceHistoryProduct}
-        onOpenChange={(open) => !open && setPriceHistoryProduct(null)}
-      />
 
       <BulkEditProductsDialog
         open={bulkEditOpen}

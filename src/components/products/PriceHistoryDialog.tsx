@@ -1,3 +1,8 @@
+/**
+ * @deprecated - Price History functionality has been removed from the app.
+ * This component is no longer used and can be safely deleted.
+ */
+
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
