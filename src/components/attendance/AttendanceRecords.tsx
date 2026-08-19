@@ -23,6 +23,25 @@ const statusColors: Record<string, string> = {
   absent: 'bg-destructive/10 text-destructive',
 };
 
+function getArrivalCategory(record: {
+  clock_in_time: string | null;
+  status: string;
+  shifts?: { start_time: string; grace_period_minutes: number } | null;
+}): 'early' | 'late' | 'onTime' | null {
+  if (!record.clock_in_time || record.status === 'absent') return null;
+  if (!record.shifts) return record.status === 'early' ? 'early' : record.status === 'late' ? 'late' : 'onTime';
+
+  const [hours, minutes, seconds = 0] = record.shifts.start_time.split(':').map(Number);
+  const shiftStart = new Date(record.clock_in_time);
+  shiftStart.setHours(hours, minutes, seconds, 0);
+  const graceEnd = shiftStart.getTime() + record.shifts.grace_period_minutes * 60000;
+  const clockIn = new Date(record.clock_in_time).getTime();
+
+  if (clockIn < shiftStart.getTime()) return 'early';
+  if (clockIn > graceEnd) return 'late';
+  return 'onTime';
+}
+
 export function AttendanceRecords() {
   const todayStr = (() => {
     const d = new Date();
@@ -61,19 +80,27 @@ export function AttendanceRecords() {
   const { data: departments = [] } = useDepartments();
   const { data: shifts = [] } = useShifts();
 
-  // Days worked per staff = count of unique attendance dates with a clock-in (or non-absent status)
-  const daysWorkedByStaff = (() => {
-    const map = new Map<string, Set<string>>();
+  const attendanceSummaryByStaff = (() => {
+    const map = new Map<string, { worked: Set<string>; late: Set<string>; early: Set<string>; onTime: Set<string> }>();
     for (const r of records) {
       if (!r.staff_id) continue;
+      if (!map.has(r.staff_id)) {
+        map.set(r.staff_id, { worked: new Set(), late: new Set(), early: new Set(), onTime: new Set() });
+      }
+      const summary = map.get(r.staff_id)!;
       const worked = !!r.clock_in_time || (r.status && r.status !== 'absent');
-      if (!worked) continue;
-      if (!map.has(r.staff_id)) map.set(r.staff_id, new Set());
-      map.get(r.staff_id)!.add(r.attendance_date);
+      if (worked) summary.worked.add(r.attendance_date);
+      const arrivalCategory = getArrivalCategory(r);
+      if (arrivalCategory === 'late') summary.late.add(r.attendance_date);
+      if (arrivalCategory === 'early') summary.early.add(r.attendance_date);
+      if (arrivalCategory === 'onTime') summary.onTime.add(r.attendance_date);
     }
-    const out: Record<string, number> = {};
-    map.forEach((set, k) => { out[k] = set.size; });
-    return out;
+    return Object.fromEntries(Array.from(map, ([staffId, summary]) => [staffId, {
+      daysWorked: summary.worked.size,
+      daysLate: summary.late.size,
+      daysEarly: summary.early.size,
+      daysOnTime: summary.onTime.size,
+    }]));
   })();
 
   const {
@@ -87,7 +114,7 @@ export function AttendanceRecords() {
   } = usePagination(records, 10);
 
   const handleExport = () => {
-    exportAttendanceToExcel(records, daysWorkedByStaff, `attendance-${new Date().toISOString().split('T')[0]}.xlsx`);
+    exportAttendanceToExcel(records, attendanceSummaryByStaff, `attendance-${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   return (
@@ -164,44 +191,45 @@ export function AttendanceRecords() {
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="rounded-md border overflow-x-auto">
-          <Table>
+          <Table className="min-w-[1200px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Staff</TableHead>
-                <TableHead className="hidden md:table-cell">Department</TableHead>
-                <TableHead className="hidden md:table-cell">Branch</TableHead>
-                <TableHead className="hidden lg:table-cell">Shift</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Branch</TableHead>
+                <TableHead>Shift</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Clock In</TableHead>
-                <TableHead className="hidden lg:table-cell">Clock In By</TableHead>
+                <TableHead>Clock In By</TableHead>
                 <TableHead>Clock Out</TableHead>
-                <TableHead className="hidden lg:table-cell">Clock Out By</TableHead>
-                <TableHead className="hidden sm:table-cell">Hours</TableHead>
-                <TableHead className="hidden sm:table-cell">Overtime</TableHead>
-                <TableHead className="hidden sm:table-cell">Days Worked</TableHead>
+                <TableHead>Clock Out By</TableHead>
+                <TableHead>Hours</TableHead>
+                <TableHead>Overtime</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {records.length === 0 ? (
-                <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-8">No records found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">No records found</TableCell></TableRow>
               ) : paginatedRecords.map(r => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.staff?.full_name || '-'}</TableCell>
-                  <TableCell className="hidden md:table-cell">{r.departments?.name || r.staff?.department || '-'}</TableCell>
-                  <TableCell className="hidden md:table-cell">{r.branches?.name || '-'}</TableCell>
-                  <TableCell className="hidden lg:table-cell">{r.shifts?.shift_name || '-'}</TableCell>
+                  <TableCell>{r.departments?.name || r.staff?.department || '-'}</TableCell>
+                  <TableCell>{r.branches?.name || '-'}</TableCell>
+                  <TableCell>{r.shifts?.shift_name || '-'}</TableCell>
                   <TableCell>{r.attendance_date}</TableCell>
                   <TableCell>{r.clock_in_time ? format(new Date(r.clock_in_time), 'HH:mm') : '-'}</TableCell>
-                  <TableCell className="hidden lg:table-cell text-muted-foreground">{r.clocked_in_by_name || '-'}</TableCell>
+                  <TableCell className="text-muted-foreground">{r.clocked_in_by_name || '-'}</TableCell>
                   <TableCell>{r.clock_out_time ? format(new Date(r.clock_out_time), 'HH:mm') : '-'}</TableCell>
-                  <TableCell className="hidden lg:table-cell text-muted-foreground">{r.clocked_out_by_name || '-'}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{r.hours_worked ? r.hours_worked.toFixed(1) : '-'}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{r.overtime_hours ? r.overtime_hours.toFixed(1) : '0'}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{daysWorkedByStaff[r.staff_id] ?? 0}</TableCell>
+                  <TableCell className="text-muted-foreground">{r.clocked_out_by_name || '-'}</TableCell>
+                  <TableCell>{r.hours_worked ? r.hours_worked.toFixed(1) : '-'}</TableCell>
+                  <TableCell>{r.overtime_hours ? r.overtime_hours.toFixed(1) : '0'}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={statusColors[r.status] || ''}>
-                      {r.status.replace('_', ' ')}
+                      {[
+                        r.status === 'late' ? 'late' : null,
+                        (r.overtime_hours ?? 0) > 0 || r.status === 'overtime' ? 'overtime' : null,
+                      ].filter(Boolean).join(' | ') || r.status.replace('_', ' ')}
                     </Badge>
                   </TableCell>
                 </TableRow>

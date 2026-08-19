@@ -22,8 +22,7 @@ import {
 } from '@/hooks/useStockPerformance';
 import { PerformanceControlBar, type DatePreset } from './PerformanceControlBar';
 import { PerformanceKPICards } from './PerformanceKPICards';
-import { StockPerformanceTable, statusLabel, velocityLabel } from './StockPerformanceTable';
-import { PurchaseDialog } from '@/components/purchases/PurchaseDialog';
+import { StockPerformanceTable } from './StockPerformanceTable';
 
 interface Props {
   selectedBranch: string;
@@ -65,7 +64,6 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [busy, setBusy] = useState<'csv' | 'pdf' | 'print' | null>(null);
-  const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [printRows, setPrintRows] = useState<PerformanceRow[]>([]);
 
   const debouncedSearch = useDebounce(search, 400);
@@ -128,23 +126,16 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
         return;
       }
       exportToCSV(all.map((r) => ({
-        'Product Name': r.product_name,
         SKU: r.sku || '',
-        Barcode: r.sku || '',
-        Category: r.category,
-        'Initial Stock': Number(r.opening_stock),
-        Received: Number(r.received),
-        'Units Sold': Number(r.units_sold),
+        'Product Name': r.product_name,
+        'Opening Stock': Number(r.opening_stock),
+        'Quantity Sold': Number(r.units_sold),
         'Current Stock': Number(r.current_stock),
-        'Stock Status': statusLabel(r.stock_status),
         'Unit Cost': Number(r.cost_price),
-        'Unit Selling Price': Number(r.selling_price),
-        'Inventory Value': Number(r.inventory_value),
-        Revenue: Number(r.revenue),
-        COGS: Number(r.cogs),
+        'Unit Price': Number(r.selling_price),
+        'Total Revenue': Number(r.revenue),
         'Gross Profit': Number(r.gross_profit),
-        'Profit Margin %': Number(r.margin),
-        Velocity: velocityLabel(r.velocity),
+        'Profit Margin (%)': Number(r.margin),
       })), 'stock_sales_performance');
       toast({ title: 'CSV exported', description: `${all.length} rows exported.` });
     } catch (e) {
@@ -161,13 +152,11 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
       const s = summaryQuery.data;
       exportToPDF(
         'Stock & Sales Performance Report',
-        ['Product', 'SKU', 'Initial', 'Recv', 'Sold', 'On Hand', 'Status', 'Inv. Value', 'Revenue', 'COGS', 'Profit', 'Margin', 'Velocity'],
+        ['SKU', 'Product Name', 'Opening Stock', 'Quantity Sold', 'Current Stock', 'Unit Cost', 'Unit Price', 'Total Revenue', 'Gross Profit', 'Profit Margin (%)'],
         all.map((r) => [
-          r.product_name, r.sku || '-', String(Number(r.opening_stock)), String(Number(r.received)),
-          String(Number(r.units_sold)), String(Number(r.current_stock)), statusLabel(r.stock_status),
-          formatCurrency(Number(r.inventory_value)), formatCurrency(Number(r.revenue)),
-          formatCurrency(Number(r.cogs)), formatCurrency(Number(r.gross_profit)),
-          `${Number(r.margin).toFixed(1)}%`, velocityLabel(r.velocity),
+          r.sku || '-', r.product_name, String(Number(r.opening_stock)), String(Number(r.units_sold)),
+          String(Number(r.current_stock)), formatCurrency(Number(r.cost_price)), formatCurrency(Number(r.selling_price)),
+          formatCurrency(Number(r.revenue)), formatCurrency(Number(r.gross_profit)), `${Number(r.margin).toFixed(1)}%`,
         ]),
         {
           'Period': periodLabel,
@@ -202,17 +191,6 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
     } finally {
       setBusy(null);
     }
-  };
-
-  const handleRestock = (row: PerformanceRow) => {
-    setPurchaseOpen(true);
-    toast({
-      title: `Restock ${row.product_name}`,
-      description: `On hand ${Number(row.current_stock)} · min ${Number(row.low_threshold)} · suggested order ${Math.max(
-        Number(row.low_threshold) * 2 - Number(row.current_stock),
-        1,
-      )}${row.supplier_name ? ` · supplier ${row.supplier_name}` : ''}`,
-    });
   };
 
   const s = summaryQuery.data;
@@ -256,6 +234,11 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
         busy={busy}
       />
 
+      {summaryQuery.error ? (
+        <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          Executive summary unavailable: {(summaryQuery.error as Error).message}
+        </p>
+      ) : null}
       <PerformanceKPICards summary={s} loading={summaryQuery.isLoading} />
 
       <Card className="shadow-sm">
@@ -268,7 +251,6 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
               sort={sort}
               dir={dir}
               onSort={handleSort}
-              onRestock={handleRestock}
             />
           </div>
           <div className="no-print border-t p-3">
@@ -286,8 +268,6 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
           </div>
         </CardContent>
       </Card>
-
-      <PurchaseDialog open={purchaseOpen} onOpenChange={setPurchaseOpen} />
     </div>
   );
 }

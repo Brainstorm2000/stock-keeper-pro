@@ -46,54 +46,44 @@ export function PerformanceKPICards({ summary, loading }: Props) {
     );
   }
 
-  const s = summary!;
+  const s: PerformanceSummary = summary ?? {
+    inventory_cost_value: 0,
+    potential_retail_value: 0,
+    potential_gross_value: 0,
+    units_sold: 0,
+    gross_revenue: 0,
+    total_cogs: 0,
+    gross_profit: 0,
+    avg_margin: 0,
+    transactions: 0,
+    active_skus: 0,
+    low_stock_items: 0,
+    out_of_stock_items: 0,
+    fast_movers: 0,
+    slow_movers: 0,
+  };
   const num = (n: number) => Number(n || 0).toLocaleString('en-NG');
 
   const cards = [
     {
-      title: 'Stock Valuation',
+      title: 'Executive Summary',
       icon: Warehouse,
-      headline: formatCurrency(Number(s.inventory_cost_value || 0)),
-      caption: 'Inventory value at cost',
       metrics: [
-        { label: 'Potential retail value', value: formatCurrency(Number(s.potential_retail_value || 0)) },
-        { label: 'Potential gross value', value: formatCurrency(Number(s.potential_gross_value || 0)), tone: 'strong' as const },
-      ],
-    },
-    {
-      title: 'Sales & Volume',
-      icon: ShoppingCart,
-      headline: formatCurrency(Number(s.gross_revenue || 0)),
-      caption: 'Gross revenue for period',
-      metrics: [
-        { label: 'Units sold', value: num(Number(s.units_sold || 0)) },
-        { label: 'Transactions', value: num(Number(s.transactions || 0)) },
-      ],
-    },
-    {
-      title: 'Profitability',
-      icon: TrendingUp,
-      headline: formatCurrency(Number(s.gross_profit || 0)),
-      caption: 'Gross profit for period',
-      metrics: [
-        { label: 'Total COGS', value: formatCurrency(Number(s.total_cogs || 0)) },
-        { label: 'Average gross margin', value: `${Number(s.avg_margin || 0).toFixed(1)}%`, tone: 'strong' as const },
-      ],
-    },
-    {
-      title: 'Stock Health',
-      icon: AlertTriangle,
-      headline: num(Number(s.active_skus || 0)),
-      caption: 'Active SKUs in scope',
-      metrics: [
-        { label: 'Low stock items', value: num(Number(s.low_stock_items || 0)), tone: 'warn' as const },
-        { label: 'Out of stock items', value: num(Number(s.out_of_stock_items || 0)), tone: 'danger' as const },
+        { label: 'Total Inventory Value', value: formatCurrency(Number(s.inventory_cost_value || 0)), tone: 'strong' as const },
+        { label: 'Potential Retail Value', value: formatCurrency(Number(s.potential_retail_value || 0)) },
+        { label: 'Total Sales Revenue', value: formatCurrency(Number(s.gross_revenue || 0)) },
+        { label: 'Total Cost of Goods Sold (COGS)', value: formatCurrency(Number(s.total_cogs || 0)) },
+        { label: 'Total Gross Profit', value: formatCurrency(Number(s.gross_profit || 0)), tone: 'strong' as const },
+        { label: 'Current Inventory Value', value: formatCurrency(Number(s.inventory_cost_value || 0)) },
+        { label: 'Average Profit Margin', value: `${Number(s.avg_margin || 0).toFixed(1)}%` },
+        { label: 'Low Stock Items', value: num(Number(s.low_stock_items || 0)), tone: 'warn' as const },
+        { label: 'Out of Stock Items', value: num(Number(s.out_of_stock_items || 0)), tone: 'danger' as const },
       ],
     },
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 print-kpis">
+    <div className="grid gap-4 print-kpis">
       {cards.map((c) => (
         <Card key={c.title} className="shadow-sm">
           <CardContent className="p-5 space-y-3">
@@ -101,11 +91,7 @@ export function PerformanceKPICards({ summary, loading }: Props) {
               <span className="text-sm font-medium text-muted-foreground">{c.title}</span>
               <c.icon className="h-4 w-4 text-primary" />
             </div>
-            <div>
-              <div className="text-2xl font-bold tracking-tight">{c.headline}</div>
-              <div className="text-xs text-muted-foreground">{c.caption}</div>
-            </div>
-            <div className="space-y-1 border-t pt-3">
+            <div className="grid gap-x-8 gap-y-2 border-t pt-3 sm:grid-cols-2 lg:grid-cols-3">
               {c.metrics.map((m) => (
                 <Metric key={m.label} label={m.label} value={m.value} tone={m.tone} />
               ))}

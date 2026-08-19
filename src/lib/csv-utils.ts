@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { Product } from '@/hooks/useProducts';
 import type { ProductVariation } from '@/hooks/useProductVariations';
+import type { Attendance } from '@/hooks/useAttendance';
 
 export interface CSVRow {
   name: string;
@@ -472,8 +473,13 @@ function formatTime(value: unknown): string {
 }
 
 export function exportAttendanceToExcel(
-  records: any[],
-  daysWorkedByStaff: Record<string, number>,
+  records: Attendance[],
+  attendanceSummaryByStaff: Record<string, {
+    daysWorked: number;
+    daysLate: number;
+    daysEarly: number;
+    daysOnTime: number;
+  }>,
   filename = `attendance-${new Date().toISOString().split('T')[0]}.xlsx`,
 ): void {
   const attendanceRows = records.map((r) => ({
@@ -510,7 +516,10 @@ export function exportAttendanceToExcel(
         Branch: record.branches?.name || '',
         'Total Hours Worked': hoursWorked,
         'Total Overtime Hours': overtimeHours,
-        'Days Worked': daysWorkedByStaff[staffId] ?? 0,
+        'Days Worked': attendanceSummaryByStaff[staffId]?.daysWorked ?? 0,
+        'Days Late': attendanceSummaryByStaff[staffId]?.daysLate ?? 0,
+        'Days Early': attendanceSummaryByStaff[staffId]?.daysEarly ?? 0,
+        'Days On Time': attendanceSummaryByStaff[staffId]?.daysOnTime ?? 0,
       });
     }
   }

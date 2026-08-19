@@ -1,9 +1,6 @@
-import { ArrowDown, ArrowUp, ChevronsUpDown, PackagePlus, AlertCircle } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronsUpDown, AlertCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import type { PerformanceRow, PerformanceSortKey } from '@/hooks/useStockPerformance';
@@ -15,26 +12,19 @@ interface Props {
   sort: PerformanceSortKey;
   dir: 'asc' | 'desc';
   onSort: (key: PerformanceSortKey) => void;
-  onRestock: (row: PerformanceRow) => void;
 }
 
 const COLUMNS: { key: PerformanceSortKey | null; label: string; align?: 'right'; sortable?: boolean }[] = [
-  { key: 'product_name', label: 'Product', sortable: true },
-  { key: 'category', label: 'Category', sortable: true },
-  { key: 'opening_stock', label: 'Initial', align: 'right', sortable: true },
-  { key: 'received', label: 'Received', align: 'right', sortable: true },
-  { key: 'units_sold', label: 'Sold', align: 'right', sortable: true },
-  { key: 'current_stock', label: 'On Hand', align: 'right', sortable: true },
-  { key: 'stock_status', label: 'Status', sortable: true },
+  { key: null, label: 'SKU' },
+  { key: 'product_name', label: 'Product Name', sortable: true },
+  { key: 'opening_stock', label: 'Opening Stock', align: 'right', sortable: true },
+  { key: 'units_sold', label: 'Quantity Sold', align: 'right', sortable: true },
+  { key: 'current_stock', label: 'Current Stock', align: 'right', sortable: true },
   { key: 'cost_price', label: 'Unit Cost', align: 'right', sortable: true },
   { key: 'selling_price', label: 'Unit Price', align: 'right', sortable: true },
-  { key: 'inventory_value', label: 'Inv. Value', align: 'right', sortable: true },
-  { key: 'revenue', label: 'Revenue', align: 'right', sortable: true },
-  { key: 'cogs', label: 'COGS', align: 'right', sortable: true },
+  { key: 'revenue', label: 'Total Revenue', align: 'right', sortable: true },
   { key: 'gross_profit', label: 'Gross Profit', align: 'right', sortable: true },
-  { key: 'margin', label: 'Margin %', align: 'right', sortable: true },
-  { key: 'velocity', label: 'Velocity', sortable: true },
-  { key: null, label: 'Actions' },
+  { key: 'margin', label: 'Profit Margin (%)', align: 'right', sortable: true },
 ];
 
 export function statusLabel(status: PerformanceRow['stock_status']) {
@@ -45,7 +35,7 @@ export function velocityLabel(velocity: PerformanceRow['velocity']) {
   return velocity === 'fast' ? 'Fast Mover' : 'Slow / Dead';
 }
 
-export function StockPerformanceTable({ rows, loading, error, sort, dir, onSort, onRestock }: Props) {
+export function StockPerformanceTable({ rows, loading, error, sort, dir, onSort }: Props) {
   if (error) {
     return (
       <div className="flex flex-col items-center gap-2 py-16 text-center">
@@ -68,7 +58,6 @@ export function StockPerformanceTable({ rows, loading, error, sort, dir, onSort,
                   'whitespace-nowrap',
                   col.align === 'right' && 'text-right',
                   col.sortable && 'cursor-pointer select-none',
-                  col.label === 'Actions' && 'no-print',
                 )}
                 onClick={() => col.sortable && col.key && onSort(col.key)}
               >
@@ -104,54 +93,18 @@ export function StockPerformanceTable({ rows, loading, error, sort, dir, onSort,
 
           {rows.map((r) => (
             <TableRow key={r.product_id} className="print-row">
+              <TableCell className="whitespace-nowrap">{r.sku || '-'}</TableCell>
               <TableCell className="min-w-[200px]">
                 <div className="font-medium">{r.product_name}</div>
-                <div className="text-xs text-muted-foreground">{r.sku || 'No SKU'}</div>
-              </TableCell>
-              <TableCell>
-                <Badge variant="secondary" className="capitalize">{r.category}</Badge>
               </TableCell>
               <TableCell className="text-right tabular-nums">{Number(r.opening_stock)}</TableCell>
-              <TableCell className="text-right tabular-nums">{Number(r.received)}</TableCell>
               <TableCell className="text-right tabular-nums">{Number(r.units_sold)}</TableCell>
               <TableCell className="text-right font-medium tabular-nums">{Number(r.current_stock)}</TableCell>
-              <TableCell>
-                <Badge
-                  className={cn(
-                    'font-medium',
-                    r.stock_status === 'out' && 'status-out',
-                    r.stock_status === 'low' && 'status-low',
-                    r.stock_status === 'normal' && 'status-normal',
-                  )}
-                >
-                  {statusLabel(r.stock_status)}
-                </Badge>
-              </TableCell>
               <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.cost_price))}</TableCell>
               <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.selling_price))}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.inventory_value))}</TableCell>
               <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.revenue))}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.cogs))}</TableCell>
               <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.gross_profit))}</TableCell>
               <TableCell className="text-right tabular-nums">{Number(r.margin).toFixed(1)}%</TableCell>
-              <TableCell>
-                <Badge variant={r.velocity === 'fast' ? 'default' : 'outline'}>{velocityLabel(r.velocity)}</Badge>
-              </TableCell>
-              <TableCell className="no-print">
-                {r.stock_status !== 'normal' ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button size="sm" variant="outline" className="gap-1" onClick={() => onRestock(r)}>
-                        <PackagePlus className="h-3.5 w-3.5" />
-                        <span className="hidden xl:inline">Restock</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Create a draft purchase order for this product</TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </TableCell>
             </TableRow>
           ))}
         </TableBody>
