@@ -57,6 +57,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          expiration_date: string | null
           due_date: string | null
           id: string
           organization_id: string
@@ -73,6 +74,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          expiration_date?: string | null
           due_date?: string | null
           id?: string
           organization_id: string
@@ -89,6 +91,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          expiration_date?: string | null
           due_date?: string | null
           id?: string
           organization_id?: string

@@ -20,6 +20,7 @@ import { usePurchases } from '@/hooks/usePurchases';
 import { useExpenses, useExpenseCategories } from '@/hooks/useExpenses';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { ExpirationAlerts } from '@/components/products/ExpirationAlerts';
 
 export default function Reports() {
   const { user, loading: authLoading, hasCompletedOnboarding, organizationId } = useAuth();
@@ -92,6 +93,8 @@ export default function Reports() {
             </div>
             <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
           </div>
+
+          <ExpirationAlerts products={products.filter(p => selectedBranch === 'all' || p.branch_id === selectedBranch)} />
 
           {/* Tabs */}
           <Tabs defaultValue="performance" className="space-y-4">

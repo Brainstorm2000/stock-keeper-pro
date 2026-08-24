@@ -59,6 +59,7 @@ import { CustomersDialog } from "@/components/customers/CustomersDialog";
 import { SuppliersDialog } from "@/components/suppliers/SuppliersDialog";
 import { BrandsDialog } from "@/components/brands/BrandsDialog";
 import { PaymentMethodsDialog } from "@/components/organization/PaymentMethodsDialog";
+import { ExpirationAlerts } from "@/components/products/ExpirationAlerts";
 
 // Hooks & Logic
 import {
@@ -401,6 +402,8 @@ export default function Dashboard() {
   />
 )}
         </div>
+
+        <ExpirationAlerts products={filteredProducts} />
 
         {/* --- Tabs with Horizontal Scroll for Mobile --- */}
         <Tabs defaultValue="overview" className="space-y-6">

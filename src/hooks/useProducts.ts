@@ -25,6 +25,7 @@ export interface Product {
   item_type: ItemType;
   cost_price: number;
   selling_price: number;
+  expiration_date: string | null;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
@@ -69,6 +70,7 @@ export interface ProductInput {
   category?: ProductCategory;
   cost_price?: number;
   selling_price?: number;
+  expiration_date?: string | null;
 }
 
 export interface DuplicateCheckResult {

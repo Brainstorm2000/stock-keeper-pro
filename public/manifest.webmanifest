@@ -1,0 +1,25 @@
+{
+  "name": "StoqKip - All in One Business Solution",
+  "short_name": "StoqKip",
+  "description": "Manage your stock, sales, purchases, and business operations.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000B26",
+  "theme_color": "#000B26",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/stoqkip-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/stoqkip-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

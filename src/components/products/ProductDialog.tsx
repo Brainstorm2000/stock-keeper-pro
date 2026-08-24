@@ -73,6 +73,7 @@ const productSchema = z.object({
   out_of_stock_threshold: z.coerce.number().min(0, "Must be 0 or greater"),
   cost_price: z.coerce.number().min(0, "Must be 0 or greater"),
   selling_price: z.coerce.number().min(0, "Must be 0 or greater"),
+  expiration_date: z.string().optional(),
   sku: z.string().max(50).optional(),
   description: z.string().max(500).optional(),
 });
@@ -147,6 +148,7 @@ export function ProductDialog({
       out_of_stock_threshold: 0,
       cost_price: 0,
       selling_price: 0,
+      expiration_date: "",
       sku: "",
       description: "",
     },
@@ -168,6 +170,7 @@ export function ProductDialog({
         out_of_stock_threshold: Number(product.out_of_stock_threshold),
         cost_price: Number(product.cost_price) || 0,
         selling_price: Number(product.selling_price) || 0,
+        expiration_date: product.expiration_date || "",
         sku: product.sku || "",
         description: product.description || "",
       });
@@ -186,6 +189,7 @@ export function ProductDialog({
         out_of_stock_threshold: 0,
         cost_price: 0,
         selling_price: 0,
+        expiration_date: "",
         sku: "",
         description: "",
       });
@@ -271,6 +275,7 @@ export function ProductDialog({
         out_of_stock_threshold: data.out_of_stock_threshold,
         cost_price: data.item_type === "variable" ? 0 : data.cost_price,
         selling_price: data.item_type === "variable" ? 0 : data.selling_price,
+        expiration_date: data.item_type === "service" ? null : data.expiration_date || null,
         sku: data.sku || undefined,
         description: data.description || undefined,
       };
@@ -805,6 +810,13 @@ export function ProductDialog({
                     )}
                   </div>
                 </>
+              )}
+
+              {selectedItemType !== "service" && (
+                <div className="space-y-2">
+                  <Label htmlFor="expiration_date">Expiration Date (Optional)</Label>
+                  <Input id="expiration_date" type="date" {...register("expiration_date")} />
+                </div>
               )}
 
               {isVariable && (
