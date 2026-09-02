@@ -59,6 +59,8 @@ export function PerformanceKPICards({ summary, loading }: Props) {
     active_skus: 0,
     low_stock_items: 0,
     out_of_stock_items: 0,
+    expired_items: 0,
+    almost_expired_items: 0,
     fast_movers: 0,
     slow_movers: 0,
   };
@@ -78,6 +80,8 @@ export function PerformanceKPICards({ summary, loading }: Props) {
         { label: 'Average Profit Margin', value: `${Number(s.avg_margin || 0).toFixed(1)}%` },
         { label: 'Low Stock Items', value: num(Number(s.low_stock_items || 0)), tone: 'warn' as const },
         { label: 'Out of Stock Items', value: num(Number(s.out_of_stock_items || 0)), tone: 'danger' as const },
+        { label: 'Expired Items', value: num(Number(s.expired_items || 0)), tone: 'danger' as const },
+        { label: 'Almost Expired Items', value: num(Number(s.almost_expired_items || 0)), tone: 'warn' as const },
       ],
     },
   ];

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 
-export type StockStatusFilter = 'all' | 'fast' | 'slow' | 'low' | 'out';
+export type StockStatusFilter = 'all' | 'fast' | 'slow' | 'low' | 'out' | 'expired' | 'almost_expired';
 
 export interface PerformanceFilters {
   from: Date;
@@ -36,7 +36,7 @@ export interface PerformanceRow {
   cogs: number;
   gross_profit: number;
   margin: number;
-  stock_status: 'normal' | 'low' | 'out';
+  stock_status: 'normal' | 'low' | 'out' | 'expired' | 'almost_expired';
   velocity: 'fast' | 'slow';
   total_count?: number;
 }
@@ -54,6 +54,8 @@ export interface PerformanceSummary {
   active_skus: number;
   low_stock_items: number;
   out_of_stock_items: number;
+  expired_items: number;
+  almost_expired_items: number;
   fast_movers: number;
   slow_movers: number;
 }
@@ -150,6 +152,8 @@ export function usePerformanceSummary(filters: PerformanceFilters) {
           active_skus: 0,
           low_stock_items: 0,
           out_of_stock_items: 0,
+          expired_items: 0,
+          almost_expired_items: 0,
           fast_movers: 0,
           slow_movers: 0,
         }

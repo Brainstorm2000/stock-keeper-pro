@@ -28,7 +28,11 @@ const COLUMNS: { key: PerformanceSortKey | null; label: string; align?: 'right';
 ];
 
 export function statusLabel(status: PerformanceRow['stock_status']) {
-  return status === 'out' ? 'Out of Stock' : status === 'low' ? 'Low Stock' : 'Normal';
+  if (status === 'out') return 'Out of Stock';
+  if (status === 'low') return 'Low Stock';
+  if (status === 'expired') return 'Expired';
+  if (status === 'almost_expired') return 'Almost Expired';
+  return 'Normal';
 }
 
 export function velocityLabel(velocity: PerformanceRow['velocity']) {

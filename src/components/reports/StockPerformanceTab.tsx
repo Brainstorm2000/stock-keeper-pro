@@ -90,11 +90,21 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
   const branchLabel = selectedBranch === 'all'
     ? 'All Branches'
     : branches.find((b) => b.id === selectedBranch)?.name ?? 'Branch';
+  const stockStatusLabel: Record<StockStatusFilter, string> = {
+    all: 'All',
+    fast: 'Fast-Moving',
+    slow: 'Slow-Moving / Dead Stock',
+    low: 'Low Stock Alert',
+    out: 'Out of Stock',
+    expired: 'Expired Items',
+    almost_expired: 'Almost Expired Items',
+  };
+
   const filterSummary = [
     `Branch: ${branchLabel}`,
     `Category: ${category === 'all' ? 'All' : category}`,
     `Supplier: ${supplierId === 'all' ? 'All' : suppliers.find((s) => s.id === supplierId)?.name ?? 'All'}`,
-    `Stock status: ${stockStatus === 'all' ? 'All' : stockStatus}`,
+    `Stock status: ${stockStatusLabel[stockStatus]}`,
     debouncedSearch ? `Search: "${debouncedSearch}"` : null,
   ].filter(Boolean).join(' · ');
 

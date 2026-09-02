@@ -1,26 +1,17 @@
 import { AlertTriangle, Clock } from 'lucide-react';
 import type { Product } from '@/hooks/useProducts';
+import { getExpirationStatus, type ExpirationStatus } from '@/lib/expiration-status';
 
 const WARNING_WINDOW_DAYS = 30;
 
-function getDateString(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 export function ExpirationAlerts({ products }: { products: Product[] }) {
-  const today = getDateString(new Date());
-  const warningDate = new Date();
-  warningDate.setDate(warningDate.getDate() + WARNING_WINDOW_DAYS);
-  const warningDateString = getDateString(warningDate);
+  const today = new Date();
 
   const expiredProducts = products.filter(
-    (product) => product.item_type !== 'service' && product.expiration_date && product.expiration_date < today,
+    (product) => product.item_type !== 'service' && getExpirationStatus(product.expiration_date, today) === 'expired',
   );
   const almostExpiredProducts = products.filter(
-    (product) => product.item_type !== 'service' && product.expiration_date && product.expiration_date >= today && product.expiration_date <= warningDateString,
+    (product) => product.item_type !== 'service' && getExpirationStatus(product.expiration_date, today) === 'almost_expired',
   );
 
   if (expiredProducts.length === 0 && almostExpiredProducts.length === 0) return null;

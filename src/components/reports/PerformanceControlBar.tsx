@@ -81,6 +81,8 @@ export function PerformanceControlBar(props: Props) {
             <SelectItem value="slow">Slow-Moving / Dead Stock</SelectItem>
             <SelectItem value="low">Low Stock Alert</SelectItem>
             <SelectItem value="out">Out of Stock</SelectItem>
+            <SelectItem value="expired">Expired Items</SelectItem>
+            <SelectItem value="almost_expired">Almost Expired Items</SelectItem>
           </SelectContent>
         </Select>
       </div>

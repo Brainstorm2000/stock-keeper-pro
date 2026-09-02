@@ -13,11 +13,9 @@ function isStandalone() {
 export function useInstallPrompt() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
     setIsInstalled(isStandalone());
-    setIsIos(/iphone|ipad|ipod/i.test(navigator.userAgent));
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -43,5 +41,5 @@ export function useInstallPrompt() {
     setInstallEvent(null);
   };
 
-  return { canInstall: Boolean(installEvent) || isIos, isIos, isInstalled, install };
+  return { canInstall: Boolean(installEvent), isInstalled, install };
 }
