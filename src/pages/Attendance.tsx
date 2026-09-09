@@ -4,12 +4,14 @@ import { QRScanner } from '@/components/attendance/QRScanner';
 import { AttendanceRecords } from '@/components/attendance/AttendanceRecords';
 import { ShiftManagement } from '@/components/attendance/ShiftManagement';
 import { AttendanceDashboard } from '@/components/attendance/AttendanceDashboard';
+import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
 import { ScanLine, Table2, Settings2 } from 'lucide-react';
 
 export default function Attendance() {
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <ModuleAccessGuard module="attendance">
+      <DashboardLayout>
+        <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Attendance</h1>
           <p className="text-muted-foreground">Clock in/out via QR scan and manage attendance records</p>
@@ -43,7 +45,8 @@ export default function Attendance() {
             <ShiftManagement />
           </TabsContent>
         </Tabs>
-      </div>
-    </DashboardLayout>
+        </div>
+      </DashboardLayout>
+    </ModuleAccessGuard>
   );
 }

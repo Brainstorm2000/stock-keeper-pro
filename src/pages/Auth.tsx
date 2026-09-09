@@ -23,6 +23,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [redirectAfterSignIn, setRedirectAfterSignIn] = useState(false);
 
   const currentYear = new Date().getFullYear();
 
@@ -39,15 +40,21 @@ export default function Auth() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
-      if (isSuperSuperAdmin) navigate("/admin");
-      else if (!isOrgDisabled && hasCompletedOnboarding) navigate("/dashboard");
+    if (!user || !redirectAfterSignIn) return;
+
+    if (isSuperSuperAdmin) {
+      navigate("/admin");
+    } else if (hasCompletedOnboarding === false) {
+      navigate("/onboarding");
+    } else if (!isOrgDisabled && hasCompletedOnboarding === true) {
+      navigate("/dashboard");
     }
   }, [
     user,
     hasCompletedOnboarding,
     isSuperSuperAdmin,
     isOrgDisabled,
+    redirectAfterSignIn,
     navigate,
   ]);
 
@@ -85,6 +92,8 @@ export default function Auth() {
                 : error.message,
             variant: "destructive",
           });
+        } else {
+          setRedirectAfterSignIn(true);
         }
       } else {
         const { error } = await signUp(email, password);

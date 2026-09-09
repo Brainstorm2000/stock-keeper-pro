@@ -3176,10 +3176,12 @@ export type Database = {
         | "production"
         | "reports"
         | "staff"
+        | "attendance"
         | "tasks"
         | "debts"
         | "returns"
         | "products"
+        | "dashboard"
         | "dashboard_financials"
       app_role: "admin" | "user" | "super_admin" | "super_super_admin"
       item_type: "product" | "service" | "variable"
@@ -3332,10 +3334,12 @@ export const Constants = {
         "production",
         "reports",
         "staff",
+        "attendance",
         "tasks",
         "debts",
         "returns",
         "products",
+        "dashboard",
         "dashboard_financials",
       ],
       app_role: ["admin", "user", "super_admin", "super_super_admin"],

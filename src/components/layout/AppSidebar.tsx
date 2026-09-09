@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LogOut,
   User,
@@ -56,7 +56,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" },
   { href: "/pos", label: "POS", icon: ShoppingCart, module: "pos" },
   { href: "/sales", label: "Sales", icon: Receipt, module: "sales" },
   {
@@ -90,7 +90,7 @@ const navItems: NavItem[] = [
     href: "/attendance",
     label: "Attendance",
     icon: ScanLine,
-    module: "staff" as AppModule,
+    module: "attendance",
   },
   {
     href: "/action-tracker",
@@ -113,6 +113,7 @@ export function AppSidebar({
   onOpenPermissions,
 }: AppSidebarProps) {
   const { user, isSuperAdmin, isAdmin, signOut } = useAuth();
+  const navigate = useNavigate();
   const { data: organization } = useOrganization();
   const { data: moduleAccess, isLoading: accessLoading } = useMyModuleAccess();
   const { state } = useSidebar();
@@ -121,6 +122,7 @@ export function AppSidebar({
 
   const visibleLinks = navItems.filter((link) => {
     if (!link.module) return true;
+    if (link.module === "dashboard") return true;
     if (accessLoading) return true;
     return hasAccess(moduleAccess, link.module, "view");
   });
@@ -317,7 +319,10 @@ export function AppSidebar({
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={signOut}
+              onClick={async () => {
+                await signOut();
+                navigate("/auth", { replace: true });
+              }}
               className="h-11 rounded-xl text-red-400 hover:bg-red-400/10 hover:text-red-400 flex items-center gap-3"
             >
               <LogOut className="h-5 w-5 shrink-0" />

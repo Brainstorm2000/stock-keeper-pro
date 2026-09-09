@@ -74,7 +74,7 @@ import { useOutstandingSales } from "@/hooks/useDebts";
 import { useAuth } from "@/lib/auth";
 import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
 
-export default function Dashboard() {
+function DashboardContent() {
   const navigate = useNavigate();
   const {
     user,
@@ -88,6 +88,8 @@ export default function Dashboard() {
   const { canCreate: canCreateProduct, canDelete: canDeleteProduct } =
     useModuleAccess("products");
   const { canView: canViewFinancials } = useModuleAccess("dashboard_financials");
+  const { canView: canViewDashboard, isLoading: dashboardAccessLoading } =
+    useModuleAccess("dashboard");
 
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [unitsDialogOpen, setUnitsDialogOpen] = useState(false);
@@ -237,7 +239,9 @@ export default function Dashboard() {
   const filteredOutstandingSales =
     selectedBranchId === "all"
       ? outstandingSales
-      : outstandingSales.filter((s: any) => s.branch_id === selectedBranchId);
+      : outstandingSales.filter(
+          (sale: { branch_id: string }) => sale.branch_id === selectedBranchId,
+        );
 
   useEffect(() => {
     setCurrentPage(1);
@@ -279,6 +283,31 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#020817]">
         <Loader2 className="h-10 w-10 animate-spin text-[#FF9E3D]" />
       </div>
+    );
+  }
+
+  if (dashboardAccessLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#020817]">
+        <Loader2 className="h-10 w-10 animate-spin text-[#FF9E3D]" />
+      </div>
+    );
+  }
+
+  if (!canViewDashboard) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 md:space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500 px-4 md:px-0">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-6">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#000B26] dark:text-white">
+              Inventory Dashboard
+            </h1>
+            <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 font-medium">
+              Dashboard access is restricted for your account.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -601,4 +630,8 @@ export default function Dashboard() {
       </AlertDialog>
     </DashboardLayout>
   );
+}
+
+export default function Dashboard() {
+  return <DashboardContent />;
 }

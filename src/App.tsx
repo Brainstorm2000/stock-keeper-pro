@@ -5,8 +5,9 @@ import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { get, set, del, createStore } from "idb-keyval";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -60,6 +61,15 @@ const persister = createAsyncStoragePersister({
   throttleTime: 2000,
 });
 
+function RequireAuth() {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+  if (!user) return <Navigate to="/auth" replace />;
+
+  return <Outlet />;
+}
+
 const App = () => (
   <PersistQueryClientProvider
     client={queryClient}
@@ -73,30 +83,32 @@ const App = () => (
           <OfflineBanner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<Auth />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/pos" element={<POS />} />
-              <Route path="/sales" element={<Sales />} />
-              <Route path="/purchases" element={<Purchases />} />
-              <Route path="/expenses" element={<Expenses />} />
-              <Route path="/production" element={<Production />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/staff" element={<StaffManagement />} />
-              <Route path="/attendance" element={<Attendance />} />
-              <Route path="/action-tracker" element={<ActionTracker />} />
-              <Route path="/subscription" element={<Subscription />} />
-              <Route path="/debts" element={<Debts />} />
-              <Route path="/returns" element={<Returns />} />
-              <Route path="/damages" element={<Damages />} />
               <Route path="/admin-login" element={<AdminLogin />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/organizations" element={<AdminOrganizations />} />
-              <Route path="/admin/pricing" element={<AdminPricing />} />
-              <Route path="/admin/billing" element={<AdminBilling />} />
-              <Route path="*" element={<NotFound />} />
+              <Route element={<RequireAuth />}>
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/pos" element={<POS />} />
+                <Route path="/sales" element={<Sales />} />
+                <Route path="/purchases" element={<Purchases />} />
+                <Route path="/expenses" element={<Expenses />} />
+                <Route path="/production" element={<Production />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/staff" element={<StaffManagement />} />
+                <Route path="/attendance" element={<Attendance />} />
+                <Route path="/action-tracker" element={<ActionTracker />} />
+                <Route path="/subscription" element={<Subscription />} />
+                <Route path="/debts" element={<Debts />} />
+                <Route path="/returns" element={<Returns />} />
+                <Route path="/damages" element={<Damages />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/organizations" element={<AdminOrganizations />} />
+                <Route path="/admin/pricing" element={<AdminPricing />} />
+                <Route path="/admin/billing" element={<AdminBilling />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
             </Routes>
           </BrowserRouter>
         </TooltipProvider>

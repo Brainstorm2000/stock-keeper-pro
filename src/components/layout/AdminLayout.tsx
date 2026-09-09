@@ -71,7 +71,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={signOut}
+            onClick={async () => {
+              await signOut();
+              navigate('/auth', { replace: true });
+            }}
             className="w-full justify-start text-destructive hover:text-destructive"
           >
             <LogOut className="h-4 w-4 mr-2" />
