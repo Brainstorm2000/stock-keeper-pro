@@ -32,6 +32,7 @@ import NotFound from "./pages/NotFound";
 import Debts from "./pages/Debts";
 import Returns from "./pages/Returns";
 import Damages from "./pages/Damages";
+import Assets from "./pages/Assets";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
 const queryClient = new QueryClient({
@@ -86,6 +87,11 @@ const App = () => (
               <Route path="/" element={<Auth />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin-login" element={<AdminLogin />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/organizations" element={<AdminOrganizations />} />
+              <Route path="/admin/pricing" element={<AdminPricing />} />
+              <Route path="/admin/billing" element={<AdminBilling />} />
               <Route element={<RequireAuth />}>
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/dashboard" element={<Dashboard />} />
@@ -102,11 +108,7 @@ const App = () => (
                 <Route path="/debts" element={<Debts />} />
                 <Route path="/returns" element={<Returns />} />
                 <Route path="/damages" element={<Damages />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/users" element={<AdminUsers />} />
-                <Route path="/admin/organizations" element={<AdminOrganizations />} />
-                <Route path="/admin/pricing" element={<AdminPricing />} />
-                <Route path="/admin/billing" element={<AdminBilling />} />
+                <Route path="/assets" element={<Assets />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>

@@ -14,6 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
+      asset_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      assets: {
+        Row: {
+          branch_id: string | null
+          category: string
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          custodian_id: string | null
+          id: string
+          maintenance_required: boolean
+          name: string
+          organization_id: string
+          purchase_cost: number
+          purchase_date: string | null
+          status: string
+          tag_id: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          category: string
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          custodian_id?: string | null
+          id?: string
+          maintenance_required?: boolean
+          name: string
+          organization_id: string
+          purchase_cost?: number
+          purchase_date?: string | null
+          status?: string
+          tag_id: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          category?: string
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          custodian_id?: string | null
+          id?: string
+          maintenance_required?: boolean
+          name?: string
+          organization_id?: string
+          purchase_cost?: number
+          purchase_date?: string | null
+          status?: string
+          tag_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "asset_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_custodian_id_fkey"
+            columns: ["custodian_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       action_task_staff: {
         Row: {
           created_at: string
@@ -3183,6 +3293,7 @@ export type Database = {
         | "products"
         | "dashboard"
         | "dashboard_financials"
+        | "assets"
       app_role: "admin" | "user" | "super_admin" | "super_super_admin"
       item_type: "product" | "service" | "variable"
       module_access_level: "none" | "view" | "create" | "full"
@@ -3341,6 +3452,7 @@ export const Constants = {
         "products",
         "dashboard",
         "dashboard_financials",
+        "assets",
       ],
       app_role: ["admin", "user", "super_admin", "super_super_admin"],
       item_type: ["product", "service", "variable"],

@@ -22,6 +22,7 @@ import {
   BadgeDollarSign,
   RotateCcw,
   PackageX,
+  Boxes,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/lib/auth";
@@ -73,6 +74,7 @@ const navItems: NavItem[] = [
     icon: PackageX,
     module: "products" as AppModule,
   },
+  { href: "/assets", label: "Assets", icon: Boxes, module: "assets" },
   { href: "/expenses", label: "Expenses", icon: Wallet, module: "expenses" },
   {
     href: "/production",
