@@ -14,6 +14,8 @@ import {
   FileText,
   ExternalLink,
   FileSpreadsheet,
+  Check,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -98,6 +101,7 @@ export default function Expenses() {
   const [categoryId, setCategoryId] = useState("");
   const [branchId, setBranchId] = useState("");
   const [notes, setNotes] = useState("");
+  const [isTaxAllowable, setIsTaxAllowable] = useState(true);
   const [receiptUrl, setReceiptUrl] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
@@ -179,6 +183,7 @@ export default function Expenses() {
     setCategoryId("");
     setBranchId(defaultBranchId || "");
     setNotes("");
+    setIsTaxAllowable(true);
     setReceiptUrl("");
     setReceiptFile(null);
     setEditingExpense(null);
@@ -192,6 +197,7 @@ export default function Expenses() {
     setCategoryId(expense.category_id || "");
     setBranchId(expense.branch_id || "");
     setNotes(expense.notes || "");
+    setIsTaxAllowable(expense.is_tax_allowable ?? true);
     setReceiptUrl(expense.receipt_url || "");
     setExpenseDialogOpen(true);
   };
@@ -260,6 +266,7 @@ export default function Expenses() {
       branch_id: branchId && branchId !== "none" ? branchId : undefined,
       notes: notes || undefined,
       receipt_url: finalReceiptUrl || undefined,
+      is_tax_allowable: isTaxAllowable,
     };
 
     if (editingExpense) {
@@ -340,6 +347,7 @@ export default function Expenses() {
                         Amount: Number(e.amount || 0),
                         Branch: e.branches?.name || "-",
                         Notes: e.notes || "",
+                        TaxDeductible: e.is_tax_allowable ? "Allowable" : "Disallowable",
                       })),
                       "expenses",
                       "Expenses",
@@ -435,6 +443,7 @@ export default function Expenses() {
                   <TableHead>Category</TableHead>
                   {branches.length > 0 && <TableHead>Branch</TableHead>}
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Tax</TableHead>
                   <TableHead>Receipt</TableHead>
                   {isAdmin && (
                     <TableHead className="w-[100px]">Actions</TableHead>
@@ -445,7 +454,7 @@ export default function Expenses() {
                 {expensesLoading ? (
                   <TableRow>
                     <TableCell
-                      colSpan={branches.length > 0 ? 7 : 6}
+                      colSpan={branches.length > 0 ? 8 : 7}
                       className="text-center py-8"
                     >
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
@@ -454,7 +463,7 @@ export default function Expenses() {
                 ) : filteredExpenses.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={branches.length > 0 ? 7 : 6}
+                      colSpan={branches.length > 0 ? 8 : 7}
                       className="text-center py-8 text-muted-foreground"
                     >
                       No expenses found
@@ -490,6 +499,12 @@ export default function Expenses() {
                       )}
                       <TableCell className="text-right font-medium">
                         {formatCurrency(Number(expense.amount))}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={expense.is_tax_allowable ? "outline" : "destructive"} className="gap-1 whitespace-nowrap">
+                          {expense.is_tax_allowable ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          {expense.is_tax_allowable ? "Allowable" : "Disallowable"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {expense.receipt_url ? (
@@ -651,6 +666,14 @@ export default function Expenses() {
                   placeholder="Additional notes..."
                   rows={2}
                 />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <Label htmlFor="tax-allowable">Allowable tax deduction</Label>
+                  <p className="text-xs text-muted-foreground">Turn off for fines, non-business entertainment, or capital expenditure.</p>
+                </div>
+                <Switch id="tax-allowable" checked={isTaxAllowable} onCheckedChange={setIsTaxAllowable} />
               </div>
 
               <div className="space-y-2">

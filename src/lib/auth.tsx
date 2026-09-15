@@ -46,6 +46,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function getCachedIdentity(userId: string) {
+  try {
+    const raw = localStorage.getItem(`stockflow-auth:${userId}`);
+    return raw ? JSON.parse(raw) as { organizationId?: string | null; role?: AppRole | null } : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheIdentity(userId: string, organizationId: string | null, role: AppRole | null) {
+  try {
+    localStorage.setItem(`stockflow-auth:${userId}`, JSON.stringify({ organizationId, role }));
+  } catch {
+    // Auth state remains usable when local storage is unavailable.
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -58,6 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchUserProfile = async (userId: string) => {
+    const cached = getCachedIdentity(userId);
+    if (cached?.organizationId) {
+      setOrganizationId(cached.organizationId);
+      setHasCompletedOnboarding(true);
+      if (cached.role) setRole(cached.role);
+    }
     try {
       // First check if user has super_super_admin role (no org needed). Some users
       // may not have a row in user_roles yet, which should be treated as "no role"
@@ -72,11 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setOrganizationId(null);
         setHasCompletedOnboarding(true);
         setIsOrgDisabled(false);
+        cacheIdentity(userId, null, "super_super_admin");
         return "super_super_admin" as AppRole;
       }
 
       if (roleError && !isMissingRowError(roleError)) {
         console.error("Error fetching role:", roleError);
+        throw roleError;
       }
 
       // Fetch profile to check if onboarding is complete.
@@ -88,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileError && !isMissingRowError(profileError)) {
         console.error("Error fetching profile:", profileError);
+        throw profileError;
       }
 
       const orgId = profile?.organization_id || null;
@@ -113,12 +139,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch role
       if (orgId) {
-        return (roleData?.role as AppRole) || null;
+        const nextRole = (roleData?.role as AppRole) || null;
+        cacheIdentity(userId, orgId, nextRole);
+        return nextRole;
       }
+      cacheIdentity(userId, null, null);
       return null;
     } catch (err) {
       console.error("Error in fetchUserProfile:", err);
-      return null;
+      return cached?.role ?? null;
     }
   };
 

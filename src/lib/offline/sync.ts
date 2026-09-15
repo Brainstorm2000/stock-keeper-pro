@@ -6,6 +6,7 @@ import {
   type QueuedMutation,
 } from "./queue";
 import { isOffline } from "./interceptor";
+import { syncLocalChanges } from "./local-sync";
 
 type SyncListener = (state: { syncing: boolean }) => void;
 const listeners = new Set<SyncListener>();
@@ -49,6 +50,15 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
   let synced = 0;
   let failed = 0;
   try {
+    try {
+      synced += await syncLocalChanges();
+    } catch (error) {
+      failed++;
+      console.error("Local offline sync failed", error);
+      window.dispatchEvent(new CustomEvent("offline-sync-error", {
+        detail: error instanceof Error ? error.message : String(error),
+      }));
+    }
     const items = (await getQueue()).filter((i) => i.status === "pending");
     for (const item of items) {
       if (isOffline()) break;

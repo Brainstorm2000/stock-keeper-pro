@@ -31,10 +31,16 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useBulkCreateCustomers, Customer, CustomerInput } from '@/hooks/useCustomers';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useBranches } from '@/hooks/useBranches';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { parseGenericCSV, exportToCSV, generateCustomersCSVTemplate, downloadCSV } from '@/lib/csv-utils';
 import { useToast } from '@/hooks/use-toast';
 
-export function CustomersDialog() {
+interface CustomersDialogProps {
+  branchId?: string;
+}
+
+export function CustomersDialog({ branchId }: CustomersDialogProps) {
   const [open, setOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -44,6 +50,7 @@ export function CustomersDialog() {
 
   const { data: customers = [], isLoading } = useCustomers();
   const { data: organization } = useOrganization();
+  const { data: branches = [] } = useBranches();
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const deleteCustomer = useDeleteCustomer();
@@ -51,6 +58,7 @@ export function CustomersDialog() {
   const { toast } = useToast();
 
   const [formData, setFormData] = useState<CustomerInput>({
+    branch_id: branchId ?? null,
     name: '',
     email: '',
     phone: '',
@@ -59,20 +67,25 @@ export function CustomersDialog() {
     debt_limit: 0,
   });
 
-  const filteredCustomers = customers.filter(c =>
+  const branchCustomers = branchId === undefined
+    ? customers
+    : customers.filter((customer) => !!branchId && customer.branch_id === branchId);
+
+  const filteredCustomers = branchCustomers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.email?.toLowerCase().includes(search.toLowerCase()) ||
     c.phone?.toLowerCase().includes(search.toLowerCase())
   );
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', phone: '', address: '', notes: '', debt_limit: 0 });
+    setFormData({ branch_id: branchId ?? null, name: '', email: '', phone: '', address: '', notes: '', debt_limit: 0 });
     setEditingCustomer(null);
   };
 
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
     setFormData({
+      branch_id: customer.branch_id,
       name: customer.name,
       email: customer.email || '',
       phone: customer.phone || '',
@@ -86,6 +99,10 @@ export function CustomersDialog() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!organization?.id) return;
+    if (!formData.branch_id) {
+      toast({ title: 'Branch is required', description: 'Assign this customer to a branch before saving.', variant: 'destructive' });
+      return;
+    }
 
     if (editingCustomer) {
       await updateCustomer.mutateAsync({ id: editingCustomer.id, ...formData });
@@ -118,6 +135,11 @@ export function CustomersDialog() {
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !organization?.id) return;
+    if (!branchId) {
+      toast({ title: 'Select a branch before importing customers', variant: 'destructive' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
 
     try {
       const rows = await parseGenericCSV(file);
@@ -131,6 +153,7 @@ export function CustomersDialog() {
         phone: row.phone || undefined,
         address: row.address || undefined,
         notes: row.notes || undefined,
+        branch_id: branchId ?? null,
         organization_id: organization.id,
       })).filter(c => c.name);
 
@@ -201,7 +224,7 @@ export function CustomersDialog() {
           <Button variant="outline" size="sm" onClick={() => { downloadCSV(generateCustomersCSVTemplate(), 'customers_template.csv'); toast({ title: 'Template downloaded' }); }}>
             <FileDown className="h-4 w-4 mr-1" /> Template
           </Button>
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={!branchId}>
             <ArrowDown className="h-4 w-4 mr-1" /> Import
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport} disabled={customers.length === 0}>
@@ -209,7 +232,7 @@ export function CustomersDialog() {
           </Button>
           <Dialog open={formOpen} onOpenChange={(o) => { setFormOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" disabled={branchId !== undefined && !branchId}>
                 <Plus className="h-4 w-4 mr-1" /> Add Customer
               </Button>
             </DialogTrigger>
@@ -226,6 +249,23 @@ export function CustomersDialog() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
+                </div>
+                <div>
+                  <Label htmlFor="branch_id">Branch *</Label>
+                  <Select
+                    value={formData.branch_id || ''}
+                    disabled={branchId !== undefined}
+                    onValueChange={(value) => setFormData({ ...formData, branch_id: value })}
+                  >
+                    <SelectTrigger id="branch_id">
+                      <SelectValue placeholder="Select a branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -294,6 +334,7 @@ export function CustomersDialog() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
+                <TableHead>Branch</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
@@ -301,13 +342,13 @@ export function CustomersDialog() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : filteredCustomers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No customers found
                   </TableCell>
                 </TableRow>
@@ -317,6 +358,7 @@ export function CustomersDialog() {
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>{customer.email || '-'}</TableCell>
                     <TableCell>{customer.phone || '-'}</TableCell>
+                    <TableCell>{branches.find((branch) => branch.id === customer.branch_id)?.name || 'No branch'}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{customer.address || '-'}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
+import { localDb } from '@/lib/offline/db';
+import { readLocalFirst } from '@/lib/offline/repository';
 
 export interface Staff {
   id: string;
@@ -56,12 +58,14 @@ export function useStaff() {
   return useQuery({
     queryKey: ['staff'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('staff')
-        .select('*, branches(id, name)')
-        .order('full_name');
-      if (error) throw error;
-      return data as Staff[];
+      return readLocalFirst(localDb.staff, async () => {
+        const { data, error } = await supabase
+          .from('staff')
+          .select('*, branches(id, name)')
+          .order('full_name');
+        if (error) throw error;
+        return data as Staff[];
+      }, () => true);
     },
   });
 }

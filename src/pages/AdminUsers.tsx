@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Search, Plus, Pencil, Trash2, UserCheck, UserX, Loader2, Users, Building2, Activity } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, UserCheck, UserX, Loader2, Users, Building2, Activity, KeyRound } from 'lucide-react';
 import { adminCreateAuthUser } from '@/lib/admin-auth-client';
 
 interface AdminUser {
@@ -123,6 +123,11 @@ export default function AdminUsersPage() {
     setSaving(true);
     try {
       if (editingUser) {
+        if (formPassword && formPassword.length < 6) {
+          toast({ title: 'Password too short', description: 'Use at least 6 characters.', variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
         const newOrgId = formOrgId === 'none' ? null : formOrgId;
         const { error: profileErr } = await supabase
           .from('profiles')
@@ -139,6 +144,12 @@ export default function AdminUsersPage() {
           .update({ role: formRole as any, organization_id: newOrgId })
           .eq('user_id', editingUser.user_id);
         if (roleErr) throw roleErr;
+        if (formPassword) {
+          const { error: passwordError } = await supabase.functions.invoke('admin-update-user-password', {
+            body: { userId: editingUser.user_id, password: formPassword },
+          });
+          if (passwordError) throw passwordError;
+        }
         toast({ title: 'User updated' });
       } else {
         if (!formEmail || !formPassword) {
@@ -361,6 +372,14 @@ export default function AdminUsersPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                onClick={() => openEdit(u)}
+                                title="Update password"
+                              >
+                                <KeyRound className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => setDeleteUserId(u.user_id)}
                                 title="Delete"
                                 className="text-destructive hover:text-destructive"
@@ -395,12 +414,11 @@ export default function AdminUsersPage() {
               <Label>Email</Label>
               <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="user@example.com" />
             </div>
-            {!editingUser && (
-              <div className="space-y-2">
-                <Label>Password</Label>
-                <Input type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder="Min 6 characters" />
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>{editingUser ? 'New Password (optional)' : 'Password'}</Label>
+              <Input type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder="Min 6 characters" autoComplete="new-password" />
+              {editingUser && <p className="text-xs text-muted-foreground">Leave blank to keep the current password.</p>}
+            </div>
             <div className="space-y-2">
               <Label>Organization</Label>
               <Select value={formOrgId} onValueChange={setFormOrgId}>

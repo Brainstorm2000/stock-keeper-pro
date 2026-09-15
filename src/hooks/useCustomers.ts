@@ -3,10 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
+import { customersTable, readLocalFirst, saveLocal, removeLocal } from '@/lib/offline/repository';
 
 export interface Customer {
   id: string;
   organization_id: string;
+  branch_id: string | null;
   name: string;
   email: string | null;
   phone: string | null;
@@ -19,6 +21,7 @@ export interface Customer {
 }
 
 export interface CustomerInput {
+  branch_id?: string | null;
   name: string;
   email?: string;
   phone?: string;
@@ -28,16 +31,16 @@ export interface CustomerInput {
 }
 
 export function useCustomers() {
+  const { organizationId } = useAuth();
   return useQuery({
-    queryKey: ['customers'],
+    queryKey: ['customers', organizationId],
+    enabled: !!organizationId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      return data as Customer[];
+      return readLocalFirst(customersTable, async () => {
+        const { data, error } = await supabase.from('customers').select('*').eq('organization_id', organizationId!).order('name');
+        if (error) throw error;
+        return data as Customer[];
+      }, (customer) => customer.organization_id === organizationId);
     },
   });
 }
@@ -49,6 +52,21 @@ export function useCreateCustomer() {
 
   return useMutation({
     mutationFn: async (customer: CustomerInput & { organization_id: string }) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const now = new Date().toISOString();
+        return saveLocal(customersTable, {
+          ...customer,
+          id: crypto.randomUUID(),
+          created_by: user?.id ?? null,
+          created_at: now,
+          updated_at: now,
+          email: customer.email ?? null,
+          phone: customer.phone ?? null,
+          address: customer.address ?? null,
+          notes: customer.notes ?? null,
+          debt_limit: customer.debt_limit ?? 0,
+        });
+      }
       const { data, error } = await supabase
         .from('customers')
         .insert({
@@ -78,6 +96,10 @@ export function useUpdateCustomer() {
 
   return useMutation({
     mutationFn: async ({ id, ...customer }: CustomerInput & { id: string }) => {
+      const existing = await customersTable.get(id);
+      if (typeof navigator !== 'undefined' && !navigator.onLine && existing) {
+        return saveLocal(customersTable, { ...existing.data, ...customer, id } as Customer);
+      }
       const { data, error } = await supabase
         .from('customers')
         .update(customer)
@@ -105,6 +127,10 @@ export function useDeleteCustomer() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        await removeLocal(customersTable, id);
+        return;
+      }
       const { error } = await supabase.from('customers').delete().eq('id', id);
       if (error) throw error;
     },

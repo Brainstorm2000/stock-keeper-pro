@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,8 @@ import { CheckCircle2, XCircle, Camera, CameraOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useClockIn, useClockOut } from '@/hooks/useAttendance';
+import { isOffline } from '@/lib/offline/interceptor';
+import { localDb } from '@/lib/offline/db';
 import { useShifts } from '@/hooks/useShifts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -151,6 +154,7 @@ export function QRScanner() {
   const [includeOvertime, setIncludeOvertime] = useState(true);
   const hasScannedRef = useRef(false);
   const { organizationId } = useAuth();
+  const queryClient = useQueryClient();
   const clockIn = useClockIn();
   const clockOut = useClockOut();
   const { data: shifts = [] } = useShifts();
@@ -260,12 +264,23 @@ export function QRScanner() {
         throw new Error('Staff not found in your organization');
       }
 
-      const { data: staffMember, error: staffErr } = await supabase
-        .from('staff')
-        .select('id, full_name, branch_id, department_id')
-        .eq('id', staffId)
-        .eq('organization_id', organizationId)
-        .single();
+      const offline = isOffline();
+      const cachedStaff = offline
+        ? (await localDb.staff.toArray()).map((row) => row.data)
+        : [];
+      const { data: staffMember, error: staffErr } = offline
+        ? {
+            data: (cachedStaff.length > 0 ? cachedStaff : queryClient.getQueryData<any[]>(['staff']) || []).find(
+              (staff) => staff.id === staffId && staff.organization_id === organizationId && staff.is_active !== false,
+            ),
+            error: null,
+          }
+        : await supabase
+            .from('staff')
+            .select('id, full_name, branch_id, department_id')
+            .eq('id', staffId)
+            .eq('organization_id', organizationId)
+            .single();
 
       if (staffErr || !staffMember) throw new Error('Staff not found');
 
@@ -280,22 +295,36 @@ export function QRScanner() {
       if (!shiftIdToUse) throw new Error('Please select a shift first');
 
       const today = new Date().toISOString().split('T')[0];
-      const { data: existing } = await supabase
-        .from('attendance')
-        .select('id, clock_out_time')
-        .eq('staff_id', staffMember.id)
-        .eq('attendance_date', today)
-        .eq('shift_id', shiftIdToUse)
-        .maybeSingle();
+      const { data: existing } = offline
+        ? {
+            data: (await localDb.attendance.toArray()).find((row) => {
+              const attendance = row.data as any;
+              return !row.deletedAt && attendance.staff_id === staffMember.id && attendance.attendance_date === today && attendance.shift_id === shiftIdToUse;
+            })?.data as { id: string; clock_out_time: string | null } | undefined,
+          }
+        : await supabase
+            .from('attendance')
+            .select('id, clock_out_time')
+            .eq('staff_id', staffMember.id)
+            .eq('attendance_date', today)
+            .eq('shift_id', shiftIdToUse)
+            .maybeSingle();
 
       if (!existing) {
         // Check for attendance on other shifts today — require confirmation
-        const { data: otherRecords } = await supabase
-          .from('attendance')
-          .select('shift_id')
-          .eq('staff_id', staffMember.id)
-          .eq('attendance_date', today)
-          .neq('shift_id', shiftIdToUse);
+        const { data: otherRecords } = offline
+          ? {
+              data: (await localDb.attendance.toArray())
+                .map((row) => row.data as any)
+                .filter((attendance) => !attendance.deletedAt && attendance.staff_id === staffMember.id && attendance.attendance_date === today && attendance.shift_id !== shiftIdToUse)
+                .map((attendance) => ({ shift_id: attendance.shift_id })),
+            }
+          : await supabase
+              .from('attendance')
+              .select('shift_id')
+              .eq('staff_id', staffMember.id)
+              .eq('attendance_date', today)
+              .neq('shift_id', shiftIdToUse);
 
         const shiftName = activeShifts.find((s) => s.id === shiftIdToUse)?.shift_name || 'this shift';
 
@@ -343,7 +372,7 @@ export function QRScanner() {
       setProcessing(false);
       setTimeout(() => setResult(null), 5000);
     }
-  }, [processing, organizationId, selectedShiftId, resolvedShiftId, activeShifts, shifts, clockIn, clockOut, stopScanning]);
+  }, [processing, organizationId, selectedShiftId, resolvedShiftId, activeShifts, shifts, clockIn, clockOut, stopScanning, queryClient]);
 
   const startScanning = async () => {
     if (!containerRef.current) return;

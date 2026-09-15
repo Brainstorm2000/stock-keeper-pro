@@ -4,6 +4,8 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 import { buildSaleStockAdjustments } from '@/lib/sale-stock';
+import { localDb } from '@/lib/offline/db';
+import { readLocalFirst, saveLocal } from '@/lib/offline/repository';
 
 export type PaymentMethod = 'cash' | 'card' | 'mobile_money' | 'bank_transfer' | 'credit' | 'pos';
 export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'on_hold';
@@ -39,6 +41,7 @@ export interface Sale {
   discount_amount: number;
   discount_percent: number;
   tax_amount: number;
+  wht_amount: number;
   total_amount: number;
   payment_method: PaymentMethod;
   payment_method_id?: string | null;
@@ -66,6 +69,7 @@ export interface CreateSaleInput {
   discount_amount: number;
   discount_percent: number;
   tax_amount: number;
+  wht_amount?: number;
   total_amount: number;
   amount_paid?: number;
   balance_due?: number;
@@ -91,60 +95,98 @@ export interface HeldOrder {
 }
 
 export function useSales() {
+  const { organizationId } = useAuth();
   return useQuery({
-    queryKey: ['sales'],
+    queryKey: ['sales', organizationId],
+    enabled: !!organizationId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('sales')
-        .select(`
+      return readLocalFirst(localDb.sales, async () => {
+        const { data, error } = await supabase
+          .from('sales')
+          .select(`
           *,
           sale_items (
             quantity,
             cost_price
           )
-        `)
-        .order('created_at', { ascending: false });
+          `)
+          .eq('organization_id', organizationId!)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as unknown as (Sale & { sale_items: { quantity: number; cost_price: number }[] })[];
+        if (error) throw error;
+        return data as unknown as (Sale & { sale_items: { quantity: number; cost_price: number } })[];
+      }, (sale) => sale.organization_id === organizationId);
     },
   });
 }
 
 export function useSaleWithItems(saleId: string | null) {
+  const { organizationId } = useAuth();
   return useQuery({
-    queryKey: ['sale', saleId],
+    queryKey: ['sale', organizationId, saleId],
     queryFn: async () => {
       if (!saleId) return null;
-      
-      const { data: sale, error: saleError } = await supabase
-        .from('sales')
-        .select('*')
-        .eq('id', saleId)
-        .single();
 
-      if (saleError) throw saleError;
-
-      const { data: items, error: itemsError } = await supabase
-        .from('sale_items')
-        .select(`
-          *,
-          products (name)
-        `)
-        .eq('sale_id', saleId);
-
-      if (itemsError) throw itemsError;
-
-      return {
-        ...sale,
-        payment_details: (sale.payment_details as unknown) as PaymentDetail[] | undefined,
-        sale_items: items.map((item: any) => ({
+      const readLocalSale = async () => {
+        const localSale = await localDb.sales.get(saleId);
+        if (!localSale || localSale.deletedAt || localSale.data.organization_id !== organizationId) {
+          return null;
+        }
+        const localItems = (await localDb.saleItems.toArray())
+          .filter((row) => !row.deletedAt && row.data.sale_id === saleId)
+          .map((row) => row.data);
+        const localProducts = await localDb.products.toArray();
+        const productNames = new Map(localProducts.map((row) => [row.id, row.data.name]));
+        const items = localItems.length ? localItems : (localSale.data.sale_items ?? []).map((item) => ({
           ...item,
-          product_name: item.products?.name,
-        })),
-      } as Sale;
+          sale_id: saleId,
+        }));
+        return {
+          ...localSale.data,
+          payment_details: localSale.data.payment_details,
+          sale_items: items.map((item) => ({
+            ...item,
+            product_name: item.product_name || productNames.get(item.product_id),
+          })),
+        } as Sale;
+      };
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return readLocalSale();
+
+      try {
+        const { data: sale, error: saleError } = await supabase
+          .from('sales')
+          .select('*')
+          .eq('id', saleId)
+          .single();
+
+        if (saleError) throw saleError;
+
+        const { data: items, error: itemsError } = await supabase
+          .from('sale_items')
+          .select(`
+            *,
+            products (name)
+          `)
+          .eq('sale_id', saleId);
+
+        if (itemsError) throw itemsError;
+
+        return {
+          ...sale,
+          payment_details: (sale.payment_details as unknown) as PaymentDetail[] | undefined,
+          sale_items: items.map((item: any) => ({
+            ...item,
+            product_name: item.products?.name,
+          })),
+        } as Sale;
+      } catch (error) {
+        const localSale = await readLocalSale();
+        if (localSale) return localSale;
+        throw error;
+      }
     },
-    enabled: !!saleId,
+    enabled: !!saleId && !!organizationId,
   });
 }
 
@@ -155,6 +197,73 @@ export function useCreateSale() {
 
   return useMutation({
     mutationFn: async (input: CreateSaleInput) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const now = new Date().toISOString();
+        const sale: Sale = {
+          id: crypto.randomUUID(),
+          organization_id: input.organization_id,
+          branch_id: input.branch_id ?? null,
+          customer_id: input.customer_id ?? null,
+          sale_number: `OFF-${Date.now()}`,
+          customer_name: input.customer_name ?? null,
+          customer_phone: input.customer_phone ?? null,
+          subtotal: input.subtotal,
+          discount_amount: input.discount_amount,
+          discount_percent: input.discount_percent,
+          tax_amount: input.tax_amount,
+          wht_amount: input.wht_amount ?? 0,
+          total_amount: input.total_amount,
+          payment_method: input.payment_method,
+          payment_method_id: input.payment_method_id ?? null,
+          payment_details: input.payment_details,
+          status: input.status ?? 'completed',
+          payment_status: (input.payment_status ?? 'paid') as Sale['payment_status'],
+          amount_paid: input.amount_paid ?? input.total_amount,
+          balance_due: input.balance_due ?? 0,
+          due_date: input.due_date ?? null,
+          notes: input.notes ?? null,
+          created_by: user?.id ?? null,
+          created_at: now,
+          updated_at: now,
+          sale_items: input.items,
+        };
+        await saveLocal(localDb.sales, sale);
+        await localDb.saleItems.bulkPut(input.items.map((item) => ({
+          id: item.id ?? crypto.randomUUID(),
+          data: { ...item, sale_id: sale.id },
+          isSynced: false,
+          updatedAt: now,
+        })));
+        for (const item of input.items) {
+          if (item.variation_id) continue;
+          const product = await localDb.products.get(item.product_id);
+          if (product?.data.item_type === 'product') {
+            const previousStock = Number(product.data.current_stock);
+            const newStock = previousStock - item.quantity;
+            await saveLocal(localDb.products, {
+              ...product.data,
+              current_stock: newStock,
+            });
+            await localDb.stockHistory.put({
+              id: crypto.randomUUID(),
+              data: {
+                product_id: item.product_id,
+                previous_stock: previousStock,
+                new_stock: newStock,
+                change_amount: -item.quantity,
+                change_type: 'sale',
+                notes: `Sale: ${sale.sale_number}`,
+                changed_by: user?.id ?? null,
+                created_at: now,
+              },
+              isSynced: false,
+              updatedAt: now,
+            });
+          }
+        }
+        return sale;
+      }
+
       // Generate sale number
       const { data: saleNumber, error: numberError } = await supabase
         .rpc('generate_sale_number', { org_id: input.organization_id });
@@ -175,6 +284,7 @@ export function useCreateSale() {
           discount_amount: input.discount_amount,
           discount_percent: input.discount_percent,
           tax_amount: input.tax_amount,
+          wht_amount: input.wht_amount ?? 0,
           total_amount: input.total_amount,
           amount_paid: input.amount_paid ?? input.total_amount,
           balance_due: input.balance_due ?? 0,
@@ -317,6 +427,7 @@ export function useUpdateSale() {
         discount_percent?: number;
         subtotal?: number;
         tax_amount?: number;
+        wht_amount?: number;
         total_amount?: number;
         amount_paid?: number;
         balance_due?: number;

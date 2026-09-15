@@ -248,6 +248,7 @@ export type Database = {
           department_id: string | null
           hours_worked: number | null
           id: string
+          is_tax_allowable: boolean
           notes: string | null
           organization_id: string
           overtime_hours: number | null
@@ -268,6 +269,7 @@ export type Database = {
           department_id?: string | null
           hours_worked?: number | null
           id?: string
+          is_tax_allowable?: boolean
           notes?: string | null
           organization_id: string
           overtime_hours?: number | null
@@ -288,6 +290,7 @@ export type Database = {
           department_id?: string | null
           hours_worked?: number | null
           id?: string
+          is_tax_allowable?: boolean
           notes?: string | null
           organization_id?: string
           overtime_hours?: number | null
@@ -507,6 +510,7 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          branch_id: string | null
           created_at: string
           created_by: string | null
           debt_limit: number
@@ -520,6 +524,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
           debt_limit?: number
@@ -533,6 +538,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
           debt_limit?: number
@@ -550,6 +556,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
@@ -757,6 +770,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tax_wht_credits: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          credit_date: string
+          id: string
+          notes: string | null
+          organization_id: string
+          payer_name: string
+          reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          credit_date?: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          payer_name: string
+          reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          credit_date?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          payer_name?: string
+          reference?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       held_orders: {
         Row: {
@@ -1765,6 +1817,7 @@ export type Database = {
           subtotal: number
           supplier_id: string
           tax_amount: number
+          wht_amount: number
           tax_rate: number
           total_amount: number
           updated_at: string
@@ -1785,6 +1838,7 @@ export type Database = {
           subtotal?: number
           supplier_id: string
           tax_amount?: number
+          wht_amount?: number
           tax_rate?: number
           total_amount?: number
           updated_at?: string
@@ -1805,6 +1859,7 @@ export type Database = {
           subtotal?: number
           supplier_id?: string
           tax_amount?: number
+          wht_amount?: number
           tax_rate?: number
           total_amount?: number
           updated_at?: string

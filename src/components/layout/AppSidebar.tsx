@@ -23,6 +23,7 @@ import {
   RotateCcw,
   PackageX,
   Boxes,
+  Landmark,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/lib/auth";
@@ -76,6 +77,7 @@ const navItems: NavItem[] = [
   },
   { href: "/assets", label: "Assets", icon: Boxes, module: "assets" },
   { href: "/expenses", label: "Expenses", icon: Wallet, module: "expenses" },
+  { href: "/tax", label: "Tax", icon: Landmark, module: "reports" },
   {
     href: "/production",
     label: "Production",

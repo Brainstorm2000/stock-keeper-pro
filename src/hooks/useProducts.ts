@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 import { generateSku } from '@/lib/sku';
+import { productsTable, readLocalFirst, saveLocal, removeLocal } from '@/lib/offline/repository';
 
 export type ItemType = 'product' | 'service' | 'variable';
 export type ProductCategory = 'sellable' | 'consumable';
@@ -143,29 +144,33 @@ export async function checkProductDuplicate(
 
 export function useProducts(options?: { includeArchived?: boolean }) {
   const includeArchived = options?.includeArchived ?? false;
+  const { organizationId } = useAuth();
   return useQuery({
-    queryKey: ['products', { includeArchived }],
+    queryKey: ['products', organizationId, { includeArchived }],
+    enabled: !!organizationId,
     queryFn: async () => {
-      let query = supabase
-        .from('products')
-        .select(`
+      const products = await readLocalFirst(productsTable, async () => {
+        let query = supabase
+          .from('products')
+          .select(`
           *,
           units (id, name, abbreviation),
           branches (id, name),
           suppliers (id, name),
           brands (id, name)
-        `)
-        .order('name');
-      if (!includeArchived) {
-        query = query.eq('is_archived', false);
-      }
-      const { data, error } = await query;
+          `)
+          .order('name');
+        query = query.eq('organization_id', organizationId!);
+        if (!includeArchived) query = query.eq('is_archived', false);
+        const { data, error } = await query;
 
-      if (error) throw error;
-      const products = data as Product[];
+        if (error) throw error;
+        return data as Product[];
+      }, (product) => product.organization_id === organizationId);
+      const visibleProducts = (products as Product[]).filter((p) => includeArchived || !p.is_archived);
 
       // Attach variations for variable products
-      const variableIds = products
+      const variableIds = visibleProducts
         .filter((p) => p.item_type === 'variable')
         .map((p) => p.id);
       if (variableIds.length > 0) {
@@ -185,13 +190,13 @@ export function useProducts(options?: { includeArchived?: boolean }) {
           });
           byProduct.set(v.product_id, arr);
         });
-        products.forEach((p) => {
+        visibleProducts.forEach((p) => {
           if (p.item_type === 'variable') {
             p.variations = byProduct.get(p.id) || [];
           }
         });
       }
-      return products;
+      return visibleProducts;
     },
   });
 }
@@ -210,6 +215,28 @@ export function useCreateProduct() {
       const sku = product.sku && product.sku.trim()
         ? product.sku.trim()
         : generateSku(product.item_type === 'service' ? 'SRV' : product.category === 'consumable' ? 'CON' : 'PRD');
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const now = new Date().toISOString();
+        return saveLocal(productsTable, {
+          ...product,
+          id: crypto.randomUUID(),
+          sku,
+          created_by: actorId,
+          organization_id: product.organization_id,
+          created_at: now,
+          updated_at: now,
+          supplier_id: product.supplier_id ?? null,
+          brand_id: product.brand_id ?? null,
+          description: product.description ?? null,
+          expiration_date: product.expiration_date ?? null,
+          item_type: product.item_type ?? 'product',
+          category: product.category ?? 'sellable',
+          cost_price: product.cost_price ?? 0,
+          selling_price: product.selling_price ?? 0,
+          is_archived: false,
+        } as Product);
+      }
 
       const { data, error } = await supabase
         .from('products')
@@ -254,6 +281,10 @@ export function useUpdateProduct() {
 
   return useMutation({
     mutationFn: async ({ id, ...product }: ProductInput & { id: string }) => {
+      const existing = await productsTable.get(id);
+      if (typeof navigator !== 'undefined' && !navigator.onLine && existing) {
+        return saveLocal(productsTable, { ...existing.data, ...product, id } as Product);
+      }
       const { data, error } = await supabase
         .from('products')
         .update(product)
@@ -281,6 +312,10 @@ export function useDeleteProduct() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        await removeLocal(productsTable, id);
+        return;
+      }
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
     },

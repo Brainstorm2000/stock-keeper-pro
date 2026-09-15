@@ -24,6 +24,7 @@ export interface Expense {
   expense_date: string;
   receipt_url: string | null;
   notes: string | null;
+  is_tax_allowable: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -40,6 +41,7 @@ export interface ExpenseInput {
   expense_date: string;
   receipt_url?: string;
   notes?: string;
+  is_tax_allowable?: boolean;
 }
 
 export function useExpenseCategories() {
@@ -150,6 +152,7 @@ export function useCreateExpense() {
           expense_date: input.expense_date,
           receipt_url: input.receipt_url || null,
           notes: input.notes || null,
+          is_tax_allowable: input.is_tax_allowable ?? true,
           created_by: user?.id,
         })
         .select()
@@ -185,6 +188,7 @@ export function useUpdateExpense() {
           expense_date: input.expense_date,
           receipt_url: input.receipt_url || null,
           notes: input.notes || null,
+          is_tax_allowable: input.is_tax_allowable ?? true,
         })
         .eq('id', id)
         .select()

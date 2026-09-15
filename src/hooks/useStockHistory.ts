@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { localDb } from '@/lib/offline/db';
 
 export interface StockHistoryEntry {
   id: string;
@@ -32,11 +33,33 @@ export interface StockTrend {
 }
 
 export function useStockHistory(productId?: string, limit = 50, category?: 'sellable' | 'consumable') {
-  const { user } = useAuth();
+  const { user, organizationId } = useAuth();
 
   return useQuery({
     queryKey: ['stock-history', productId, limit, category, user?.id],
     queryFn: async () => {
+      const localRows = await localDb.stockHistory.toArray();
+      const localProducts = await localDb.products.toArray();
+      const productsById = new Map(localProducts.map((row) => [row.id, row.data]));
+      const localHistory = localRows
+        .filter((row) => {
+          const product = productsById.get(row.data.product_id as string);
+          return !row.deletedAt &&
+            product?.organization_id === organizationId &&
+            (!productId || row.data.product_id === productId) &&
+            (!category || product.category === category);
+        })
+        .map((row) => ({
+          ...(row.data as unknown as StockHistoryEntry),
+          products: productsById.get(row.data.product_id as string)
+            ? { id: row.data.product_id as string, name: productsById.get(row.data.product_id as string)!.name }
+            : undefined,
+        }));
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return localHistory.sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, limit);
+      }
+
       let query = supabase
         .from('stock_history')
         .select(`
@@ -51,7 +74,10 @@ export function useStockHistory(productId?: string, limit = 50, category?: 'sell
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        if (localHistory.length) return localHistory.slice(0, limit);
+        throw error;
+      }
       
       // Fetch user profiles for changed_by
       const userIds = [...new Set(data?.map(d => d.changed_by).filter(Boolean))];

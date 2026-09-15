@@ -31,11 +31,20 @@ export function useOfflineQueue() {
   useEffect(() => {
     return startSyncWatcher(({ synced, failed }) => {
       void queryClient.invalidateQueries();
-      if (synced) toast.success(`${synced} offline change${synced > 1 ? "s" : ""} synced`);
+      if (synced) toast.success(`offline change${synced > 1 ? "s" : ""} synced`);
       if (failed)
         toast.error(`${failed} change${failed > 1 ? "s" : ""} could not sync — review sync issues`);
     });
   }, [queryClient]);
+
+  useEffect(() => {
+    const showSyncError = (event: Event) => {
+      const message = (event as CustomEvent<string>).detail;
+      toast.error(`Offline sync failed: ${message}`);
+    };
+    window.addEventListener("offline-sync-error", showSyncError);
+    return () => window.removeEventListener("offline-sync-error", showSyncError);
+  }, []);
 
   return {
     items,

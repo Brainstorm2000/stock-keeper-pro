@@ -1,13 +1,14 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { get, set, del, createStore } from "idb-keyval";
 import { BrowserRouter, Navigate, Outlet, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
+import { useEffect, useRef } from "react";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -33,6 +34,7 @@ import Debts from "./pages/Debts";
 import Returns from "./pages/Returns";
 import Damages from "./pages/Damages";
 import Assets from "./pages/Assets";
+import Tax from "./pages/Tax";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
 const queryClient = new QueryClient({
@@ -63,7 +65,18 @@ const persister = createAsyncStoragePersister({
 });
 
 function RequireAuth() {
-  const { user, loading } = useAuth();
+  const { user, organizationId, loading } = useAuth();
+  const queryClient = useQueryClient();
+  const identityRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (loading || !user) return;
+    const identity = `${user.id}:${organizationId ?? "none"}`;
+    if (identityRef.current && identityRef.current !== identity) {
+      queryClient.clear();
+    }
+    identityRef.current = identity;
+  }, [loading, organizationId, queryClient, user]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -109,6 +122,7 @@ const App = () => (
                 <Route path="/returns" element={<Returns />} />
                 <Route path="/damages" element={<Damages />} />
                 <Route path="/assets" element={<Assets />} />
+                <Route path="/tax" element={<Tax />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>

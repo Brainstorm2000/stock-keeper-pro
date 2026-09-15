@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
+  TableFooter,
   TableCell,
   TableHead,
   TableHeader,
@@ -231,6 +232,10 @@ export default function Sales() {
     (sum, s) => sum + Number(s.total_amount),
     0,
   );
+  const displayedSalesTotal = paginatedSales.reduce(
+    (sum, sale) => sum + Number(sale.total_amount || 0),
+    0,
+  );
   // Map of return totals by sale id for quick lookup
   const returnsBySaleId: Record<string, number> = (saleReturns || []).reduce(
     (acc, r) => {
@@ -343,6 +348,7 @@ export default function Sales() {
                     Subtotal: Number(s.subtotal || 0),
                     Discount: Number(s.discount_amount || 0),
                     Tax: Number(s.tax_amount || 0),
+                    WHT: Number(s.wht_amount || 0),
                     Total: Number(s.total_amount || 0),
                     "Amount Paid": Number(s.amount_paid || 0),
                     "Balance Due": Number(s.balance_due || 0),
@@ -479,20 +485,21 @@ export default function Sales() {
                   <TableHead>Payment</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">WHT</TableHead>
                   <TableHead className="w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {salesLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 ) : filteredSales.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center py-8 text-muted-foreground"
                     >
                       No sales found
@@ -529,6 +536,11 @@ export default function Sales() {
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatCurrency(Number(sale.total_amount))}
+                      </TableCell>
+                      <TableCell className="text-right text-emerald-600">
+                        {Number(sale.wht_amount || 0) > 0
+                          ? formatCurrency(Number(sale.wht_amount))
+                          : "-"}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -585,6 +597,20 @@ export default function Sales() {
                   ))
                 )}
               </TableBody>
+              {!salesLoading && paginatedSales.length > 0 && (
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={5} className="font-semibold">
+                      Displayed total
+                    </TableCell>
+                    <TableCell className="text-right font-bold">
+                      {formatCurrency(displayedSalesTotal)}
+                    </TableCell>
+                    <TableCell />
+                    <TableCell />
+                  </TableRow>
+                </TableFooter>
+              )}
             </Table>
             <TablePagination
               currentPage={currentPage}

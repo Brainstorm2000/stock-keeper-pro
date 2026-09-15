@@ -49,7 +49,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ModuleAccessGuard } from "@/components/access/ModuleAccessGuard";
 import { useProducts, type Product } from "@/hooks/useProducts";
-import { useBranches } from "@/hooks/useBranches";
+import { useBranches, useMyBranchAssignments } from "@/hooks/useBranches";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCustomers, type Customer } from "@/hooks/useCustomers";
 import { useAuth } from "@/lib/auth";
@@ -94,6 +94,7 @@ export default function POS() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
+  const [whtAmount, setWhtAmount] = useState(0);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -124,10 +125,13 @@ export default function POS() {
     user,
     loading: authLoading,
     isAdmin,
+    isSuperAdmin,
     hasCompletedOnboarding,
+    organizationId,
   } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: branches = [] } = useBranches();
+  const { data: myBranchAssignments = [] } = useMyBranchAssignments();
   const { data: organization } = useOrganization();
   const { data: customers = [] } = useCustomers();
   const { data: heldOrders = [] } = useHeldOrders();
@@ -141,6 +145,22 @@ export default function POS() {
   const deleteHeldOrder = useDeleteHeldOrder();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const myBranchIds = new Set(myBranchAssignments.map((assignment) => assignment.branch_id));
+  const accessibleCustomers = isSuperAdmin
+    ? customers
+    : customers.filter(
+        (customer) => !customer.branch_id || myBranchIds.has(customer.branch_id),
+      );
+  const branchCustomers = selectedBranchId
+    ? accessibleCustomers.filter((customer) => customer.branch_id === selectedBranchId)
+    : accessibleCustomers;
+
+  useEffect(() => {
+    if (selectedCustomerId && selectedCustomerId !== "none" && !branchCustomers.some((customer) => customer.id === selectedCustomerId)) {
+      setSelectedCustomerId("none");
+    }
+  }, [branchCustomers, selectedCustomerId]);
 
   const productBranchById = useMemo(() => {
     const map = new Map<string, string | null>();
@@ -180,6 +200,7 @@ export default function POS() {
         ? Number(((editSale.tax_amount / taxBase) * 100).toFixed(2))
         : 0,
     );
+      setWhtAmount(Number(editSale.wht_amount || 0));
     setDueDate(editSale.due_date || '');
     setSaleDate(editSale.created_at.split('T')[0] || new Date().toISOString().split('T')[0]);
 
@@ -271,17 +292,19 @@ export default function POS() {
     discountPercent > 0 ? (subtotal * discountPercent) / 100 : discountAmount;
   const taxAmount = ((subtotal - discountValue) * taxRate) / 100;
   const total = subtotal - discountValue + taxAmount;
+  const clampedWhtAmount = Math.min(Math.max(0, whtAmount), Math.max(0, total));
+  const amountDueAfterWht = Math.max(0, total - clampedWhtAmount);
 
   // Keep amountPaid + paymentType in sync with split payments so any
   // remainder is automatically recorded as outstanding debt.
   useEffect(() => {
     if (!useSplitPayment) return;
     const splitTotal = paymentSplits.reduce((s, p) => s + (p.amount || 0), 0);
-    const paid = Math.min(splitTotal, total);
+    const paid = Math.min(splitTotal, amountDueAfterWht);
     setAmountPaid(paid);
     if (paid <= 0) {
       setPaymentType("credit");
-    } else if (paid < total - 0.01) {
+    } else if (paid < amountDueAfterWht - 0.01) {
       setPaymentType("partial");
     } else {
       setPaymentType("full");
@@ -411,6 +434,7 @@ export default function POS() {
     setDiscountPercent(0);
     setDiscountAmount(0);
     setTaxRate(0);
+    setWhtAmount(0);
     setSelectedCustomerId("");
     setCustomerName("");
     setCustomerPhone("");
@@ -473,7 +497,8 @@ export default function POS() {
   };
 
   const handleCheckout = async () => {
-    if (!organization?.id) {
+    const checkoutOrganizationId = organization?.id || organizationId;
+    if (!checkoutOrganizationId) {
       toast({ title: "Organization not found", variant: "destructive" });
       return;
     }
@@ -508,11 +533,11 @@ export default function POS() {
     // Compute amount_paid and balance_due based on payment type
     const computedAmountPaid =
       paymentType === "full"
-        ? total
+        ? amountDueAfterWht
         : paymentType === "credit"
           ? 0
           : amountPaid;
-    const computedBalance = total - computedAmountPaid;
+    const computedBalance = amountDueAfterWht - computedAmountPaid;
     const computedPaymentStatus: "paid" | "partial" | "outstanding" =
       computedBalance <= 0
         ? "paid"
@@ -551,7 +576,7 @@ export default function POS() {
     }
 
     const salePayload = {
-      organization_id: organization.id,
+      organization_id: checkoutOrganizationId,
       branch_id: branchResult.branchId,
       customer_id:
         selectedCustomerId && selectedCustomerId !== "none"
@@ -564,6 +589,7 @@ export default function POS() {
       discount_amount: discountValue,
       discount_percent: discountPercent,
       tax_amount: taxAmount,
+      wht_amount: clampedWhtAmount,
       total_amount: total,
       amount_paid: computedAmountPaid,
       balance_due: Math.max(0, computedBalance),
@@ -594,6 +620,7 @@ export default function POS() {
           discount_amount: salePayload.discount_amount,
           discount_percent: salePayload.discount_percent,
           tax_amount: salePayload.tax_amount,
+          wht_amount: salePayload.wht_amount,
           total_amount: salePayload.total_amount,
           amount_paid: salePayload.amount_paid,
           balance_due: salePayload.balance_due,
@@ -979,6 +1006,18 @@ export default function POS() {
                     <span>Total</span>
                     <span>{formatCurrency(total)}</span>
                   </div>
+                  {clampedWhtAmount > 0 && (
+                    <div className="flex justify-between text-emerald-600">
+                      <span>WHT withheld</span>
+                      <span>-{formatCurrency(clampedWhtAmount)}</span>
+                    </div>
+                  )}
+                  {clampedWhtAmount > 0 && (
+                    <div className="flex justify-between font-medium">
+                      <span>Amount due</span>
+                      <span>{formatCurrency(amountDueAfterWht)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -1031,7 +1070,7 @@ export default function POS() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Customer</Label>
-                  <CustomersDialog />
+                  <CustomersDialog branchId={selectedBranchId || undefined} />
                 </div>
                 <Select
                   value={selectedCustomerId || "none"}
@@ -1042,7 +1081,7 @@ export default function POS() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Walk-in Customer</SelectItem>
-                    {customers.map((customer) => (
+                    {branchCustomers.map((customer) => (
                       <SelectItem key={customer.id} value={customer.id}>
                         {customer.name}{" "}
                         {customer.phone && `(${customer.phone})`}
@@ -1080,7 +1119,7 @@ export default function POS() {
                   onCheckedChange={(checked) => {
                     setUseSplitPayment(checked === true);
                     if (checked) {
-                      setPaymentSplits([{ method: "cash", amount: total }]);
+                      setPaymentSplits([{ method: "cash", amount: amountDueAfterWht }]);
                     } else {
                       setPaymentSplits([]);
                     }
@@ -1181,7 +1220,7 @@ export default function POS() {
                           (s, p) => s + (p.amount || 0),
                           0,
                         );
-                        const rem = total - paid;
+                        const rem = amountDueAfterWht - paid;
                         if (rem > 0.01)
                           return (
                             <p className="text-xs text-warning pt-1 border-t mt-1">
@@ -1249,6 +1288,22 @@ export default function POS() {
                 })()}
               </div>
 
+              <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                <Label>Withholding Tax (WHT)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max={total}
+                  step="0.01"
+                  value={whtAmount || ""}
+                  onChange={(e) => setWhtAmount(e.target.value === "" ? 0 : Number(e.target.value))}
+                  placeholder="Amount withheld by customer"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This credit reduces the balance payable on the sale.
+                </p>
+              </div>
+
               {paymentType === "partial" && (
                 <div className="space-y-2">
                   <Label>Amount Paying Now</Label>
@@ -1304,7 +1359,7 @@ export default function POS() {
               <div className="bg-muted p-4 rounded-lg">
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total Amount</span>
-                  <span>{formatCurrency(total)}</span>
+                  <span>{formatCurrency(amountDueAfterWht)}</span>
                 </div>
               </div>
             </div>
