@@ -23,6 +23,7 @@ export interface Product {
   sku: string | null;
   description: string | null;
   category: ProductCategory;
+  is_taxable: boolean;
   item_type: ItemType;
   cost_price: number;
   selling_price: number;
@@ -69,6 +70,7 @@ export interface ProductInput {
   description?: string;
   item_type?: ItemType;
   category?: ProductCategory;
+  is_taxable?: boolean;
   cost_price?: number;
   selling_price?: number;
   expiration_date?: string | null;
@@ -232,6 +234,7 @@ export function useCreateProduct() {
           expiration_date: product.expiration_date ?? null,
           item_type: product.item_type ?? 'product',
           category: product.category ?? 'sellable',
+          is_taxable: product.is_taxable ?? true,
           cost_price: product.cost_price ?? 0,
           selling_price: product.selling_price ?? 0,
           is_archived: false,

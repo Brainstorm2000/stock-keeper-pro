@@ -36,6 +36,7 @@ export function BulkEditProductsDialog({
 }: BulkEditProductsDialogProps) {
   const bulkUpdate = useBulkUpdateProducts();
   const [category, setCategory] = useState<string>(NO_CHANGE);
+  const [taxable, setTaxable] = useState<string>(NO_CHANGE);
   const [lowStock, setLowStock] = useState<string>("");
   const [outStock, setOutStock] = useState<string>("");
   const [costPrice, setCostPrice] = useState<string>("");
@@ -44,6 +45,7 @@ export function BulkEditProductsDialog({
   useEffect(() => {
     if (open) {
       setCategory(NO_CHANGE);
+      setTaxable(NO_CHANGE);
       setLowStock("");
       setOutStock("");
       setCostPrice("");
@@ -54,6 +56,7 @@ export function BulkEditProductsDialog({
   const handleApply = async () => {
     const patch: Record<string, unknown> = {};
     if (category !== NO_CHANGE) patch.category = category;
+    if (taxable !== NO_CHANGE) patch.is_taxable = taxable === "taxable";
     if (lowStock.trim() !== "") patch.low_stock_threshold = Number(lowStock);
     if (outStock.trim() !== "") patch.out_of_stock_threshold = Number(outStock);
     if (costPrice.trim() !== "") patch.cost_price = Number(costPrice);
@@ -91,6 +94,20 @@ export function BulkEditProductsDialog({
                 <SelectItem value={NO_CHANGE}>No change</SelectItem>
                 <SelectItem value="sellable">Sellable</SelectItem>
                 <SelectItem value="consumable">Consumable</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tax status</Label>
+            <Select value={taxable} onValueChange={setTaxable}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_CHANGE}>No change</SelectItem>
+                <SelectItem value="taxable">Taxable</SelectItem>
+                <SelectItem value="non_taxable">Non-taxable</SelectItem>
               </SelectContent>
             </Select>
           </div>

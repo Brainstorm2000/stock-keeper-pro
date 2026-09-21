@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ModuleAccessGuard } from "@/components/access/ModuleAccessGuard";
 import { useProducts, type Product } from "@/hooks/useProducts";
@@ -94,7 +95,8 @@ export default function POS() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
-  const [whtAmount, setWhtAmount] = useState(0);
+  const [whtEnabled, setWhtEnabled] = useState(false);
+  const [whtRate, setWhtRate] = useState(0);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -200,7 +202,10 @@ export default function POS() {
         ? Number(((editSale.tax_amount / taxBase) * 100).toFixed(2))
         : 0,
     );
-      setWhtAmount(Number(editSale.wht_amount || 0));
+    const existingWhtAmount = Number(editSale.wht_amount || 0);
+    const existingTotal = Number(editSale.total_amount || 0);
+    setWhtEnabled(existingWhtAmount > 0);
+    setWhtRate(existingTotal > 0 ? Number(((existingWhtAmount / existingTotal) * 100).toFixed(2)) : 0);
     setDueDate(editSale.due_date || '');
     setSaleDate(editSale.created_at.split('T')[0] || new Date().toISOString().split('T')[0]);
 
@@ -292,7 +297,10 @@ export default function POS() {
     discountPercent > 0 ? (subtotal * discountPercent) / 100 : discountAmount;
   const taxAmount = ((subtotal - discountValue) * taxRate) / 100;
   const total = subtotal - discountValue + taxAmount;
-  const clampedWhtAmount = Math.min(Math.max(0, whtAmount), Math.max(0, total));
+  const clampedWhtRate = whtEnabled
+    ? Math.min(Math.max(0, whtRate), 100)
+    : 0;
+  const clampedWhtAmount = (total * clampedWhtRate) / 100;
   const amountDueAfterWht = Math.max(0, total - clampedWhtAmount);
 
   // Keep amountPaid + paymentType in sync with split payments so any
@@ -434,7 +442,8 @@ export default function POS() {
     setDiscountPercent(0);
     setDiscountAmount(0);
     setTaxRate(0);
-    setWhtAmount(0);
+    setWhtEnabled(false);
+    setWhtRate(0);
     setSelectedCustomerId("");
     setCustomerName("");
     setCustomerPhone("");
@@ -1288,20 +1297,38 @@ export default function POS() {
                 })()}
               </div>
 
-              <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-                <Label>Withholding Tax (WHT)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max={total}
-                  step="0.01"
-                  value={whtAmount || ""}
-                  onChange={(e) => setWhtAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                  placeholder="Amount withheld by customer"
-                />
-                <p className="text-xs text-muted-foreground">
-                  This credit reduces the balance payable on the sale.
-                </p>
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="wht-enabled" className="cursor-pointer">
+                    Withholding Tax (WHT)
+                  </Label>
+                  <Switch
+                    id="wht-enabled"
+                    checked={whtEnabled}
+                    onCheckedChange={(enabled) => {
+                      setWhtEnabled(enabled);
+                      if (!enabled) setWhtRate(0);
+                    }}
+                    aria-label="Enable withholding tax"
+                  />
+                </div>
+                {whtEnabled && (
+                  <div className="mt-3 space-y-2">
+                    <Label htmlFor="wht-rate">WHT rate (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={whtRate || ""}
+                      onChange={(e) => setWhtRate(e.target.value === "" ? 0 : Number(e.target.value))}
+                      placeholder="Enter WHT percentage"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      WHT amount: {formatCurrency(clampedWhtAmount)}. This credit reduces the balance payable on the sale.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {paymentType === "partial" && (

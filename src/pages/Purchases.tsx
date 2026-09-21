@@ -39,6 +39,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 
 import { Badge } from "@/components/ui/badge";
@@ -182,6 +183,11 @@ export default function Purchases() {
   );
 
   const totalPending = totalPurchases - totalPaid;
+
+  const displayedPurchasesTotal = paginatedPurchases.reduce(
+    (sum, purchase) => sum + Number(purchase.total_amount || 0),
+    0,
+  );
 
   /**
    * PAYMENT BADGES
@@ -575,6 +581,20 @@ export default function Purchases() {
                       <ParagraphPurchasesList />
                     )}
                   </TableBody>
+                  {!isLoading && paginatedPurchases.length > 0 && (
+                    <TableFooter>
+                      <TableRow>
+                        <TableCell colSpan={5} className="font-semibold">
+                          Displayed total
+                        </TableCell>
+                        <TableCell className="text-right font-bold">
+                          {formatCurrency(displayedPurchasesTotal)}
+                        </TableCell>
+                        <TableCell />
+                        {isAdmin && <TableCell />}
+                      </TableRow>
+                    </TableFooter>
+                  )}
                 </Table>
               </div>
 

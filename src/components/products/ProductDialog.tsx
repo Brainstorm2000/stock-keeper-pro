@@ -67,6 +67,7 @@ const productSchema = z.object({
   brand_id: z.string().optional(),
   item_type: z.enum(["product", "service", "variable"]),
   category: z.enum(["sellable", "consumable"]),
+  is_taxable: z.boolean().default(true),
   opening_stock: z.coerce.number().min(0, "Must be 0 or greater"),
   current_stock: z.coerce.number().min(0, "Must be 0 or greater"),
   low_stock_threshold: z.coerce.number().min(0, "Must be 0 or greater"),
@@ -142,6 +143,7 @@ export function ProductDialog({
       brand_id: "",
       item_type: "product",
       category: "sellable",
+      is_taxable: true,
       opening_stock: 0,
       current_stock: 0,
       low_stock_threshold: 10,
@@ -164,6 +166,7 @@ export function ProductDialog({
         brand_id: product.brand_id || "",
         item_type: product.item_type || "product",
         category: product.category || "sellable",
+        is_taxable: product.is_taxable ?? true,
         opening_stock: Number(product.opening_stock),
         current_stock: Number(product.current_stock),
         low_stock_threshold: Number(product.low_stock_threshold),
@@ -183,6 +186,7 @@ export function ProductDialog({
         brand_id: "",
         item_type: "product",
         category: "sellable",
+        is_taxable: true,
         opening_stock: 0,
         current_stock: 0,
         low_stock_threshold: 10,
@@ -269,6 +273,7 @@ export function ProductDialog({
         brand_id: data.brand_id || undefined,
         item_type: data.item_type,
         category: data.category,
+        is_taxable: data.is_taxable,
         opening_stock: data.item_type === "variable" ? 0 : data.opening_stock,
         current_stock: data.item_type === "variable" ? 0 : data.current_stock,
         low_stock_threshold: data.low_stock_threshold,
@@ -596,6 +601,22 @@ export function ProductDialog({
                     ? "Sold at POS, appears on invoices, generates revenue"
                     : "Not sold, purchased for internal use, stock managed"}
                 </p>
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <div className="flex items-center space-x-2 rounded-md border p-3">
+                  <Checkbox
+                    id="is_taxable"
+                    checked={watch("is_taxable")}
+                    onCheckedChange={(checked) => setValue("is_taxable", Boolean(checked))}
+                  />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="is_taxable" className="cursor-pointer">Taxable item</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Sales of taxable products and services contribute to tax activity.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">

@@ -106,15 +106,28 @@ export function useSales() {
           .select(`
           *,
           sale_items (
+            product_id,
+            variation_id,
             quantity,
-            cost_price
+            unit_price,
+            cost_price,
+            total_price
           )
           `)
           .eq('organization_id', organizationId!)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data as unknown as (Sale & { sale_items: { quantity: number; cost_price: number } })[];
+        return data as unknown as (Sale & {
+          sale_items: {
+            product_id: string;
+            variation_id?: string | null;
+            quantity: number;
+            unit_price: number;
+            cost_price: number;
+            total_price: number;
+          }[];
+        })[];
       }, (sale) => sale.organization_id === organizationId);
     },
   });

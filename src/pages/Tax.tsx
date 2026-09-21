@@ -18,17 +18,24 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useSales } from "@/hooks/useSales";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useAssets } from "@/hooks/useAssets";
+import { useStaff } from "@/hooks/useStaff";
+import { useProducts } from "@/hooks/useProducts";
 import { useCreateWhtCredit, useDeleteWhtCredit, useUpdateWhtCredit, useWhtCredits, type WhtCredit } from "@/hooks/useTax";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
+import { getTaxableSales } from "@/lib/taxable-sales";
 
 const DEFAULT_CIT_RATE = 7.5;
 
 export default function Tax() {
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const { data: sales = [] } = useSales();
+  const { data: products = [] } = useProducts();
   const { data: expenses = [] } = useExpenses();
   const { data: assets = [] } = useAssets();
+  const { data: staff = [] } = useStaff();
   const { data: whtCredits = [] } = useWhtCredits();
   const createWhtCredit = useCreateWhtCredit();
   const updateWhtCredit = useUpdateWhtCredit();
@@ -48,22 +55,31 @@ export default function Tax() {
   const inYear = (date: string) => { const value = new Date(date); return value >= yearStart && value <= yearEnd; };
 
   const currentSales = sales.filter((sale) => inYear(sale.created_at) && sale.status === "completed");
+  const taxableSales = getTaxableSales(currentSales, products);
+  const taxableProductIds = new Set(products.filter((product) => product.is_taxable).map((product) => product.id));
   const currentExpenses = expenses.filter((expense) => inYear(expense.expense_date));
-  const revenue = currentSales.reduce((sum, sale) => sum + Number(sale.subtotal || sale.total_amount || 0), 0);
-  const costOfSales = currentSales.reduce((sum, sale) => sum + (sale.sale_items || []).reduce((items, item) => items + Number(item.quantity || 0) * Number(item.cost_price || 0), 0), 0);
+  const revenue = taxableSales.reduce((sum, sale) => {
+    const taxableItems = (sale.sale_items || []).filter((item) => taxableProductIds.has(item.product_id));
+    return sum + taxableItems.reduce((items, item) => items + Number(item.total_price ?? (Number(item.quantity || 0) * Number(item.unit_price || 0))), 0);
+  }, 0);
+  const costOfSales = taxableSales.reduce((sum, sale) => {
+    const taxableItems = (sale.sale_items || []).filter((item) => taxableProductIds.has(item.product_id));
+    return sum + taxableItems.reduce((items, item) => items + Number(item.quantity || 0) * Number(item.cost_price || 0), 0);
+  }, 0);
   const allowableExpenses = currentExpenses.filter((expense) => expense.is_tax_allowable).reduce((sum, expense) => sum + Number(expense.amount), 0);
   const disallowableExpenses = currentExpenses.filter((expense) => !expense.is_tax_allowable).reduce((sum, expense) => sum + Number(expense.amount), 0);
   const taxableProfit = Math.max(0, revenue - costOfSales - allowableExpenses);
   const estimatedCit = taxableProfit * (citRate / 100);
   const whtTotal = whtCredits.filter((credit) => inYear(credit.credit_date)).reduce((sum, credit) => sum + Number(credit.amount), 0);
-  const saleWhtTotal = currentSales.reduce((sum, sale) => sum + Number(sale.wht_amount || 0), 0);
+  const saleWhtTotal = taxableSales.reduce((sum, sale) => sum + Number(sale.wht_amount || 0), 0);
   const totalWhtCredits = whtTotal + saleWhtTotal;
   const netLiability = Math.max(0, estimatedCit - totalWhtCredits);
   const gaugePercent = estimatedCit ? Math.min(100, (netLiability / estimatedCit) * 100) : 0;
   const currentYearAssets = assets.filter((asset) => asset.purchase_date && inYear(asset.purchase_date));
+  const taxableSaleIds = new Set(taxableSales.map((sale) => sale.id));
   const whtRows = [
     ...sales
-      .filter((sale) => Number(sale.wht_amount || 0) > 0)
+      .filter((sale) => taxableSaleIds.has(sale.id) && Number(sale.wht_amount || 0) > 0)
       .map((sale) => ({
         id: `sale-${sale.id}`,
         date: sale.created_at,
@@ -147,7 +163,7 @@ export default function Tax() {
               <div className="grid w-full grid-cols-2 gap-3 text-sm"><span className="text-muted-foreground">Taxable profit</span><span className="text-right font-medium">{formatCurrency(taxableProfit)}</span><span className="text-muted-foreground">Allowable expenses</span><span className="text-right font-medium">{formatCurrency(allowableExpenses)}</span><span className="text-muted-foreground">Disallowable expenses</span><span className="text-right font-medium">{formatCurrency(disallowableExpenses)}</span></div>
               <div className="flex w-full items-center gap-2"><Label htmlFor="cit-rate">CIT rate</Label><Input id="cit-rate" type="number" min="0" max="100" value={citRate} onChange={(event) => setCitRate(Number(event.target.value))} className="w-24" /><span className="text-sm text-muted-foreground">%</span></div>
             </CardContent></Card>
-            <Card><CardHeader><CardTitle>Tax activity</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><p className="text-muted-foreground">Review the current-year activity contributing to your estimated tax position.</p><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-lg border p-3"><FileText className="mb-2 h-4 w-4 text-primary" /><p className="font-medium">Completed sales</p><p className="text-xs text-muted-foreground">{currentSales.length} recorded</p></div><div className="rounded-lg border p-3"><FileText className="mb-2 h-4 w-4 text-primary" /><p className="font-medium">Allowable expenses</p><p className="text-xs text-muted-foreground">{currentExpenses.filter((expense) => expense.is_tax_allowable).length} deductible entries</p></div><div className="rounded-lg border p-3"><FileText className="mb-2 h-4 w-4 text-primary" /><p className="font-medium">Assets acquired</p><p className="text-xs text-muted-foreground">{currentYearAssets.length} this year</p></div></div></CardContent></Card>
+            <Card><CardHeader><CardTitle>Tax activity</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><p className="text-muted-foreground">Review the current-year activity contributing to your estimated tax position.</p><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-lg border p-3"><FileText className="mb-2 h-4 w-4 text-primary" /><p className="font-medium">Taxable sales</p><p className="text-xs text-muted-foreground">{taxableSales.length} recorded</p></div><div className="rounded-lg border p-3"><FileText className="mb-2 h-4 w-4 text-primary" /><p className="font-medium">Allowable expenses</p><p className="text-xs text-muted-foreground">{currentExpenses.filter((expense) => expense.is_tax_allowable).length} deductible entries</p></div><div className="rounded-lg border p-3"><FileText className="mb-2 h-4 w-4 text-primary" /><p className="font-medium">Assets acquired</p><p className="text-xs text-muted-foreground">{currentYearAssets.length} this year</p></div></div></CardContent></Card>
           </div>
 
             </TabsContent>
