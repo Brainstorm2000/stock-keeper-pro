@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth,
-} from 'date-fns';
+import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +9,9 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
 import { formatCurrency } from '@/lib/currency';
+import { calculateCompletedCogs, calculateCompletedRevenue, calculateSellableInventoryValue } from '@/lib/executive-summary';
+import type { Product } from '@/hooks/useProducts';
+import type { Sale } from '@/hooks/useSales';
 import {
   fetchAllPerformanceRows,
   usePerformanceRows,
@@ -20,41 +21,27 @@ import {
   type PerformanceSortKey,
   type StockStatusFilter,
 } from '@/hooks/useStockPerformance';
-import { PerformanceControlBar, type DatePreset } from './PerformanceControlBar';
+import { PerformanceControlBar } from './PerformanceControlBar';
 import { PerformanceKPICards } from './PerformanceKPICards';
 import { StockPerformanceTable } from './StockPerformanceTable';
 
 interface Props {
+  dateRange: { from: Date; to: Date };
   selectedBranch: string;
   branches: { id: string; name: string }[];
+  products: Product[];
+  sales: Sale[];
+  saleReturns: { sale_id: string; total_amount: number }[];
 }
 
 const FAST_MOVER_THRESHOLD = Number(import.meta.env.VITE_FAST_MOVER_THRESHOLD ?? 1) || 1;
 
-function rangeForPreset(preset: DatePreset, current: { from: Date; to: Date }) {
-  const now = new Date();
-  switch (preset) {
-    case 'today':
-      return { from: startOfDay(now), to: endOfDay(now) };
-    case 'yesterday':
-      return { from: startOfDay(subDays(now, 1)), to: endOfDay(subDays(now, 1)) };
-    case 'last7':
-      return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
-    case 'month':
-      return { from: startOfMonth(now), to: endOfMonth(now) };
-    default:
-      return current;
-  }
-}
-
-export function StockPerformanceTab({ selectedBranch, branches }: Props) {
+export function StockPerformanceTab({ dateRange, selectedBranch, branches, products, sales, saleReturns }: Props) {
   const { toast } = useToast();
   const { organizationId } = useAuth();
   const { data: org } = useOrganization();
   const { data: suppliers = [] } = useSuppliers();
 
-  const [preset, setPreset] = useState<DatePreset>('month');
-  const [range, setRange] = useState(() => rangeForPreset('month', { from: new Date(), to: new Date() }));
   const [category, setCategory] = useState('all');
   const [supplierId, setSupplierId] = useState('all');
   const [stockStatus, setStockStatus] = useState<StockStatusFilter>('all');
@@ -69,15 +56,15 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
   const debouncedSearch = useDebounce(search, 400);
 
   const filters: PerformanceFilters = useMemo(() => ({
-    from: range.from,
-    to: range.to,
+    from: dateRange.from,
+    to: dateRange.to,
     branchId: selectedBranch,
     category,
     supplierId,
     stockStatus,
     search: debouncedSearch,
     fastThreshold: FAST_MOVER_THRESHOLD,
-  }), [range, selectedBranch, category, supplierId, stockStatus, debouncedSearch]);
+  }), [dateRange, selectedBranch, category, supplierId, stockStatus, debouncedSearch]);
 
   const rowsQuery = usePerformanceRows(filters, sort, dir, page, pageSize);
   const summaryQuery = usePerformanceSummary(filters);
@@ -86,7 +73,7 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
   const totalCount = rowsQuery.data?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
-  const periodLabel = `${format(range.from, 'MMM dd, yyyy')} – ${format(range.to, 'MMM dd, yyyy')}`;
+  const periodLabel = `${format(dateRange.from, 'MMM dd, yyyy')} – ${format(dateRange.to, 'MMM dd, yyyy')}`;
   const branchLabel = selectedBranch === 'all'
     ? 'All Branches'
     : branches.find((b) => b.id === selectedBranch)?.name ?? 'Branch';
@@ -204,6 +191,29 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
   };
 
   const s = summaryQuery.data;
+  const executiveSummary = s
+    ? {
+        ...s,
+        inventory_cost_value: calculateSellableInventoryValue(
+          products,
+          selectedBranch,
+          category,
+          supplierId,
+          debouncedSearch,
+        ),
+        gross_revenue: calculateCompletedRevenue(sales, saleReturns, dateRange.from, dateRange.to, selectedBranch),
+        total_cogs: calculateCompletedCogs(sales, dateRange.from, dateRange.to, selectedBranch),
+      }
+    : s;
+  const summaryWithDerivedProfit = executiveSummary
+    ? {
+        ...executiveSummary,
+        gross_profit: executiveSummary.gross_revenue - executiveSummary.total_cogs,
+        avg_margin: executiveSummary.gross_revenue > 0
+          ? ((executiveSummary.gross_revenue - executiveSummary.total_cogs) / executiveSummary.gross_revenue) * 100
+          : 0,
+      }
+    : executiveSummary;
 
   return (
     <div className="space-y-5 print-report">
@@ -217,18 +227,6 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
       </div>
 
       <PerformanceControlBar
-        preset={preset}
-        onPresetChange={(p) => {
-          setPreset(p);
-          setRange(rangeForPreset(p, range));
-          setPage(1);
-        }}
-        from={range.from}
-        to={range.to}
-        onCustomRangeChange={({ from, to }) => {
-          setRange({ from: startOfDay(from), to: endOfDay(to) });
-          setPage(1);
-        }}
         category={category}
         onCategoryChange={resetPage(setCategory)}
         supplierId={supplierId}
@@ -249,7 +247,7 @@ export function StockPerformanceTab({ selectedBranch, branches }: Props) {
           Executive summary unavailable: {(summaryQuery.error as Error).message}
         </p>
       ) : null}
-      <PerformanceKPICards summary={s} loading={summaryQuery.isLoading} />
+      <PerformanceKPICards summary={summaryWithDerivedProfit} loading={summaryQuery.isLoading} />
 
       <Card className="shadow-sm">
         <CardContent className="p-0">

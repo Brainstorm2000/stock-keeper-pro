@@ -70,6 +70,7 @@ import {
   type SaleStatus,
 } from "@/hooks/useSales";
 import { useSaleReturns } from '@/hooks/useSaleReturns';
+import { calculateCompletedRevenue } from '@/lib/executive-summary';
 import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
 import { SaleReturnDialog } from "@/components/sales/SaleReturnDialog";
 import { format } from "date-fns";
@@ -251,23 +252,7 @@ export default function Sales() {
     const adjusted = Math.max(0, Number(s.total_amount || 0) - returns);
     return sum + adjusted;
   }, 0);
-  // Revenue: sum of collected amounts (total_amount minus outstanding balance)
-  // Exclude cancelled sales. Then subtract any returned amounts associated
-  // with the filtered sales so returns reduce revenue.
-  const collectedRevenue = filteredSales.reduce((sum, s) => {
-    if (s.status === "cancelled") return sum;
-    const total = Number(s.total_amount || 0);
-    const outstanding = Number((s as any).balance_due || 0);
-    return sum + Math.max(0, total - outstanding);
-  }, 0);
-
-  const totalReturnsForFilteredSales = (saleReturns || []).reduce((sum, r) => {
-    // Only count returns that belong to sales in the current filtered set
-    const belongs = filteredSales.some((s) => s.id === r.sale_id);
-    return sum + (belongs ? Number(r.total_amount || 0) : 0);
-  }, 0);
-
-  const totalRevenue = Math.max(0, collectedRevenue - totalReturnsForFilteredSales);
+  const totalRevenue = calculateCompletedRevenue(filteredSales, saleReturns);
 
   const handleOpenEdit = (sale: Sale) => {
     setEditData({

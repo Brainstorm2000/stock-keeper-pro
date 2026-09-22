@@ -77,7 +77,7 @@ const navItems: NavItem[] = [
   },
   { href: "/assets", label: "Assets", icon: Boxes, module: "assets" },
   { href: "/expenses", label: "Expenses", icon: Wallet, module: "expenses" },
-  { href: "/tax", label: "Tax", icon: Landmark, module: "reports" },
+  { href: "/tax", label: "Tax", icon: Landmark, module: "tax" },
   {
     href: "/production",
     label: "Production",

@@ -3340,6 +3340,7 @@ export type Database = {
         | "expenses"
         | "production"
         | "reports"
+        | "tax"
         | "staff"
         | "attendance"
         | "tasks"

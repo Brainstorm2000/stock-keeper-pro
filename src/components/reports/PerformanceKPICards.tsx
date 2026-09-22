@@ -71,12 +71,11 @@ export function PerformanceKPICards({ summary, loading }: Props) {
       title: 'Executive Summary',
       icon: Warehouse,
       metrics: [
-        { label: 'Total Inventory Value', value: formatCurrency(Number(s.inventory_cost_value || 0)), tone: 'strong' as const },
+        { label: 'Current Inventory Value', value: formatCurrency(Number(s.inventory_cost_value || 0)), tone: 'strong' as const },
         { label: 'Potential Retail Value', value: formatCurrency(Number(s.potential_retail_value || 0)) },
         { label: 'Total Sales Revenue', value: formatCurrency(Number(s.gross_revenue || 0)) },
         { label: 'Total Cost of Goods Sold (COGS)', value: formatCurrency(Number(s.total_cogs || 0)) },
         { label: 'Total Gross Profit', value: formatCurrency(Number(s.gross_profit || 0)), tone: 'strong' as const },
-        { label: 'Current Inventory Value', value: formatCurrency(Number(s.inventory_cost_value || 0)) },
         { label: 'Average Profit Margin', value: `${Number(s.avg_margin || 0).toFixed(1)}%` },
         { label: 'Low Stock Items', value: num(Number(s.low_stock_items || 0)), tone: 'warn' as const },
         { label: 'Out of Stock Items', value: num(Number(s.out_of_stock_items || 0)), tone: 'danger' as const },

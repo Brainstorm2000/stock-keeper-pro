@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth';
 import { useBranches } from '@/hooks/useBranches';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
+import { useSaleReturns } from '@/hooks/useSaleReturns';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useExpenses, useExpenseCategories } from '@/hooks/useExpenses';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +35,7 @@ export default function Reports() {
   const { data: branches = [] } = useBranches();
   const { data: products = [] } = useProducts();
   const { data: sales = [] } = useSales();
+  const { data: saleReturns = [] } = useSaleReturns();
   const { data: purchases = [] } = usePurchases();
   const { data: expenses = [] } = useExpenses();
   const { data: categories = [] } = useExpenseCategories();
@@ -107,7 +109,14 @@ export default function Reports() {
             </TabsList>
 
             <TabsContent value="performance">
-              <StockPerformanceTab selectedBranch={selectedBranch} branches={branches} />
+              <StockPerformanceTab
+                dateRange={dateRange}
+                selectedBranch={selectedBranch}
+                branches={branches}
+                products={products}
+                sales={sales}
+                saleReturns={saleReturns}
+              />
             </TabsContent>
 
             <TabsContent value="sales">
