@@ -418,56 +418,13 @@ export function useUpdatePurchase() {
 
 export function useDeletePurchase() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (purchase: Purchase) => {
-      // First, reverse the stock changes
-      if (purchase.purchase_items) {
-        for (const item of purchase.purchase_items) {
-          // Get current stock
-          const { data: product, error: productError } = await supabase
-            .from('products')
-            .select('current_stock')
-            .eq('id', item.product_id)
-            .single();
-
-          if (productError) throw productError;
-
-          const previousStock = Number(product.current_stock);
-          const newStock = previousStock - item.quantity;
-
-          // Update product stock (allow negative for correction)
-          const { error: updateError } = await supabase
-            .from('products')
-            .update({ current_stock: Math.max(0, newStock) })
-            .eq('id', item.product_id);
-
-          if (updateError) throw updateError;
-
-          // Create stock history entry for reversal
-          const { error: historyError } = await supabase
-            .from('stock_history')
-            .insert({
-              product_id: item.product_id,
-              previous_stock: previousStock,
-              new_stock: Math.max(0, newStock),
-              change_amount: -item.quantity,
-              change_type: 'purchase_reversal',
-              notes: `Deleted purchase ${purchase.purchase_number}`,
-              changed_by: user?.id,
-            });
-
-          if (historyError) throw historyError;
-        }
-      }
-
-      // Delete the purchase (cascade will handle items)
-      const { error } = await supabase
-        .from('purchases')
-        .delete()
-        .eq('id', purchase.id);
+      const { error } = await supabase.rpc('delete_purchase', {
+        _purchase_id: purchase.id,
+      });
 
       if (error) throw error;
     },

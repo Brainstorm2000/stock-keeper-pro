@@ -59,6 +59,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Wand2, Pencil, X, Check, ChevronsUpDown } from "lucide-react";
 import { generateSku } from "@/lib/sku";
 import { cn } from "@/lib/utils";
+import { calculateMarkupPercent, calculateSellingPrice } from "@/lib/markup";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Product name is required").max(200),
@@ -74,6 +75,7 @@ const productSchema = z.object({
   low_stock_threshold: z.coerce.number().min(0, "Must be 0 or greater"),
   out_of_stock_threshold: z.coerce.number().min(0, "Must be 0 or greater"),
   cost_price: z.coerce.number().min(0, "Must be 0 or greater"),
+  markup_percent: z.coerce.number(),
   selling_price: z.coerce.number().min(0, "Must be 0 or greater"),
   expiration_date: z.string().optional(),
   sku: z.string().max(50).optional(),
@@ -152,6 +154,7 @@ export function ProductDialog({
       low_stock_threshold: 10,
       out_of_stock_threshold: 0,
       cost_price: 0,
+      markup_percent: 0,
       selling_price: 0,
       expiration_date: "",
       sku: "",
@@ -175,6 +178,7 @@ export function ProductDialog({
         low_stock_threshold: Number(product.low_stock_threshold),
         out_of_stock_threshold: Number(product.out_of_stock_threshold),
         cost_price: Number(product.cost_price) || 0,
+        markup_percent: calculateMarkupPercent(Number(product.cost_price) || 0, Number(product.selling_price) || 0),
         selling_price: Number(product.selling_price) || 0,
         expiration_date: product.expiration_date || "",
         sku: product.sku || "",
@@ -196,6 +200,7 @@ export function ProductDialog({
         low_stock_threshold: 10,
         out_of_stock_threshold: 0,
         cost_price: 0,
+        markup_percent: 0,
         selling_price: 0,
         expiration_date: "",
         sku: "",
@@ -829,7 +834,12 @@ export function ProductDialog({
                     type="number"
                     min="0"
                     step="0.01"
-                    {...register("cost_price")}
+                    {...register("cost_price", {
+                      onChange: (event) => {
+                        const costPrice = Number(event.target.value) || 0;
+                        setValue("selling_price", calculateSellingPrice(costPrice, Number(watch("markup_percent")) || 0));
+                      },
+                    })}
                   />
                   {errors.cost_price && (
                     <p className="text-sm text-destructive">
@@ -840,21 +850,41 @@ export function ProductDialog({
               )}
 
               {!isVariable && selectedCategory === "sellable" && (
-                <div className="space-y-2">
-                  <Label htmlFor="selling_price">Selling Price</Label>
-                  <Input
-                    id="selling_price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    {...register("selling_price")}
-                  />
-                  {errors.selling_price && (
-                    <p className="text-sm text-destructive">
-                      {errors.selling_price.message}
-                    </p>
-                  )}
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="markup_percent">Markup Percent</Label>
+                    <Input
+                      id="markup_percent"
+                      type="number"
+                      step="0.01"
+                      value={watch("markup_percent")}
+                      onChange={(event) => {
+                        const markupPercent = Number(event.target.value) || 0;
+                        setValue("markup_percent", markupPercent, { shouldDirty: true });
+                        setValue("selling_price", calculateSellingPrice(Number(watch("cost_price")) || 0, markupPercent), { shouldDirty: true });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="selling_price">Selling Price</Label>
+                    <Input
+                      id="selling_price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      {...register("selling_price", {
+                        onChange: (event) => {
+                          setValue("markup_percent", calculateMarkupPercent(Number(watch("cost_price")) || 0, Number(event.target.value) || 0), { shouldDirty: true });
+                        },
+                      })}
+                    />
+                    {errors.selling_price && (
+                      <p className="text-sm text-destructive">
+                        {errors.selling_price.message}
+                      </p>
+                    )}
+                  </div>
+                </>
               )}
 
               {selectedItemType === "product" && (
@@ -1095,6 +1125,7 @@ export function ProductDialog({
                               <th className="p-1">SKU</th>
                               <th className="p-1">Stock</th>
                               <th className="p-1">Cost</th>
+                              <th className="p-1">Markup %</th>
                               <th className="p-1">Price</th>
                               <th className="p-1">Low</th>
                               <th className="p-1"></th>
@@ -1131,7 +1162,29 @@ export function ProductDialog({
                                     type="number"
                                     min="0"
                                     value={d.cost_price}
-                                    onChange={(e) => updateDraft(idx, { cost_price: Number(e.target.value) })}
+                                    onChange={(e) => {
+                                      const costPrice = Number(e.target.value) || 0;
+                                      updateDraft(idx, {
+                                        cost_price: costPrice,
+                                        selling_price: calculateSellingPrice(
+                                          costPrice,
+                                          calculateMarkupPercent(d.cost_price, d.selling_price),
+                                        ),
+                                      });
+                                    }}
+                                  />
+                                </td>
+                                <td className="p-1 w-24">
+                                  <Input
+                                    className="h-7 text-xs"
+                                    type="number"
+                                    step="0.01"
+                                    value={calculateMarkupPercent(d.cost_price, d.selling_price)}
+                                    onChange={(e) =>
+                                      updateDraft(idx, {
+                                        selling_price: calculateSellingPrice(d.cost_price, Number(e.target.value) || 0),
+                                      })
+                                    }
                                   />
                                 </td>
                                 <td className="p-1 w-24">
@@ -1140,7 +1193,7 @@ export function ProductDialog({
                                     type="number"
                                     min="0"
                                     value={d.selling_price}
-                                    onChange={(e) => updateDraft(idx, { selling_price: Number(e.target.value) })}
+                                    onChange={(e) => updateDraft(idx, { selling_price: Number(e.target.value) || 0 })}
                                   />
                                 </td>
                                 <td className="p-1 w-16">

@@ -17,6 +17,7 @@ import { useSuppliers } from '@/hooks/useSuppliers';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { getPurchasableProductsForPurchase } from '@/lib/purchase-products';
+import { calculateMarkupPercent, calculateSellingPrice } from '@/lib/markup';
 
 interface EditPurchaseDialogProps {
   purchase: Purchase;
@@ -122,10 +123,14 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
     setSearchQuery('');
   };
 
-  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost' | 'selling_price', value: number | string) => {
+  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost' | 'markup_percent' | 'selling_price', value: number | string) => {
     setCart(cart.map(item =>
       item.product_id === productId
-        ? { ...item, [field]: value }
+        ? field === 'markup_percent'
+          ? { ...item, selling_price: calculateSellingPrice(item.unit_cost, Number(value) || 0) }
+          : field === 'unit_cost'
+            ? { ...item, unit_cost: Number(value) || 0, selling_price: calculateSellingPrice(Number(value) || 0, calculateMarkupPercent(item.unit_cost, item.selling_price)) }
+            : { ...item, [field]: value }
         : item
     ));
   };
@@ -311,13 +316,14 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
           {cart.length > 0 && (
             <div className="space-y-2">
               <Label>Purchase Items ({cart.length})</Label>
-              <div className="border rounded-md overflow-hidden">
-                <Table>
+              <div className="border rounded-md overflow-x-auto">
+                <Table className="min-w-[760px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
                       <TableHead className="w-[100px]">Quantity</TableHead>
                       <TableHead className="w-[120px]">Cost Price</TableHead>
+                      <TableHead className="w-[120px]">Markup %</TableHead>
                       <TableHead className="w-[120px]">Sell Price</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
@@ -351,6 +357,15 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
                             step="any"
                             value={item.unit_cost}
                             onChange={(e) => updateCartItem(item.product_id, 'unit_cost', e.target.value === '' ? 0 : Number(e.target.value))}
+                            className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={calculateMarkupPercent(item.unit_cost, item.selling_price)}
+                            onChange={(e) => updateCartItem(item.product_id, 'markup_percent', e.target.value === '' ? 0 : Number(e.target.value))}
                             className="w-24"
                           />
                         </TableCell>

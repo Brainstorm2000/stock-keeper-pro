@@ -36,6 +36,7 @@ import Damages from "./pages/Damages";
 import Assets from "./pages/Assets";
 import Tax from "./pages/Tax";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,6 +97,7 @@ const App = () => (
           <Sonner />
           <OfflineBanner />
           <BrowserRouter>
+            <ScrollToTopButton />
             <Routes>
               <Route path="/" element={<Auth />} />
               <Route path="/auth" element={<Auth />} />

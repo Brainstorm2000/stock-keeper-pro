@@ -3165,6 +3165,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_purchase: {
+        Args: { _purchase_id: string }
+        Returns: undefined
+      }
       auto_clockout_stale_attendance: {
         Args: { _org_id: string }
         Returns: number
