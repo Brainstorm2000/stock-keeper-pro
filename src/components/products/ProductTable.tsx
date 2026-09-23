@@ -447,7 +447,7 @@ export function ProductTable({
               {effectiveCategoryTab === "sellable" &&
                 (categoryCounts?.sellable ?? sellableProducts.length) > 0 && (
                   <Badge variant="outline" className="text-sm font-medium">
-                    Total Value: {formatCurrency(totalStockValue)}
+                    Total Sale Value: {formatCurrency(totalStockValue)}
                   </Badge>
                 )}
             </div>

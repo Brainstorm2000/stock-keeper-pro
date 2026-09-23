@@ -29,11 +29,11 @@ export function calculateSellableInventoryValue(
     .reduce((total, product) => {
       if (product.item_type === 'variable' && product.variations?.length) {
         return total + product.variations.reduce(
-          (sum, variation) => sum + Number(variation.current_stock) * Number(variation.selling_price),
+          (sum, variation) => sum + Number(variation.current_stock) * Number(variation.cost_price),
           0,
         );
       }
-      return total + Number(product.current_stock) * Number(product.selling_price);
+      return total + Number(product.current_stock) * Number(product.cost_price);
     }, 0);
 }
 

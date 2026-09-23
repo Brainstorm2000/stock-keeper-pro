@@ -87,7 +87,8 @@ export async function checkProductDuplicate(
   name: string,
   branchId: string | null | undefined,
   sku: string | null | undefined,
-  excludeProductId?: string
+  excludeProductId?: string,
+  skuScopedToBranch = false,
 ): Promise<DuplicateCheckResult> {
   // Check for name + branch duplicate
   let query = supabase
@@ -126,6 +127,9 @@ export async function checkProductDuplicate(
 
     if (excludeProductId) {
       skuQuery = skuQuery.neq('id', excludeProductId);
+    }
+    if (skuScopedToBranch && branchId) {
+      skuQuery = skuQuery.eq('branch_id', branchId);
     }
 
     const { data: skuMatches, error: skuError } = await skuQuery;

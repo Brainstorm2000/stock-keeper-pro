@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -55,14 +56,14 @@ import {
   type VariationDraft,
 } from "@/hooks/useProductVariations";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Wand2, Pencil, X } from "lucide-react";
+import { Plus, Trash2, Wand2, Pencil, X, Check, ChevronsUpDown } from "lucide-react";
 import { generateSku } from "@/lib/sku";
 import { cn } from "@/lib/utils";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Product name is required").max(200),
   unit_id: z.string().min(1, "Unit is required"),
-  branch_id: z.string().min(1, "Branch is required"),
+  branch_id: z.string().optional(),
   supplier_id: z.string().optional(),
   brand_id: z.string().optional(),
   item_type: z.enum(["product", "service", "variable"]),
@@ -101,6 +102,8 @@ export function ProductDialog({
   const [newAttrName, setNewAttrName] = useState("");
   const [newValueByAttr, setNewValueByAttr] = useState<Record<string, string>>({});
   const [selectedValueIdsByAttr, setSelectedValueIdsByAttr] = useState<Record<string, string[]>>({});
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+  const [createAcrossBranches, setCreateAcrossBranches] = useState(false);
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
   const defaultBranchId = useDefaultBranchId();
@@ -119,7 +122,7 @@ export function ProductDialog({
   );
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
-  const { isSuperAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
   const { toast } = useToast();
 
   const isEditing = !!product;
@@ -177,6 +180,7 @@ export function ProductDialog({
         sku: product.sku || "",
         description: product.description || "",
       });
+      setSelectedBranchIds(product.branch_id ? [product.branch_id] : []);
     } else {
       reset({
         name: "",
@@ -197,9 +201,11 @@ export function ProductDialog({
         sku: "",
         description: "",
       });
+      setSelectedBranchIds(defaultBranchId ? [defaultBranchId] : []);
       setSelectedAttributeIds([]);
       setVariationDrafts([]);
       setSelectedValueIdsByAttr({});
+      setCreateAcrossBranches(false);
     }
   }, [product, reset, defaultBranchId]);
 
@@ -242,15 +248,29 @@ export function ProductDialog({
     setIsCheckingDuplicate(true);
 
     try {
-      // Check for duplicates
-      const duplicateCheck = await checkProductDuplicate(
-        data.name,
-        data.branch_id || null,
-        data.sku || null,
-        isEditing ? product?.id : undefined,
-      );
+      const targetBranchIds = createAcrossBranches
+        ? branches.map((branch) => branch.id)
+        : selectedBranchIds;
 
-      if (duplicateCheck.isDuplicate) {
+      if (!isEditing && targetBranchIds.length === 0) {
+        toast({
+          title: "Select at least one branch",
+          description: "Choose one or more branches, or select Create in all branches.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const duplicateCheck = isEditing
+        ? await checkProductDuplicate(
+            data.name,
+            data.branch_id || null,
+            data.sku || null,
+            product?.id,
+          )
+        : null;
+
+      if (duplicateCheck?.isDuplicate) {
         const message =
           duplicateCheck.reason === "sku"
             ? `A product with SKU "${data.sku}" already exists.`
@@ -268,7 +288,7 @@ export function ProductDialog({
       const productData: ProductInput = {
         name: data.name,
         unit_id: data.unit_id,
-        branch_id: data.branch_id,
+        branch_id: data.branch_id || targetBranchIds[0],
         supplier_id: data.supplier_id || undefined,
         brand_id: data.brand_id || undefined,
         item_type: data.item_type,
@@ -307,14 +327,39 @@ export function ProductDialog({
           });
           return;
         }
-        const created = await createProduct.mutateAsync({
-          ...productData,
-          organization_id: organization.id,
-        });
-        savedProductId = (created as any).id;
+        for (const branchId of targetBranchIds) {
+          const branchDuplicate = await checkProductDuplicate(
+            data.name,
+            branchId,
+            data.sku || null,
+            undefined,
+            targetBranchIds.length > 1,
+          );
+          if (branchDuplicate.isDuplicate) {
+            const branchName = branches.find((branch) => branch.id === branchId)?.name || "another branch";
+            const message = branchDuplicate.reason === "sku"
+              ? `A product with SKU "${data.sku}" already exists in ${branchName}.`
+              : `A product named "${data.name}" already exists in ${branchName}.`;
+            toast({ title: "Duplicate product", description: message, variant: "destructive" });
+            return;
+          }
+        }
+
+        for (const branchId of targetBranchIds) {
+          const created = await createProduct.mutateAsync({
+            ...productData,
+            branch_id: branchId,
+            organization_id: organization.id,
+          });
+          savedProductId = (created as { id: string }).id;
+
+          if (data.item_type === "variable" && organization?.id) {
+            await saveProductVariations(savedProductId, organization.id, variationDrafts);
+          }
+        }
       }
 
-      if (data.item_type === "variable" && savedProductId && organization?.id) {
+      if (isEditing && data.item_type === "variable" && savedProductId && organization?.id) {
         await saveProductVariations(savedProductId, organization.id, variationDrafts);
       }
 
@@ -325,7 +370,6 @@ export function ProductDialog({
   };
 
   const selectedUnitId = watch("unit_id");
-  const selectedBranchId = watch("branch_id");
   const selectedSupplierId = watch("supplier_id");
   const selectedBrandId = watch("brand_id");
   const selectedItemType = watch("item_type");
@@ -645,28 +689,80 @@ export function ProductDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="branch_id">Branch *</Label>
-                <Select
-                  value={selectedBranchId}
-                  onValueChange={(value) => setValue("branch_id", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.branch_id && (
-                  <p className="text-sm text-destructive">
-                    {errors.branch_id.message}
-                  </p>
+                <Label htmlFor="branch_id">Branch{!createAcrossBranches && " *"}</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="branch_id"
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between font-normal"
+                      disabled={createAcrossBranches}
+                    >
+                      <span className="truncate">
+                        {createAcrossBranches
+                          ? "All branches"
+                          : selectedBranchIds.length === 0
+                            ? "Select branches"
+                            : selectedBranchIds.length === 1
+                              ? branches.find((branch) => branch.id === selectedBranchIds[0])?.name
+                              : `${selectedBranchIds.length} branches selected`}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2" align="start">
+                    <div className="grid gap-1">
+                      {branches.map((branch) => {
+                        const selected = selectedBranchIds.includes(branch.id);
+                        return (
+                          <button
+                            key={branch.id}
+                            type="button"
+                            className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                            onClick={() => {
+                              const nextIds = selected
+                                ? selectedBranchIds.filter((id) => id !== branch.id)
+                                : [...selectedBranchIds, branch.id];
+                              setSelectedBranchIds(nextIds);
+                              setValue("branch_id", nextIds[0] || "");
+                            }}
+                          >
+                            <span className="flex h-4 w-4 items-center justify-center rounded-sm border">
+                              {selected && <Check className="h-3 w-3" />}
+                            </span>
+                            {branch.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {!createAcrossBranches && selectedBranchIds.length === 0 && (
+                  <p className="text-sm text-destructive">Select at least one branch.</p>
                 )}
               </div>
+
+              {!isEditing && isAdmin && branches.length > 1 && (
+                <div className="space-y-2 sm:col-span-2">
+                  <div className="flex items-center space-x-2 rounded-md border p-3">
+                    <Checkbox
+                      id="create_across_branches"
+                      checked={createAcrossBranches}
+                      onCheckedChange={(checked) => setCreateAcrossBranches(Boolean(checked))}
+                    />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="create_across_branches" className="cursor-pointer">
+                        Create in all branches
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Creates an independent product record in every branch using these starting values. Prices and stock can be changed per branch afterward.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="sku">SKU (Optional)</Label>
