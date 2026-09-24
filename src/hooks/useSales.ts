@@ -6,6 +6,7 @@ import { parseDbError } from '@/lib/db-errors';
 import { buildSaleStockAdjustments } from '@/lib/sale-stock';
 import { localDb } from '@/lib/offline/db';
 import { readLocalFirst, saveLocal } from '@/lib/offline/repository';
+import { syncQueue } from '@/lib/offline/sync';
 
 export type PaymentMethod = 'cash' | 'card' | 'mobile_money' | 'bank_transfer' | 'credit' | 'pos';
 export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'on_hold';
@@ -164,8 +165,12 @@ export function useSaleWithItems(saleId: string | null) {
         } as Sale;
       };
 
-      if (typeof navigator !== 'undefined' && !navigator.onLine) return readLocalSale();
+        const localSaleRecord = await localDb.sales.get(saleId);
+        if (localSaleRecord && !localSaleRecord.isSynced && !localSaleRecord.deletedAt) {
+          return readLocalSale();
+        }
 
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return readLocalSale();
       try {
         const { data: sale, error: saleError } = await supabase
           .from('sales')
@@ -205,19 +210,19 @@ export function useSaleWithItems(saleId: string | null) {
 
 export function useCreateSale() {
   const queryClient = useQueryClient();
-  const { user, organizationId } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (input: CreateSaleInput) => {
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      {
         const now = new Date().toISOString();
         const sale: Sale = {
           id: crypto.randomUUID(),
           organization_id: input.organization_id,
           branch_id: input.branch_id ?? null,
           customer_id: input.customer_id ?? null,
-          sale_number: `OFF-${Date.now()}`,
+          sale_number: `POS-${Date.now()}`,
           customer_name: input.customer_name ?? null,
           customer_phone: input.customer_phone ?? null,
           subtotal: input.subtotal,
@@ -274,144 +279,15 @@ export function useCreateSale() {
             });
           }
         }
+        void syncQueue();
         return sale;
       }
-
-      // Generate sale number
-      const { data: saleNumber, error: numberError } = await supabase
-        .rpc('generate_sale_number', { org_id: input.organization_id });
-      
-      if (numberError) throw numberError;
-
-      // Create the sale
-      const { data: sale, error: saleError } = await supabase
-        .from('sales')
-        .insert({
-          organization_id: input.organization_id,
-          branch_id: input.branch_id || null,
-          customer_id: input.customer_id || null,
-          sale_number: saleNumber,
-          customer_name: input.customer_name || null,
-          customer_phone: input.customer_phone || null,
-          subtotal: input.subtotal,
-          discount_amount: input.discount_amount,
-          discount_percent: input.discount_percent,
-          tax_amount: input.tax_amount,
-          wht_amount: input.wht_amount ?? 0,
-          total_amount: input.total_amount,
-          amount_paid: input.amount_paid ?? input.total_amount,
-          balance_due: input.balance_due ?? 0,
-          payment_status: input.payment_status ?? 'paid',
-          due_date: input.due_date || null,
-          payment_method: input.payment_method,
-          payment_method_id: input.payment_method_id ?? null,
-          payment_details: input.payment_details ? JSON.parse(JSON.stringify(input.payment_details)) : null,
-          status: input.status || 'completed',
-          notes: input.notes || null,
-          created_by: user?.id,
-          ...(input.sale_date
-            ? (() => {
-                const now = new Date();
-                const [y, m, d] = input.sale_date!.split('-').map(Number);
-                const dt = new Date(
-                  y,
-                  (m || 1) - 1,
-                  d || 1,
-                  now.getHours(),
-                  now.getMinutes(),
-                  now.getSeconds(),
-                  now.getMilliseconds(),
-                );
-                return { created_at: dt.toISOString() };
-              })()
-            : {}),
-        })
-        .select()
-        .single();
-
-      if (saleError) throw saleError;
-
-      // Create sale items
-      const saleItems = input.items.map(item => ({
-        sale_id: sale.id,
-        product_id: item.product_id,
-        variation_id: item.variation_id || null,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        cost_price: item.cost_price,
-        discount_amount: item.discount_amount,
-        total_price: item.total_price,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('sale_items')
-        .insert(saleItems);
-
-      if (itemsError) throw itemsError;
-
-      // Update product stock for each item (decrease current_stock for products, not services)
-      for (const item of input.items) {
-        // Variation-aware stock decrement
-        if (item.variation_id) {
-          const { data: variation } = await supabase
-            .from('product_variations' as any)
-            .select('current_stock')
-            .eq('id', item.variation_id)
-            .single();
-          if (variation) {
-            const prev = Number((variation as any).current_stock);
-            const next = prev - item.quantity;
-            await supabase
-              .from('product_variations' as any)
-              .update({ current_stock: next })
-              .eq('id', item.variation_id);
-            await supabase.from('stock_history').insert({
-              product_id: item.product_id,
-              variation_id: item.variation_id,
-              previous_stock: prev,
-              new_stock: next,
-              change_amount: -item.quantity,
-              change_type: 'sale',
-              notes: `Sale: ${saleNumber}`,
-              changed_by: user?.id,
-            } as any);
-          }
-          continue;
-        }
-        const { data: product } = await supabase
-          .from('products')
-          .select('current_stock, item_type')
-          .eq('id', item.product_id)
-          .single();
-
-        if (product && product.item_type === 'product') {
-          const newStock = Number(product.current_stock) - item.quantity;
-          
-          await supabase
-            .from('products')
-            .update({ current_stock: newStock })
-            .eq('id', item.product_id);
-
-          // Record stock history
-          await supabase.from('stock_history').insert({
-            product_id: item.product_id,
-            previous_stock: product.current_stock,
-            new_stock: newStock,
-            change_amount: -item.quantity,
-            change_type: 'sale',
-            notes: `Sale: ${saleNumber}`,
-            changed_by: user?.id,
-          });
-        }
-      }
-
-      return sale;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
-      toast({ title: 'Sale completed successfully' });
+      toast({ title: 'Sale saved', description: 'Print customer receipt' });
     },
     onError: (error: Error) => {
       const { title, description } = parseDbError(error, 'complete sale');
