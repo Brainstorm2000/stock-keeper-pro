@@ -58,6 +58,7 @@ import {
   useModuleAccess,
 } from "@/components/access/ModuleAccessGuard";
 import { useBranches } from "@/hooks/useBranches";
+import { useCustomers } from "@/hooks/useCustomers";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useAuth } from "@/lib/auth";
 import {
@@ -112,6 +113,7 @@ export default function Sales() {
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editData, setEditData] = useState<{
+    customer_id: string;
     customer_name: string;
     customer_phone: string;
     payment_method: PaymentMethod;
@@ -119,6 +121,7 @@ export default function Sales() {
     notes: string;
     sale_date: string;
   }>({
+    customer_id: "none",
     customer_name: "",
     customer_phone: "",
     payment_method: "cash",
@@ -134,6 +137,7 @@ export default function Sales() {
   const { canEdit: canReturnEdit } = useModuleAccess("returns");
   const { data: sales = [], isLoading: salesLoading } = useSales();
   const { data: branches = [] } = useBranches();
+  const { data: customers = [] } = useCustomers();
   const { data: saleReturns = [] } = useSaleReturns();
   const { data: organization } = useOrganization();
   const { data: selectedSale } = useSaleWithItems(selectedSaleId);
@@ -141,6 +145,19 @@ export default function Sales() {
   const updateSale = useUpdateSale();
   const deleteSale = useDeleteSale();
   const navigate = useNavigate();
+  const customerOptions = useMemo(() => {
+    const options = new Map(customers.map((customer) => [customer.id, customer]));
+    for (const sale of sales) {
+      if (sale.customer_id && sale.customer_name && !options.has(sale.customer_id)) {
+        options.set(sale.customer_id, {
+          id: sale.customer_id,
+          name: sale.customer_name,
+          phone: sale.customer_phone,
+        });
+      }
+    }
+    return Array.from(options.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [customers, sales]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -256,6 +273,7 @@ export default function Sales() {
 
   const handleOpenEdit = (sale: Sale) => {
     setEditData({
+      customer_id: sale.customer_id || "none",
       customer_name: sale.customer_name || "",
       customer_phone: sale.customer_phone || "",
       payment_method: sale.payment_method,
@@ -273,6 +291,7 @@ export default function Sales() {
     await updateSale.mutateAsync({
       saleId: selectedSaleId,
       updates: {
+        customer_id: editData.customer_id === "none" ? null : editData.customer_id,
         customer_name: editData.customer_name || null,
         customer_phone: editData.customer_phone || null,
         payment_method: editData.payment_method,
@@ -740,32 +759,61 @@ export default function Sales() {
             </DialogHeader>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label>Customer Name</Label>
-                  <Input
-                    value={editData.customer_name}
-                    onChange={(e) =>
+                  <Label>Customer</Label>
+                  <Select
+                    value={editData.customer_id}
+                    onValueChange={(customerId) => {
+                      const customer = customerOptions.find((item) => item.id === customerId);
                       setEditData((prev) => ({
                         ...prev,
-                        customer_name: e.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
-                  />
+                        customer_id: customerId,
+                        customer_name: customerId === "none" ? "" : customer?.name || prev.customer_name,
+                        customer_phone: customerId === "none" ? "" : customer?.phone || prev.customer_phone,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select customer (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Walk-in Customer</SelectItem>
+                      {customerOptions.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}{customer.phone && ` (${customer.phone})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Phone</Label>
-                  <Input
-                    value={editData.customer_phone}
-                    onChange={(e) =>
-                      setEditData((prev) => ({
-                        ...prev,
-                        customer_phone: e.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Customer Name</Label>
+                    <Input
+                      value={editData.customer_name}
+                      onChange={(e) =>
+                        setEditData((prev) => ({
+                          ...prev,
+                          customer_name: e.target.value,
+                        }))
+                      }
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Phone</Label>
+                    <Input
+                      value={editData.customer_phone}
+                      onChange={(e) =>
+                        setEditData((prev) => ({
+                          ...prev,
+                          customer_phone: e.target.value,
+                        }))
+                      }
+                      placeholder="Optional"
+                    />
+                  </div>
                 </div>
               </div>
 
