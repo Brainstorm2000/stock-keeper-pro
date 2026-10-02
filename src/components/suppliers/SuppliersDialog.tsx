@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
- import { Plus, ArrowDown, ArrowUp, Pencil, Trash2, Search, FileDown } from 'lucide-react';
+import { Plus, ArrowDown, ArrowUp, Pencil, Trash2, Search, FileDown, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,8 +35,9 @@ import { parseGenericCSV, exportToCSV, generateSuppliersCSVTemplate, downloadCSV
 import { useToast } from '@/hooks/use-toast';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
-export function SuppliersDialog() {
+export function SuppliersDialog({ menuItem = false }: { menuItem?: boolean }) {
   const [open, setOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -173,9 +174,15 @@ export function SuppliersDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Suppliers
-        </Button>
+        {menuItem ? (
+          <DropdownMenuItem>
+            <Truck className="mr-2 h-4 w-4" /> Suppliers
+          </DropdownMenuItem>
+        ) : (
+          <Button variant="outline" size="sm">
+            Suppliers
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>

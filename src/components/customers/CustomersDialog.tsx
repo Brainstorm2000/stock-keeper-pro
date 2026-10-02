@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
- import { Plus, ArrowDown, ArrowUp, Pencil, Trash2, Search, FileDown } from 'lucide-react';
+import { Plus, ArrowDown, ArrowUp, Pencil, Trash2, Search, FileDown, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,12 +37,14 @@ import { parseGenericCSV, exportToCSV, generateCustomersCSVTemplate, downloadCSV
 import { useToast } from '@/hooks/use-toast';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 interface CustomersDialogProps {
   branchId?: string;
+  menuItem?: boolean;
 }
 
-export function CustomersDialog({ branchId }: CustomersDialogProps) {
+export function CustomersDialog({ branchId, menuItem = false }: CustomersDialogProps) {
   const [open, setOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -198,9 +200,15 @@ export function CustomersDialog({ branchId }: CustomersDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Customers
-        </Button>
+        {menuItem ? (
+          <DropdownMenuItem>
+            <Users className="mr-2 h-4 w-4" /> Customers
+          </DropdownMenuItem>
+        ) : (
+          <Button variant="outline" size="sm">
+            Customers
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>

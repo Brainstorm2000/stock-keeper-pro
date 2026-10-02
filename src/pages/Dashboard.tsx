@@ -329,13 +329,13 @@ function DashboardContent() {
           </div>
 
           {(isAdmin || canCreateProduct) && (
-            <div className="grid grid-cols-2 gap-3 w-full md:flex md:w-auto">
+            <div className="grid w-full grid-cols-2 items-stretch gap-3 md:flex md:w-auto">
               {isAdmin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full md:w-auto font-bold border-slate-200 dark:border-slate-800"
+                    className="w-full font-bold border-slate-200 dark:border-slate-800 md:w-auto"
                   >
                     <Settings2 className="mr-2 h-4 w-4" /> Setup
                   </Button>
@@ -347,8 +347,8 @@ function DashboardContent() {
                   <DropdownMenuItem onClick={() => setProductCategoriesOpen(true)}>
                     <Tags className="mr-2 h-4 w-4" /> Product Categories
                   </DropdownMenuItem>
-                  <SuppliersDialog />
-                  <BrandsDialog />
+                  <SuppliersDialog menuItem />
+                  <BrandsDialog menuItem />
                   <DropdownMenuItem onClick={() => setPaymentMethodsOpen(true)}>
                     <CreditCard className="mr-2 h-4 w-4" /> Payment Methods
                   </DropdownMenuItem>
@@ -359,7 +359,7 @@ function DashboardContent() {
                       >
                         <MapPin className="mr-2 h-4 w-4" /> Branches
                       </DropdownMenuItem>
-                      <CustomersDialog />
+                      <CustomersDialog menuItem />
                       <DropdownMenuItem
                         onClick={() => setUsersDialogOpen(true)}
                       >
@@ -374,7 +374,7 @@ function DashboardContent() {
               {canCreateProduct && (
                 <Button
                   onClick={() => setProductDialogOpen(true)}
-                  className="w-full sm:w-auto bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-md shadow-amber-500/10 transition-all active:scale-[0.98]"
+                  className="w-full bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-md shadow-amber-500/10 transition-all active:scale-[0.98] md:w-auto"
                 >
                   <Plus className="mr-2 h-4 w-4" /> Product
                 </Button>
