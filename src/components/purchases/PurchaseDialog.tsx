@@ -18,6 +18,9 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { getPurchasableProductsForPurchase } from '@/lib/purchase-products';
 import { calculateMarkupPercent, calculateSellingPrice } from '@/lib/markup';
+import { PurchaseVariationPicker } from './PurchaseVariationPicker';
+import { formatVariationLabel, type ProductVariation } from '@/hooks/useProductVariations';
+import { getPurchaseItemKey } from '@/lib/purchase-item-key';
 
 interface PurchaseDialogProps {
   open: boolean;
@@ -26,6 +29,7 @@ interface PurchaseDialogProps {
 
 interface CartItem extends PurchaseItemInput {
   product: Product;
+  variation?: ProductVariation;
 }
 
 export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
@@ -54,6 +58,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
   const [uploading, setUploading] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [variationProduct, setVariationProduct] = useState<Product | null>(null);
 
   // Filter products by selected branch
   const availableProducts = useMemo(() => {
@@ -87,29 +92,36 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
     }).format(value);
   };
 
-  const addToCart = (product: Product) => {
-    const existing = cart.find(item => item.product_id === product.id);
-    if (existing) {
-      setCart(cart.map(item =>
-        item.product_id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, {
+  const getCartKey = (item: CartItem) => getPurchaseItemKey(item.product_id, item.variation_id);
+
+  const addToCart = (product: Product, variation?: ProductVariation) => {
+    const variationId = variation?.id || null;
+    const cartKey = getPurchaseItemKey(product.id, variationId);
+    setCart((currentCart) => {
+      const existing = currentCart.find(item => getCartKey(item) === cartKey);
+      if (existing) {
+        return currentCart.map(item =>
+          getCartKey(item) === cartKey
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...currentCart, {
         product_id: product.id,
+        variation_id: variationId,
         product,
+        variation,
         quantity: 1,
-        unit_cost: Number(product.cost_price) || 0,
-        selling_price: Number(product.selling_price) || 0,
-      }]);
-    }
+        unit_cost: Number(variation?.cost_price ?? product.cost_price) || 0,
+        selling_price: Number(variation?.selling_price ?? product.selling_price) || 0,
+      }];
+    });
     setSearchQuery('');
   };
 
-  const updateCartItem = (productId: string, field: 'quantity' | 'unit_cost' | 'markup_percent' | 'selling_price', value: number | string) => {
+  const updateCartItem = (key: string, field: 'quantity' | 'unit_cost' | 'markup_percent' | 'selling_price', value: number | string) => {
     setCart(cart.map(item =>
-      item.product_id === productId
+      getCartKey(item) === key
         ? field === 'markup_percent'
           ? { ...item, selling_price: calculateSellingPrice(item.unit_cost, Number(value) || 0) }
           : field === 'unit_cost'
@@ -119,8 +131,8 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
     ));
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(cart.filter(item => item.product_id !== productId));
+  const removeFromCart = (key: string) => {
+    setCart(cart.filter(item => getCartKey(item) !== key));
   };
 
   const handleSubmit = async () => {
@@ -278,7 +290,8 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                     {filteredProducts.map(product => (
                       <button
                         key={product.id}
-                        onClick={() => addToCart(product)}
+                        type="button"
+                        onClick={() => product.item_type === 'variable' ? setVariationProduct(product) : addToCart(product)}
                         className="w-full flex items-center justify-between p-2 rounded-md hover:bg-muted text-left"
                       >
                         <div>
@@ -320,13 +333,15 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cart.map(item => (
-                      <TableRow key={item.product_id}>
+                    {cart.map(item => {
+                      const key = getCartKey(item);
+                      return (
+                      <TableRow key={key}>
                         <TableCell>
                           <div>
                             <p className="font-medium">{item.product.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {item.product.units?.abbreviation || item.product.units?.name}
+                              {item.variation ? formatVariationLabel(item.variation) : item.product.units?.abbreviation || item.product.units?.name}
                             </p>
                           </div>
                         </TableCell>
@@ -335,8 +350,8 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                             type="number"
                             min="1"
                             value={item.quantity}
-                            onChange={(e) => updateCartItem(item.product_id, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
-                            onBlur={(e) => { if (!e.target.value || Number(e.target.value) < 1) updateCartItem(item.product_id, 'quantity', 1); }}
+                            onChange={(e) => updateCartItem(key, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
+                            onBlur={(e) => { if (!e.target.value || Number(e.target.value) < 1) updateCartItem(key, 'quantity', 1); }}
                             className="w-20"
                           />
                         </TableCell>
@@ -346,7 +361,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                             min="0"
                             step="any"
                             value={item.unit_cost}
-                            onChange={(e) => updateCartItem(item.product_id, 'unit_cost', e.target.value === '' ? 0 : Number(e.target.value))}
+                            onChange={(e) => updateCartItem(key, 'unit_cost', e.target.value === '' ? 0 : Number(e.target.value))}
                             className="w-24"
                           />
                         </TableCell>
@@ -355,7 +370,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                             type="number"
                             step="0.01"
                             value={calculateMarkupPercent(item.unit_cost, item.selling_price)}
-                            onChange={(e) => updateCartItem(item.product_id, 'markup_percent', e.target.value === '' ? 0 : Number(e.target.value))}
+                            onChange={(e) => updateCartItem(key, 'markup_percent', e.target.value === '' ? 0 : Number(e.target.value))}
                             className="w-24"
                           />
                         </TableCell>
@@ -365,7 +380,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                             min="0"
                             step="any"
                             value={item.selling_price}
-                            onChange={(e) => updateCartItem(item.product_id, 'selling_price', e.target.value === '' ? 0 : Number(e.target.value))}
+                            onChange={(e) => updateCartItem(key, 'selling_price', e.target.value === '' ? 0 : Number(e.target.value))}
                             className="w-24"
                           />
                         </TableCell>
@@ -376,14 +391,14 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => removeFromCart(item.product_id)}
+                            onClick={() => removeFromCart(key)}
                             className="text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ); })}
                   </TableBody>
                 </Table>
               </div>
@@ -463,6 +478,15 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
           </div>
         </DialogFooter>
       </DialogContent>
+      <PurchaseVariationPicker
+        product={variationProduct}
+        open={!!variationProduct}
+        onOpenChange={(open) => !open && setVariationProduct(null)}
+        onSelect={(variations) => {
+          if (variationProduct) variations.forEach((variation) => addToCart(variationProduct, variation));
+          setVariationProduct(null);
+        }}
+      />
     </Dialog>
   );
 }

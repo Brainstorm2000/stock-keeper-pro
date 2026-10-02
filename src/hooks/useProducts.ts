@@ -5,10 +5,14 @@ import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 import { generateSku } from '@/lib/sku';
 import { productsTable, readLocalFirst, saveLocal, removeLocal } from '@/lib/offline/repository';
+import { createId } from '@/lib/utils';
+import { getProductType, type ProductType } from '@/lib/product-type';
+
+export { getProductType } from '@/lib/product-type';
+export type { ProductType } from '@/lib/product-type';
 
 export type ItemType = 'product' | 'service' | 'variable';
 export type ProductCategory = 'sellable' | 'consumable';
-
 export interface Product {
   id: string;
   name: string;
@@ -16,6 +20,7 @@ export interface Product {
   branch_id: string;
   supplier_id: string | null;
   brand_id: string | null;
+  product_category_id: string | null;
   opening_stock: number;
   current_stock: number;
   low_stock_threshold: number;
@@ -48,6 +53,10 @@ export interface Product {
     id: string;
     name: string;
   };
+  product_categories?: {
+    id: string;
+    name: string;
+  } | null;
   variations?: Array<{
     id: string;
     current_stock: number;
@@ -62,6 +71,7 @@ export interface ProductInput {
   branch_id: string;
   supplier_id?: string;
   brand_id?: string;
+  product_category_id?: string | null;
   opening_stock: number;
   current_stock: number;
   low_stock_threshold: number;
@@ -163,7 +173,8 @@ export function useProducts(options?: { includeArchived?: boolean }) {
           units (id, name, abbreviation),
           branches (id, name),
           suppliers (id, name),
-          brands (id, name)
+          brands (id, name),
+          product_categories (id, name)
           `)
           .order('name');
         query = query.eq('organization_id', organizationId!);
@@ -226,7 +237,7 @@ export function useCreateProduct() {
         const now = new Date().toISOString();
         return saveLocal(productsTable, {
           ...product,
-          id: crypto.randomUUID(),
+          id: createId(),
           sku,
           created_by: actorId,
           organization_id: product.organization_id,

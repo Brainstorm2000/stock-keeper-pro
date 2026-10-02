@@ -7,6 +7,7 @@ import { getDefaultAttendanceHours } from '@/lib/attendance-hours';
 import { isOffline } from '@/lib/offline/interceptor';
 import { localDb } from '@/lib/offline/db';
 import { saveLocal } from '@/lib/offline/repository';
+import { createId } from '@/lib/utils';
 
 export interface Attendance {
   id: string;
@@ -232,7 +233,7 @@ export function useClockIn() {
       const status = computeStatus(now, shift.start_time, shift.grace_period_minutes, today);
 
       const defaultHours = getDefaultAttendanceHours();
-      const id = crypto.randomUUID();
+      const id = createId();
       const nowIso = now.toISOString();
       const localAttendance = {
         id,

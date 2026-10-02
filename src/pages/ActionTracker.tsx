@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
 
 const priorityColors: Record<string, string> = {
   low: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -50,6 +52,7 @@ function ActionTrackerContent() {
   });
 
   const { paginatedItems: paginatedTasks, currentPage, totalPages, totalItems, pageSize, goToPage, setPageSize } = usePagination(filtered);
+  const selection = useBulkSelection(paginatedTasks);
 
   const handleEdit = (t: ActionTask) => { setEditingTask(t); setDialogOpen(true); };
   const handleDialogClose = (open: boolean) => { setDialogOpen(open); if (!open) setEditingTask(null); };
@@ -126,10 +129,23 @@ function ActionTrackerContent() {
         {isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : (
-          <div className="rounded-md border overflow-x-auto">
+          <div className="space-y-3">
+            <BulkActionBar
+              selectedCount={selection.selectedIds.size}
+              itemLabel="tasks"
+              canDelete={canDelete}
+              deleting={deleteTask.isPending}
+              onClear={selection.clearSelection}
+              onDelete={async () => {
+                await Promise.all(Array.from(selection.selectedIds, (id) => deleteTask.mutateAsync(id)));
+                selection.clearSelection();
+              }}
+            />
+            <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canDelete && <TableHead className="w-10"><BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all tasks on this page" /></TableHead>}
                   <TableHead>Title</TableHead>
                   <TableHead>Assigned To</TableHead>
                   <TableHead className="hidden sm:table-cell">Branch</TableHead>
@@ -142,7 +158,7 @@ function ActionTrackerContent() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No tasks found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={canDelete ? 9 : 8} className="text-center text-muted-foreground py-8">No tasks found</TableCell></TableRow>
                 ) : paginatedTasks.map(t => (
                   <TableRow
                     key={t.id}
@@ -152,6 +168,7 @@ function ActionTrackerContent() {
                         : 'transition-opacity duration-200 opacity-100'
                     }
                   >
+                    {canDelete && <TableCell><BulkSelectCheckbox checked={selection.selectedIds.has(t.id)} onCheckedChange={(checked) => selection.toggleOne(t.id, checked)} label={`Select ${t.title}`} /></TableCell>}
                     <TableCell className="font-medium max-w-[200px] truncate">{t.title}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -193,6 +210,7 @@ function ActionTrackerContent() {
               </TableBody>
             </Table>
             <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} onPageSizeChange={setPageSize} />
+            </div>
           </div>
         )}
       </div>

@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useUnits, useCreateUnit, useDeleteUnit, type Unit } from '@/hooks/useUnits';
 import { Loader2, Plus, Trash2, Ruler } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
 
 interface UnitsDialogProps {
   open: boolean;
@@ -21,6 +23,7 @@ export function UnitsDialog({ open, onOpenChange }: UnitsDialogProps) {
   const createUnit = useCreateUnit();
   const deleteUnit = useDeleteUnit();
   const { toast } = useToast();
+  const selection = useBulkSelection(units);
 
   const handleAddUnit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,10 +84,24 @@ export function UnitsDialog({ open, onOpenChange }: UnitsDialogProps) {
           </Button>
         </form>
 
+        <BulkActionBar
+          selectedCount={selection.selectedIds.size}
+          itemLabel="units"
+          canDelete
+          onClear={selection.clearSelection}
+          onDelete={async () => {
+            await Promise.all(Array.from(selection.selectedIds, (id) => deleteUnit.mutateAsync(id)));
+            selection.clearSelection();
+          }}
+          deleting={deleteUnit.isPending}
+        />
         <div className="flex-1 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all units" />
+                </TableHead>
                 <TableHead>Unit Name</TableHead>
                 <TableHead>Abbreviation</TableHead>
                 <TableHead className="w-[60px]"></TableHead>
@@ -93,19 +110,22 @@ export function UnitsDialog({ open, onOpenChange }: UnitsDialogProps) {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8">
+                  <TableCell colSpan={4} className="text-center py-8">
                     <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                   </TableCell>
                 </TableRow>
               ) : units.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                     No units defined yet
                   </TableCell>
                 </TableRow>
               ) : (
                 units.map((unit) => (
                   <TableRow key={unit.id}>
+                    <TableCell>
+                      <BulkSelectCheckbox checked={selection.selectedIds.has(unit.id)} onCheckedChange={(checked) => selection.toggleOne(unit.id, checked)} label={`Select ${unit.name}`} />
+                    </TableCell>
                     <TableCell className="font-medium">{unit.name}</TableCell>
                     <TableCell className="text-muted-foreground">{unit.abbreviation || '—'}</TableCell>
                     <TableCell>

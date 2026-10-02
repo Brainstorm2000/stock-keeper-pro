@@ -1,4 +1,5 @@
 import { get, set, createStore } from "idb-keyval";
+import { createId } from "@/lib/utils";
 
 export type QueueOp = "insert" | "update" | "delete" | "upsert";
 
@@ -61,7 +62,7 @@ export async function enqueue(
   const items = await load();
   const record: QueuedMutation = {
     ...item,
-    id: crypto.randomUUID(),
+    id: createId(),
     createdAt: new Date().toISOString(),
     status: "pending",
     attempts: 0,

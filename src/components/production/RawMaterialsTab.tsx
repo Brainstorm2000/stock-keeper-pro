@@ -59,6 +59,8 @@ import { useRecordWaste } from "@/hooks/useWorkOrders";
 import { useUnits } from "@/hooks/useUnits";
 import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
 import { formatCurrency } from "@/lib/currency";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { BulkActionBar, BulkSelectCheckbox } from "@/components/ui/bulk-action-bar";
 
 export function RawMaterialsTab() {
   const { data: materials = [], isLoading } = useRawMaterials();
@@ -103,6 +105,7 @@ export function RawMaterialsTab() {
       m.name.toLowerCase().includes(search.toLowerCase()) ||
       m.sku?.toLowerCase().includes(search.toLowerCase()),
   );
+  const selection = useBulkSelection(filtered);
 
   const getStockStatus = (m: RawMaterial) => {
     if (m.current_stock <= 0) return "out_of_stock";
@@ -247,10 +250,23 @@ export function RawMaterialsTab() {
         )}
       </div>
 
+      <div className="space-y-3">
+      <BulkActionBar
+        selectedCount={selection.selectedIds.size}
+        itemLabel="raw materials"
+        canDelete={canDelete}
+        deleting={deleteMaterial.isPending}
+        onClear={selection.clearSelection}
+        onDelete={async () => {
+          await Promise.all(Array.from(selection.selectedIds, (id) => deleteMaterial.mutateAsync(id)));
+          selection.clearSelection();
+        }}
+      />
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
+              {canDelete && <TableHead className="w-10"><BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all raw materials" /></TableHead>}
               <TableHead>Name</TableHead>
               <TableHead>SKU</TableHead>
               <TableHead>Unit</TableHead>
@@ -264,7 +280,7 @@ export function RawMaterialsTab() {
             {isLoading ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={canDelete ? 8 : 7}
                   className="text-center py-8 text-muted-foreground"
                 >
                   Loading...
@@ -273,7 +289,7 @@ export function RawMaterialsTab() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={canDelete ? 8 : 7}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No raw materials found
@@ -284,6 +300,7 @@ export function RawMaterialsTab() {
                 const status = getStockStatus(m);
                 return (
                   <TableRow key={m.id}>
+                    {canDelete && <TableCell><BulkSelectCheckbox checked={selection.selectedIds.has(m.id)} onCheckedChange={(checked) => selection.toggleOne(m.id, checked)} label={`Select ${m.name}`} /></TableCell>}
                     <TableCell className="font-medium">{m.name}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {m.sku || "—"}
@@ -385,6 +402,7 @@ export function RawMaterialsTab() {
           </TableBody>
         </Table>
       </Card>
+      </div>
 
       {/* Create/Edit Dialog */}
       <Dialog

@@ -23,6 +23,8 @@ import {
 import { PaymentIcon, PAYMENT_ICON_NAMES } from "@/lib/payment-icons";
 import type { PaymentMethod } from "@/hooks/useSales";
 import { cn } from "@/lib/utils";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { BulkActionBar, BulkSelectCheckbox } from "@/components/ui/bulk-action-bar";
 
 interface Props {
   open: boolean;
@@ -34,6 +36,8 @@ export function PaymentMethodsDialog({ open, onOpenChange }: Props) {
   const createMethod = useCreatePaymentMethod();
   const updateMethod = useUpdatePaymentMethod();
   const deleteMethod = useDeletePaymentMethod();
+  const selectableMethods = methods.filter((method) => !method.is_builtin);
+  const selection = useBulkSelection(selectableMethods);
 
   const [editing, setEditing] = useState<OrgPaymentMethod | null>(null);
   const [form, setForm] = useState({
@@ -80,12 +84,27 @@ export function PaymentMethodsDialog({ open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          <BulkActionBar
+            selectedCount={selection.selectedIds.size}
+            itemLabel="payment methods"
+            canDelete
+            deleting={deleteMethod.isPending}
+            onClear={selection.clearSelection}
+            onDelete={async () => {
+              await Promise.all(Array.from(selection.selectedIds, (id) => deleteMethod.mutateAsync(id)));
+              selection.clearSelection();
+            }}
+          />
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all custom payment methods" />
+                Select all custom methods
+              </label>
               {methods.map((m) => (
                 <div
                   key={m.id}
@@ -94,6 +113,12 @@ export function PaymentMethodsDialog({ open, onOpenChange }: Props) {
                     !m.is_active && "opacity-60",
                   )}
                 >
+                  <BulkSelectCheckbox
+                    checked={selection.selectedIds.has(m.id)}
+                    disabled={m.is_builtin}
+                    onCheckedChange={(checked) => selection.toggleOne(m.id, checked)}
+                    label={`Select ${m.name}`}
+                  />
                   <div className="p-2 bg-muted rounded-md">
                     <PaymentIcon name={m.icon} />
                   </div>

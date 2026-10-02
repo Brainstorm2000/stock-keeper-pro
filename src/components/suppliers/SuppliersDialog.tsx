@@ -33,6 +33,8 @@ import { useSuppliers, useCreateSupplier, useUpdateSupplier, useDeleteSupplier, 
 import { useOrganization } from '@/hooks/useOrganization';
 import { parseGenericCSV, exportToCSV, generateSuppliersCSVTemplate, downloadCSV } from '@/lib/csv-utils';
 import { useToast } from '@/hooks/use-toast';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
 
 export function SuppliersDialog() {
   const [open, setOpen] = useState(false);
@@ -63,6 +65,7 @@ export function SuppliersDialog() {
     s.email?.toLowerCase().includes(search.toLowerCase()) ||
     s.phone?.toLowerCase().includes(search.toLowerCase())
   );
+  const selection = useBulkSelection(filteredSuppliers);
 
   const resetForm = () => {
     setFormData({ name: '', email: '', phone: '', address: '', notes: '' });
@@ -273,10 +276,24 @@ export function SuppliersDialog() {
           </Dialog>
         </div>
 
+        <BulkActionBar
+          selectedCount={selection.selectedIds.size}
+          itemLabel="suppliers"
+          canDelete
+          onClear={selection.clearSelection}
+          onDelete={async () => {
+            await Promise.all(Array.from(selection.selectedIds, (id) => deleteSupplier.mutateAsync(id)));
+            selection.clearSelection();
+          }}
+          deleting={deleteSupplier.isPending}
+        />
         <div className="flex-1 overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all suppliers" />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
@@ -287,19 +304,22 @@ export function SuppliersDialog() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : filteredSuppliers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No suppliers found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredSuppliers.map((supplier) => (
                   <TableRow key={supplier.id}>
+                    <TableCell>
+                      <BulkSelectCheckbox checked={selection.selectedIds.has(supplier.id)} onCheckedChange={(checked) => selection.toggleOne(supplier.id, checked)} label={`Select ${supplier.name}`} />
+                    </TableCell>
                     <TableCell className="font-medium">{supplier.name}</TableCell>
                     <TableCell>{supplier.email || '-'}</TableCell>
                     <TableCell>{supplier.phone || '-'}</TableCell>

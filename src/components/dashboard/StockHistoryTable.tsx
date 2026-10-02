@@ -46,7 +46,6 @@ import {
 
 interface StockHistoryTableProps {
   productId?: string;
-  limit?: number;
 }
 
 function getChangeIcon(changeType: string) {
@@ -85,7 +84,6 @@ function getChangeBadgeVariant(changeType: string) {
 
 export function StockHistoryTable({
   productId,
-  limit = 1000,
 }: StockHistoryTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -94,7 +92,6 @@ export function StockHistoryTable({
 
   const { data: history, isLoading } = useStockHistory(
     productId,
-    limit,
     categoryFilter !== "all"
       ? (categoryFilter as "sellable" | "consumable")
       : undefined,

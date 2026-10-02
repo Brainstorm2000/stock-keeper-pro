@@ -77,6 +77,8 @@ import { SaleReturnDialog } from "@/components/sales/SaleReturnDialog";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
 import { exportToXLSX } from "@/lib/export-utils";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { BulkActionBar, BulkSelectCheckbox } from "@/components/ui/bulk-action-bar";
 
 const statusColors: Record<SaleStatus, string> = {
   completed:
@@ -244,6 +246,14 @@ export default function Sales() {
     goToPage,
     setPageSize,
   } = usePagination(filteredSales);
+  const selection = useBulkSelection(paginatedSales);
+
+  const handleBulkDelete = async () => {
+    for (const sale of sales.filter((item) => selection.selectedIds.has(item.id))) {
+      await deleteSale.mutateAsync(sale.id);
+    }
+    selection.clearSelection();
+  };
 
   // Calculate totals
   const totalSales = filteredSales.reduce(
@@ -478,11 +488,21 @@ export default function Sales() {
             </div>
           </div>
 
+          <BulkActionBar
+            selectedCount={selection.selectedIds.size}
+            itemLabel="sales"
+            canDelete={canDelete}
+            deleting={deleteSale.isPending}
+            onClear={selection.clearSelection}
+            onDelete={handleBulkDelete}
+          />
+
           {/* Sales Table */}
           <Card>
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canDelete && <TableHead className="w-10"><BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all sales on this page" /></TableHead>}
                   <TableHead>Invoice #</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Customer</TableHead>
@@ -496,14 +516,14 @@ export default function Sales() {
               <TableBody>
                 {salesLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={8 + (canDelete ? 1 : 0)} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 ) : filteredSales.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={8 + (canDelete ? 1 : 0)}
                       className="text-center py-8 text-muted-foreground"
                     >
                       No sales found
@@ -512,6 +532,7 @@ export default function Sales() {
                 ) : (
                   paginatedSales.map((sale) => (
                     <TableRow key={sale.id}>
+                      {canDelete && <TableCell><BulkSelectCheckbox checked={selection.selectedIds.has(sale.id)} onCheckedChange={(checked) => selection.toggleOne(sale.id, checked)} label={`Select sale ${sale.sale_number}`} /></TableCell>}
                       <TableCell className="font-mono font-medium">
                         {sale.sale_number}
                       </TableCell>
@@ -604,7 +625,7 @@ export default function Sales() {
               {!salesLoading && paginatedSales.length > 0 && (
                 <TableFooter>
                   <TableRow>
-                    <TableCell colSpan={5} className="font-semibold">
+                    <TableCell colSpan={5 + (canDelete ? 1 : 0)} className="font-semibold">
                       Displayed total
                     </TableCell>
                     <TableCell className="text-right font-bold">

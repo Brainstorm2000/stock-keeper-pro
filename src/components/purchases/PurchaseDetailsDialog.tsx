@@ -158,6 +158,11 @@ export function PurchaseDetailsDialog({
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">
                       {item.products?.name || "Unknown Product"}
+                      {item.product_variations?.sku && (
+                        <span className="block text-xs text-muted-foreground">
+                          Variation: {item.product_variations.sku}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge

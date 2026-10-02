@@ -21,6 +21,8 @@ import { useCreateStaff } from '@/hooks/useStaff';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
 
 function StaffContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -52,6 +54,7 @@ function StaffContent() {
   });
 
   const { paginatedItems: paginatedStaff, currentPage, totalPages, totalItems, pageSize, goToPage, setPageSize } = usePagination(filtered);
+  const selection = useBulkSelection(paginatedStaff);
 
   const handleEdit = (s: Staff) => { setEditingStaff(s); setDialogOpen(true); };
   const handleDialogClose = (open: boolean) => { setDialogOpen(open); if (!open) setEditingStaff(null); };
@@ -143,10 +146,23 @@ function StaffContent() {
         {isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : (
-          <div className="rounded-md border overflow-x-auto">
+          <div className="space-y-3">
+            <BulkActionBar
+              selectedCount={selection.selectedIds.size}
+              itemLabel="staff members"
+              canDelete={canDelete}
+              deleting={deleteStaff.isPending}
+              onClear={selection.clearSelection}
+              onDelete={async () => {
+                await Promise.all(Array.from(selection.selectedIds, (id) => deleteStaff.mutateAsync(id)));
+                selection.clearSelection();
+              }}
+            />
+            <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canDelete && <TableHead className="w-10"><BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all staff on this page" /></TableHead>}
                   <TableHead>Staff ID</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead className="hidden md:table-cell">Email</TableHead>
@@ -160,9 +176,10 @@ function StaffContent() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No staff found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={canDelete ? 10 : 9} className="text-center text-muted-foreground py-8">No staff found</TableCell></TableRow>
                 ) : paginatedStaff.map(s => (
                   <TableRow key={s.id}>
+                    {canDelete && <TableCell><BulkSelectCheckbox checked={selection.selectedIds.has(s.id)} onCheckedChange={(checked) => selection.toggleOne(s.id, checked)} label={`Select ${s.full_name}`} /></TableCell>}
                     <TableCell className="font-mono text-xs">{s.staff_id || '-'}</TableCell>
                     <TableCell className="font-medium">{s.full_name}</TableCell>
                     <TableCell className="hidden md:table-cell">{s.email || '-'}</TableCell>
@@ -190,6 +207,7 @@ function StaffContent() {
               </TableBody>
             </Table>
             <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={goToPage} onPageSizeChange={setPageSize} />
+            </div>
           </div>
         )}
       </div>

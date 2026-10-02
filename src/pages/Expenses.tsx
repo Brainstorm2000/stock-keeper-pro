@@ -81,6 +81,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
 import { exportToXLSX } from "@/lib/export-utils";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { BulkActionBar, BulkSelectCheckbox } from "@/components/ui/bulk-action-bar";
 
 export default function Expenses() {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -127,6 +129,7 @@ export default function Expenses() {
   const deleteExpense = useDeleteExpense();
   const createCategory = useCreateExpenseCategory();
   const deleteCategory = useDeleteExpenseCategory();
+  const categorySelection = useBulkSelection(categories);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -169,6 +172,7 @@ export default function Expenses() {
     goToPage,
     setPageSize,
   } = usePagination(filteredExpenses);
+  const selection = useBulkSelection(paginatedExpenses);
 
   // Calculate totals
   const totalExpenses = filteredExpenses.reduce(
@@ -433,11 +437,24 @@ export default function Expenses() {
             )}
           </div>
 
+          <BulkActionBar
+            selectedCount={selection.selectedIds.size}
+            itemLabel="expenses"
+            canDelete={canDelete}
+            deleting={deleteExpense.isPending}
+            onClear={selection.clearSelection}
+            onDelete={async () => {
+              await Promise.all(Array.from(selection.selectedIds, (id) => deleteExpense.mutateAsync(id)));
+              selection.clearSelection();
+            }}
+          />
+
           {/* Expenses Table */}
           <Card>
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canDelete && <TableHead className="w-10"><BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all expenses on this page" /></TableHead>}
                   <TableHead>Date</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Category</TableHead>
@@ -454,7 +471,7 @@ export default function Expenses() {
                 {expensesLoading ? (
                   <TableRow>
                     <TableCell
-                      colSpan={branches.length > 0 ? 8 : 7}
+                      colSpan={(branches.length > 0 ? 7 : 6) + (isAdmin ? 1 : 0) + (canDelete ? 1 : 0)}
                       className="text-center py-8"
                     >
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
@@ -463,7 +480,7 @@ export default function Expenses() {
                 ) : filteredExpenses.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={branches.length > 0 ? 8 : 7}
+                      colSpan={(branches.length > 0 ? 7 : 6) + (isAdmin ? 1 : 0) + (canDelete ? 1 : 0)}
                       className="text-center py-8 text-muted-foreground"
                     >
                       No expenses found
@@ -472,6 +489,7 @@ export default function Expenses() {
                 ) : (
                   paginatedExpenses.map((expense) => (
                     <TableRow key={expense.id}>
+                      {canDelete && <TableCell><BulkSelectCheckbox checked={selection.selectedIds.has(expense.id)} onCheckedChange={(checked) => selection.toggleOne(expense.id, checked)} label={`Select expense ${expense.description}`} /></TableCell>}
                       <TableCell>
                         {format(new Date(expense.expense_date), "MMM dd, yyyy")}
                       </TableCell>
@@ -767,7 +785,21 @@ export default function Expenses() {
               </div>
 
               <div className="space-y-2">
-                <Label>Existing Categories</Label>
+                <BulkActionBar
+                  selectedCount={categorySelection.selectedIds.size}
+                  itemLabel="expense categories"
+                  canDelete
+                  deleting={deleteCategory.isPending}
+                  onClear={categorySelection.clearSelection}
+                  onDelete={async () => {
+                    await Promise.all(Array.from(categorySelection.selectedIds, (id) => deleteCategory.mutateAsync(id)));
+                    categorySelection.clearSelection();
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  <BulkSelectCheckbox checked={categorySelection.allVisibleSelected} indeterminate={categorySelection.someVisibleSelected} onCheckedChange={categorySelection.toggleAllVisible} label="Select all expense categories" />
+                  <Label>Existing Categories</Label>
+                </div>
                 {categories.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     No categories yet
@@ -779,7 +811,10 @@ export default function Expenses() {
                         key={cat.id}
                         className="flex items-center justify-between p-2 rounded bg-muted"
                       >
-                        <span>{cat.name}</span>
+                        <div className="flex items-center gap-2">
+                          <BulkSelectCheckbox checked={categorySelection.selectedIds.has(cat.id)} onCheckedChange={(checked) => categorySelection.toggleOne(cat.id, checked)} label={`Select ${cat.name}`} />
+                          <span>{cat.name}</span>
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"

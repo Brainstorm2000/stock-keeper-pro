@@ -42,6 +42,7 @@ function toSupabaseRow(name: SyncTable, data: Record<string, unknown>) {
     delete row.branches;
     delete row.suppliers;
     delete row.brands;
+    delete row.product_categories;
     delete row.variations;
   }
   if (name === "sales") delete row.sale_items;

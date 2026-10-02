@@ -31,8 +31,10 @@ import {
   checkProductDuplicate,
   type Product,
   type ProductInput,
-  type ProductCategory,
+  type ProductType,
+  getProductType,
 } from "@/hooks/useProducts";
+import { useProductCategories } from "@/hooks/useProductCategories";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -67,8 +69,8 @@ const productSchema = z.object({
   branch_id: z.string().optional(),
   supplier_id: z.string().optional(),
   brand_id: z.string().optional(),
-  item_type: z.enum(["product", "service", "variable"]),
-  category: z.enum(["sellable", "consumable"]),
+  product_type: z.enum(["sellable", "consumable", "variable", "service"]),
+  product_category_id: z.string().min(1, "Product category is required"),
   is_taxable: z.boolean().default(true),
   opening_stock: z.coerce.number().min(0, "Must be 0 or greater"),
   current_stock: z.coerce.number().min(0, "Must be 0 or greater"),
@@ -111,6 +113,7 @@ export function ProductDialog({
   const defaultBranchId = useDefaultBranchId();
   const { data: suppliers = [] } = useSuppliers();
   const { data: brands = [] } = useBrands();
+  const { data: productCategories = [] } = useProductCategories();
   const { data: organization } = useOrganization();
   const { data: attributes = [] } = useProductAttributes();
   const createAttribute = useCreateAttribute();
@@ -146,8 +149,8 @@ export function ProductDialog({
       branch_id: "",
       supplier_id: "",
       brand_id: "",
-      item_type: "product",
-      category: "sellable",
+      product_type: "sellable",
+      product_category_id: "",
       is_taxable: true,
       opening_stock: 0,
       current_stock: 0,
@@ -170,8 +173,8 @@ export function ProductDialog({
         branch_id: product.branch_id || "",
         supplier_id: product.supplier_id || "",
         brand_id: product.brand_id || "",
-        item_type: product.item_type || "product",
-        category: product.category || "sellable",
+        product_type: getProductType(product),
+        product_category_id: product.product_category_id || "",
         is_taxable: product.is_taxable ?? true,
         opening_stock: Number(product.opening_stock),
         current_stock: Number(product.current_stock),
@@ -192,8 +195,8 @@ export function ProductDialog({
         branch_id: defaultBranchId || "",
         supplier_id: "",
         brand_id: "",
-        item_type: "product",
-        category: "sellable",
+        product_type: "sellable",
+        product_category_id: "",
         is_taxable: true,
         opening_stock: 0,
         current_stock: 0,
@@ -213,6 +216,12 @@ export function ProductDialog({
       setCreateAcrossBranches(false);
     }
   }, [product, reset, defaultBranchId]);
+
+  useEffect(() => {
+    if (product || watch("product_category_id") || productCategories.length === 0) return;
+    const defaultCategory = productCategories.find((category) => category.name.toLowerCase() === "uncategorized") || productCategories[0];
+    setValue("product_category_id", defaultCategory.id);
+  }, [product, productCategories, setValue, watch]);
 
   // Hydrate variation drafts when editing a variable product
   useEffect(() => {
@@ -296,21 +305,26 @@ export function ProductDialog({
         branch_id: data.branch_id || targetBranchIds[0],
         supplier_id: data.supplier_id || undefined,
         brand_id: data.brand_id || undefined,
-        item_type: data.item_type,
-        category: data.category,
+        item_type: data.product_type === "variable" ? "variable" : data.product_type === "service" ? "service" : "product",
+        category: data.product_type === "consumable"
+          ? "consumable"
+          : data.product_type === "variable" && product?.item_type === "variable"
+            ? product.category
+            : "sellable",
+        product_category_id: data.product_category_id,
         is_taxable: data.is_taxable,
-        opening_stock: data.item_type === "variable" ? 0 : data.opening_stock,
-        current_stock: data.item_type === "variable" ? 0 : data.current_stock,
+        opening_stock: data.product_type === "variable" ? 0 : data.opening_stock,
+        current_stock: data.product_type === "variable" ? 0 : data.current_stock,
         low_stock_threshold: data.low_stock_threshold,
         out_of_stock_threshold: data.out_of_stock_threshold,
-        cost_price: data.item_type === "variable" ? 0 : data.cost_price,
-        selling_price: data.item_type === "variable" ? 0 : data.selling_price,
-        expiration_date: data.item_type === "service" ? null : data.expiration_date || null,
+        cost_price: data.product_type === "variable" ? 0 : data.cost_price,
+        selling_price: data.product_type === "variable" ? 0 : data.selling_price,
+        expiration_date: data.product_type === "service" ? null : data.expiration_date || null,
         sku: data.sku || undefined,
         description: data.description || undefined,
       };
 
-      if (data.item_type === "variable" && variationDrafts.length === 0) {
+      if (data.product_type === "variable" && variationDrafts.length === 0) {
         toast({
           title: "Add at least one variation",
           description: "Variable products need one or more variations.",
@@ -358,13 +372,13 @@ export function ProductDialog({
           });
           savedProductId = (created as { id: string }).id;
 
-          if (data.item_type === "variable" && organization?.id) {
+          if (data.product_type === "variable" && organization?.id) {
             await saveProductVariations(savedProductId, organization.id, variationDrafts);
           }
         }
       }
 
-      if (isEditing && data.item_type === "variable" && savedProductId && organization?.id) {
+      if (isEditing && data.product_type === "variable" && savedProductId && organization?.id) {
         await saveProductVariations(savedProductId, organization.id, variationDrafts);
       }
 
@@ -377,10 +391,10 @@ export function ProductDialog({
   const selectedUnitId = watch("unit_id");
   const selectedSupplierId = watch("supplier_id");
   const selectedBrandId = watch("brand_id");
-  const selectedItemType = watch("item_type");
-  const selectedCategory = watch("category");
+  const selectedProductType = watch("product_type");
+  const selectedProductCategoryId = watch("product_category_id");
 
-  const isVariable = selectedItemType === "variable";
+  const isVariable = selectedProductType === "variable";
 
   const handleAddAttribute = async () => {
     if (!newAttrName.trim() || !organization?.id) return;
@@ -613,43 +627,38 @@ export function ProductDialog({
               <div className="space-y-2">
                 <Label>Type *</Label>
                 <Select
-                  value={selectedItemType}
-                  onValueChange={(value: "product" | "service" | "variable") =>
-                    setValue("item_type", value)
+                  value={selectedProductType}
+                  onValueChange={(value: ProductType) =>
+                    setValue("product_type", value)
                   }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="product">Product</SelectItem>
+                    <SelectItem value="sellable">Sellable</SelectItem>
+                    <SelectItem value="consumable">Consumable</SelectItem>
+                    <SelectItem value="variable">Variable</SelectItem>
                     <SelectItem value="service">Service</SelectItem>
-                    <SelectItem value="variable">Variable Product</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label>Category *</Label>
+                <Label>Product Category *</Label>
                 <Select
-                  value={selectedCategory}
-                  onValueChange={(value: "sellable" | "consumable") =>
-                    setValue("category", value)
-                  }
+                  value={selectedProductCategoryId}
+                  onValueChange={(value) => setValue("product_category_id", value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder="Select product category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="sellable">Sellable</SelectItem>
-                    <SelectItem value="consumable">Consumable</SelectItem>
+                    {productCategories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  {selectedCategory === "sellable"
-                    ? "Sold at POS, appears on invoices, generates revenue"
-                    : "Not sold, purchased for internal use, stock managed"}
-                </p>
               </div>
 
               <div className="space-y-2 sm:col-span-2">
@@ -849,7 +858,7 @@ export function ProductDialog({
                 </div>
               )}
 
-              {!isVariable && selectedCategory === "sellable" && (
+              {!isVariable && selectedProductType === "sellable" && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="markup_percent">Markup Percent</Label>
@@ -887,7 +896,7 @@ export function ProductDialog({
                 </>
               )}
 
-              {selectedItemType === "product" && (
+              {(selectedProductType === "sellable" || selectedProductType === "consumable") && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="opening_stock">Opening Stock</Label>
@@ -959,7 +968,7 @@ export function ProductDialog({
                 </>
               )}
 
-              {selectedItemType !== "service" && (
+              {selectedProductType !== "service" && (
                 <div className="space-y-2">
                   <Label htmlFor="expiration_date">Expiration Date (Optional)</Label>
                   <Input id="expiration_date" type="date" {...register("expiration_date")} />
@@ -1117,34 +1126,34 @@ export function ProductDialog({
                   {variationDrafts.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-sm">Variations ({variationDrafts.length})</Label>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
+                      <div className="max-w-full overflow-x-auto rounded-md border">
+                        <table className="w-full min-w-[960px] text-sm">
                           <thead>
                             <tr className="border-b text-left">
-                              <th className="p-1">Variation</th>
-                              <th className="p-1">SKU</th>
-                              <th className="p-1">Stock</th>
-                              <th className="p-1">Cost</th>
-                              <th className="p-1">Markup %</th>
-                              <th className="p-1">Price</th>
-                              <th className="p-1">Low</th>
-                              <th className="p-1"></th>
+                              <th className="min-w-44 p-2">Variation</th>
+                              <th className="min-w-40 p-2">SKU</th>
+                              <th className="min-w-32 p-2">Stock</th>
+                              <th className="min-w-32 p-2">Cost</th>
+                              <th className="min-w-32 p-2">Markup %</th>
+                              <th className="min-w-32 p-2">Price</th>
+                              <th className="min-w-32 p-2">Low</th>
+                              <th className="w-12 p-2"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {variationDrafts.map((d, idx) => (
                               <tr key={idx} className="border-b">
-                                <td className="p-1 font-medium">{variationLabel(d) || "—"}</td>
-                                <td className="p-1">
+                                <td className="p-2 font-medium">{variationLabel(d) || "—"}</td>
+                                <td className="p-2">
                                   <Input
-                                    className="h-7 text-xs"
+                                    className="h-10 min-w-32 text-sm"
                                     value={d.sku}
                                     onChange={(e) => updateDraft(idx, { sku: e.target.value })}
                                   />
                                 </td>
-                                <td className="p-1 w-20">
+                                <td className="p-2 min-w-32">
                                   <Input
-                                    className="h-7 text-xs"
+                                    className="h-10 min-w-28 text-sm"
                                     type="number"
                                     min="0"
                                     value={d.current_stock}
@@ -1156,9 +1165,9 @@ export function ProductDialog({
                                     }
                                   />
                                 </td>
-                                <td className="p-1 w-24">
+                                <td className="p-2 min-w-32">
                                   <Input
-                                    className="h-7 text-xs"
+                                    className="h-10 min-w-28 text-sm"
                                     type="number"
                                     min="0"
                                     value={d.cost_price}
@@ -1174,9 +1183,9 @@ export function ProductDialog({
                                     }}
                                   />
                                 </td>
-                                <td className="p-1 w-24">
+                                <td className="p-2 min-w-32">
                                   <Input
-                                    className="h-7 text-xs"
+                                    className="h-10 min-w-28 text-sm"
                                     type="number"
                                     step="0.01"
                                     value={calculateMarkupPercent(d.cost_price, d.selling_price)}
@@ -1187,33 +1196,33 @@ export function ProductDialog({
                                     }
                                   />
                                 </td>
-                                <td className="p-1 w-24">
+                                <td className="p-2 min-w-32">
                                   <Input
-                                    className="h-7 text-xs"
+                                    className="h-10 min-w-28 text-sm"
                                     type="number"
                                     min="0"
                                     value={d.selling_price}
                                     onChange={(e) => updateDraft(idx, { selling_price: Number(e.target.value) || 0 })}
                                   />
                                 </td>
-                                <td className="p-1 w-16">
+                                <td className="p-2 min-w-32">
                                   <Input
-                                    className="h-7 text-xs"
+                                    className="h-10 min-w-28 text-sm"
                                     type="number"
                                     min="0"
                                     value={d.low_stock_threshold}
                                     onChange={(e) => updateDraft(idx, { low_stock_threshold: Number(e.target.value) })}
                                   />
                                 </td>
-                                <td className="p-1">
+                                <td className="p-2">
                                   <Button
                                     type="button"
                                     size="icon"
                                     variant="ghost"
-                                    className="h-7 w-7"
+                                    className="h-9 w-9"
                                     onClick={() => removeDraft(idx)}
                                   >
-                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                    <Trash2 className="h-4 w-4 text-destructive" />
                                   </Button>
                                 </td>
                               </tr>

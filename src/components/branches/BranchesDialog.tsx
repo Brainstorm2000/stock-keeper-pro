@@ -5,6 +5,8 @@ import { useBranches, useDeleteBranch, type Branch } from '@/hooks/useBranches';
 import { BranchDialog } from './BranchDialog';
 import { Plus, Pencil, Trash2, MapPin, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
 
 interface BranchesDialogProps {
   open: boolean;
@@ -17,6 +19,7 @@ export function BranchesDialog({ open, onOpenChange }: BranchesDialogProps) {
   const [branchDialogOpen, setBranchDialogOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [deleteBranchId, setDeleteBranchId] = useState<string | null>(null);
+  const selection = useBulkSelection(branches);
 
   const handleEdit = (branch: Branch) => {
     setEditingBranch(branch);
@@ -53,6 +56,17 @@ export function BranchesDialog({ open, onOpenChange }: BranchesDialogProps) {
           </DialogHeader>
 
           <div className="space-y-4">
+            <BulkActionBar
+              selectedCount={selection.selectedIds.size}
+              itemLabel="branches"
+              canDelete
+              deleting={deleteBranch.isPending}
+              onClear={selection.clearSelection}
+              onDelete={async () => {
+                await Promise.all(Array.from(selection.selectedIds, (id) => deleteBranch.mutateAsync(id)));
+                selection.clearSelection();
+              }}
+            />
             <Button onClick={() => setBranchDialogOpen(true)} className="w-full">
               <Plus className="mr-2 h-4 w-4" />
               Add New Branch
@@ -70,18 +84,25 @@ export function BranchesDialog({ open, onOpenChange }: BranchesDialogProps) {
               </div>
             ) : (
               <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all branches" />
+                  Select all branches
+                </label>
                 {branches.map((branch) => (
                   <div
                     key={branch.id}
                     className="flex items-center justify-between p-3 rounded-lg border bg-card"
                   >
-                    <div>
-                      <p className="font-medium">{branch.name}</p>
+                    <div className="flex min-w-0 items-start gap-3">
+                      <BulkSelectCheckbox checked={selection.selectedIds.has(branch.id)} onCheckedChange={(checked) => selection.toggleOne(branch.id, checked)} label={`Select ${branch.name}`} />
+                      <div className="min-w-0">
+                        <p className="font-medium">{branch.name}</p>
                       {branch.address && (
                         <p className="text-sm text-muted-foreground truncate max-w-[200px]">
                           {branch.address}
                         </p>
                       )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <Button

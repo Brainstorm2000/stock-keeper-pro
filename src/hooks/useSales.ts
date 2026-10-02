@@ -7,6 +7,8 @@ import { buildSaleStockAdjustments } from '@/lib/sale-stock';
 import { localDb } from '@/lib/offline/db';
 import { readLocalFirst, saveLocal } from '@/lib/offline/repository';
 import { syncQueue } from '@/lib/offline/sync';
+import { createId } from '@/lib/utils';
+import { getLocalDateString, getSaleDateTimestamp } from '@/lib/sale-date';
 
 export type PaymentMethod = 'cash' | 'card' | 'mobile_money' | 'bank_transfer' | 'credit' | 'pos';
 export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'on_hold';
@@ -217,8 +219,15 @@ export function useCreateSale() {
     mutationFn: async (input: CreateSaleInput) => {
       {
         const now = new Date().toISOString();
+        const saleTimestamp = getSaleDateTimestamp(
+          input.sale_date || getLocalDateString(),
+        );
+        if (!saleTimestamp) {
+          throw new Error('Sale date must be a valid date no later than today.');
+        }
+
         const sale: Sale = {
-          id: crypto.randomUUID(),
+          id: createId(),
           organization_id: input.organization_id,
           branch_id: input.branch_id ?? null,
           customer_id: input.customer_id ?? null,
@@ -241,13 +250,13 @@ export function useCreateSale() {
           due_date: input.due_date ?? null,
           notes: input.notes ?? null,
           created_by: user?.id ?? null,
-          created_at: now,
+          created_at: saleTimestamp,
           updated_at: now,
           sale_items: input.items,
         };
         await saveLocal(localDb.sales, sale);
         await localDb.saleItems.bulkPut(input.items.map((item) => ({
-          id: item.id ?? crypto.randomUUID(),
+          id: item.id ?? createId(),
           data: { ...item, sale_id: sale.id },
           isSynced: false,
           updatedAt: now,
@@ -263,7 +272,7 @@ export function useCreateSale() {
               current_stock: newStock,
             });
             await localDb.stockHistory.put({
-              id: crypto.randomUUID(),
+              id: createId(),
               data: {
                 product_id: item.product_id,
                 previous_stock: previousStock,

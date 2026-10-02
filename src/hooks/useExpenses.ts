@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
+import { createId } from '@/lib/utils';
 
 export interface ExpenseCategory {
   id: string;
@@ -234,7 +235,7 @@ export function useDeleteExpense() {
 
 export async function uploadExpenseReceipt(file: File, organizationId: string): Promise<string> {
   const fileExt = file.name.split('.').pop();
-  const fileName = `${organizationId}/${crypto.randomUUID()}.${fileExt}`;
+  const fileName = `${organizationId}/${createId()}.${fileExt}`;
 
   const { error: uploadError } = await supabase.storage
     .from('expense-receipts')

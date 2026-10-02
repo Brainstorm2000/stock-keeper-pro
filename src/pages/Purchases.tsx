@@ -82,6 +82,8 @@ import { EditPurchaseDialog } from "@/components/purchases/EditPurchaseDialog";
 
 import { PurchaseReturnDialog } from "@/components/purchases/PurchaseReturnDialog";
 import { exportToXLSX } from "@/lib/export-utils";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { BulkActionBar, BulkSelectCheckbox } from "@/components/ui/bulk-action-bar";
 
 export default function Purchases() {
   const { isAdmin, isSuperAdmin } = useAuth();
@@ -161,6 +163,14 @@ export default function Purchases() {
     goToPage,
     setPageSize,
   } = usePagination(filteredPurchases, 10);
+  const selection = useBulkSelection(paginatedPurchases);
+
+  const handleBulkDelete = async () => {
+    for (const purchase of purchases.filter((item) => selection.selectedIds.has(item.id))) {
+      await deletePurchase.mutateAsync(purchase);
+    }
+    selection.clearSelection();
+  };
 
   /**
    * RESET PAGE ON FILTER CHANGE
@@ -385,8 +395,23 @@ export default function Purchases() {
             </CardContent>
           </Card>
 
+          <BulkActionBar
+            selectedCount={selection.selectedIds.size}
+            itemLabel="purchases"
+            canDelete={canDelete}
+            deleting={deletePurchase.isPending}
+            onClear={selection.clearSelection}
+            onDelete={handleBulkDelete}
+          />
+
           {/* MOBILE VIEW */}
           <div className="grid gap-4 lg:hidden">
+            {canDelete && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all purchases on this page" />
+                Select page
+              </label>
+            )}
             {isLoading ? (
               <Card>
                 <CardContent className="flex justify-center py-10">
@@ -404,7 +429,9 @@ export default function Purchases() {
                 <Card key={purchase.id}>
                   <CardContent className="space-y-4 pt-6">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="flex items-start gap-3">
+                        {canDelete && <BulkSelectCheckbox checked={selection.selectedIds.has(purchase.id)} onCheckedChange={(checked) => selection.toggleOne(purchase.id, checked)} label={`Select purchase ${purchase.purchase_number}`} />}
+                        <div>
                         <p className="font-semibold">
                           {purchase.purchase_number}
                         </p>
@@ -415,6 +442,7 @@ export default function Purchases() {
                             "MMM d, yyyy",
                           )}
                         </p>
+                        </div>
                       </div>
 
                       {getPaymentStatusBadge(purchase.payment_status)}
@@ -538,6 +566,7 @@ export default function Purchases() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {canDelete && <TableHead className="w-10"><BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all purchases on this page" /></TableHead>}
                       <TableHead>PO Number</TableHead>
 
                       <TableHead>Date</TableHead>
@@ -562,7 +591,7 @@ export default function Purchases() {
                     {isLoading ? (
                       <TableRow>
                         <TableCell
-                          colSpan={isAdmin ? 8 : 7}
+                          colSpan={(isAdmin ? 8 : 7) + (canDelete ? 1 : 0)}
                           className="py-10 text-center"
                         >
                           <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
@@ -571,7 +600,7 @@ export default function Purchases() {
                     ) : paginatedPurchases.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={isAdmin ? 8 : 7}
+                          colSpan={(isAdmin ? 8 : 7) + (canDelete ? 1 : 0)}
                           className="py-10 text-center text-muted-foreground"
                         >
                           No purchases found
@@ -584,7 +613,7 @@ export default function Purchases() {
                   {!isLoading && paginatedPurchases.length > 0 && (
                     <TableFooter>
                       <TableRow>
-                        <TableCell colSpan={5} className="font-semibold">
+                        <TableCell colSpan={canDelete ? 6 : 5} className="font-semibold">
                           Displayed total
                         </TableCell>
                         <TableCell className="text-right font-bold">
@@ -647,6 +676,11 @@ export default function Purchases() {
   function ParagraphPurchasesList() {
     return paginatedPurchases.map((purchase) => (
       <TableRow key={purchase.id} className="group">
+        {canDelete && (
+          <TableCell>
+            <BulkSelectCheckbox checked={selection.selectedIds.has(purchase.id)} onCheckedChange={(checked) => selection.toggleOne(purchase.id, checked)} label={`Select purchase ${purchase.purchase_number}`} />
+          </TableCell>
+        )}
         <TableCell className="font-medium">
           {purchase.purchase_number}
 

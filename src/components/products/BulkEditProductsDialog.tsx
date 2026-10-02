@@ -35,7 +35,7 @@ export function BulkEditProductsDialog({
   onDone,
 }: BulkEditProductsDialogProps) {
   const bulkUpdate = useBulkUpdateProducts();
-  const [category, setCategory] = useState<string>(NO_CHANGE);
+  const [productType, setProductType] = useState<string>(NO_CHANGE);
   const [taxable, setTaxable] = useState<string>(NO_CHANGE);
   const [lowStock, setLowStock] = useState<string>("");
   const [outStock, setOutStock] = useState<string>("");
@@ -44,7 +44,7 @@ export function BulkEditProductsDialog({
 
   useEffect(() => {
     if (open) {
-      setCategory(NO_CHANGE);
+      setProductType(NO_CHANGE);
       setTaxable(NO_CHANGE);
       setLowStock("");
       setOutStock("");
@@ -55,7 +55,10 @@ export function BulkEditProductsDialog({
 
   const handleApply = async () => {
     const patch: Record<string, unknown> = {};
-    if (category !== NO_CHANGE) patch.category = category;
+    if (productType !== NO_CHANGE) {
+      patch.item_type = productType === "variable" ? "variable" : productType === "service" ? "service" : "product";
+      patch.category = productType === "consumable" ? "consumable" : "sellable";
+    }
     if (taxable !== NO_CHANGE) patch.is_taxable = taxable === "taxable";
     if (lowStock.trim() !== "") patch.low_stock_threshold = Number(lowStock);
     if (outStock.trim() !== "") patch.out_of_stock_threshold = Number(outStock);
@@ -85,8 +88,8 @@ export function BulkEditProductsDialog({
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Category</Label>
-            <Select value={category} onValueChange={setCategory}>
+            <Label>Type</Label>
+            <Select value={productType} onValueChange={setProductType}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -94,6 +97,8 @@ export function BulkEditProductsDialog({
                 <SelectItem value={NO_CHANGE}>No change</SelectItem>
                 <SelectItem value="sellable">Sellable</SelectItem>
                 <SelectItem value="consumable">Consumable</SelectItem>
+                <SelectItem value="variable">Variable</SelectItem>
+                <SelectItem value="service">Service</SelectItem>
               </SelectContent>
             </Select>
           </div>

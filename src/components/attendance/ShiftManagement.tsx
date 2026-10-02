@@ -14,6 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Loader2, Pencil, Trash2, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useEffect } from 'react';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
 
 function ShiftDialog({ shift, open, onOpenChange }: { shift: Shift | null; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { register, handleSubmit, reset, setValue, watch } = useForm<ShiftInput>();
@@ -151,6 +153,7 @@ export function ShiftManagement() {
           .some(v => String(v).toLowerCase().includes(q)),
       )
     : allShifts;
+  const selection = useBulkSelection(shifts);
 
   return (
     <div className="space-y-4">
@@ -167,10 +170,23 @@ export function ShiftManagement() {
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
-        <div className="rounded-md border overflow-x-auto">
+        <div className="space-y-3">
+          <BulkActionBar
+            selectedCount={selection.selectedIds.size}
+            itemLabel="shifts"
+            canDelete
+            deleting={deleteShift.isPending}
+            onClear={selection.clearSelection}
+            onDelete={async () => {
+              await Promise.all(Array.from(selection.selectedIds, (id) => deleteShift.mutateAsync(id)));
+              selection.clearSelection();
+            }}
+          />
+          <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"><BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all shifts" /></TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Start</TableHead>
                 <TableHead>End</TableHead>
@@ -185,9 +201,10 @@ export function ShiftManagement() {
             </TableHeader>
             <TableBody>
               {shifts.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No shifts configured</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No shifts configured</TableCell></TableRow>
               ) : shifts.map(s => (
                 <TableRow key={s.id}>
+                  <TableCell><BulkSelectCheckbox checked={selection.selectedIds.has(s.id)} onCheckedChange={(checked) => selection.toggleOne(s.id, checked)} label={`Select ${s.shift_name}`} /></TableCell>
                   <TableCell className="font-medium">{s.shift_name}</TableCell>
                   <TableCell>{s.start_time.slice(0, 5)}</TableCell>
                   <TableCell>{s.end_time.slice(0, 5)}</TableCell>
@@ -209,6 +226,7 @@ export function ShiftManagement() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
       )}
 

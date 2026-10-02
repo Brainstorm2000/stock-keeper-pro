@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
+import { createId } from '@/lib/utils';
+import { getPurchaseItemKey } from '@/lib/purchase-item-key';
 
 export type PurchasePaymentStatus = 'pending' | 'partial' | 'paid';
 
@@ -10,6 +12,7 @@ export interface PurchaseItem {
   id: string;
   purchase_id: string;
   product_id: string;
+  variation_id: string | null;
   quantity: number;
   unit_cost: number;
   total_cost: number;
@@ -23,6 +26,7 @@ export interface PurchaseItem {
       abbreviation: string | null;
     };
   };
+  product_variations?: { id: string; sku: string | null } | null;
 }
 
 export interface Purchase {
@@ -57,6 +61,7 @@ export interface Purchase {
 
 export interface PurchaseItemInput {
   product_id: string;
+  variation_id?: string | null;
   quantity: number;
   unit_cost: number;
   selling_price: number;
@@ -88,10 +93,12 @@ export function usePurchases(branchId?: string) {
           purchase_items (
             id,
             product_id,
+            variation_id,
             quantity,
             unit_cost,
             total_cost,
-            products (id, name, category, units (name, abbreviation))
+            products (id, name, category, units (name, abbreviation)),
+            product_variations (id, sku)
           )
         `)
         .order('purchase_date', { ascending: false });
@@ -155,6 +162,7 @@ export function useCreatePurchase() {
       const purchaseItems = input.items.map(item => ({
         purchase_id: purchase.id,
         product_id: item.product_id,
+        variation_id: item.variation_id || null,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
         selling_price: item.selling_price || 0,
@@ -169,6 +177,43 @@ export function useCreatePurchase() {
 
       // Update product stock levels and create stock history entries
       for (const item of input.items) {
+        if (item.variation_id) {
+          const { data: variation, error: variationError } = await supabase
+            .from('product_variations' as any)
+            .select('current_stock')
+            .eq('id', item.variation_id)
+            .eq('product_id', item.product_id)
+            .single();
+          if (variationError) throw variationError;
+
+          const previousStock = Number((variation as any).current_stock);
+          const newStock = previousStock + item.quantity;
+          const variationUpdate: Record<string, number> = { current_stock: newStock };
+          if (item.unit_cost > 0) variationUpdate.cost_price = item.unit_cost;
+          if (item.selling_price > 0) variationUpdate.selling_price = item.selling_price;
+
+          const { error: updateError } = await supabase
+            .from('product_variations' as any)
+            .update(variationUpdate)
+            .eq('id', item.variation_id);
+          if (updateError) throw updateError;
+
+          const { error: historyError } = await supabase
+            .from('stock_history')
+            .insert({
+              product_id: item.product_id,
+              variation_id: item.variation_id,
+              previous_stock: previousStock,
+              new_stock: newStock,
+              change_amount: item.quantity,
+              change_type: 'purchase',
+              notes: `Purchase ${purchaseNumber}`,
+              changed_by: user?.id,
+            } as any);
+          if (historyError) throw historyError;
+          continue;
+        }
+
         // Get current stock
         const { data: product, error: productError } = await supabase
           .from('products')
@@ -276,6 +321,39 @@ export function useUpdatePurchase() {
     }) => {
       // First, reverse stock for all original items
       for (const item of originalItems) {
+        if (item.variation_id) {
+          const { data: variation, error: variationError } = await supabase
+            .from('product_variations' as any)
+            .select('current_stock')
+            .eq('id', item.variation_id)
+            .eq('product_id', item.product_id)
+            .single();
+          if (variationError) throw variationError;
+
+          const previousStock = Number((variation as any).current_stock);
+          const newStock = Math.max(0, previousStock - Number(item.quantity));
+          const { error: updateError } = await supabase
+            .from('product_variations' as any)
+            .update({ current_stock: newStock })
+            .eq('id', item.variation_id);
+          if (updateError) throw updateError;
+
+          const { error: historyError } = await supabase
+            .from('stock_history')
+            .insert({
+              product_id: item.product_id,
+              variation_id: item.variation_id,
+              previous_stock: previousStock,
+              new_stock: newStock,
+              change_amount: -Number(item.quantity),
+              change_type: 'purchase_reversal',
+              notes: 'Edit purchase - reversal',
+              changed_by: user?.id,
+            } as any);
+          if (historyError) throw historyError;
+          continue;
+        }
+
         const { data: product, error: productError } = await supabase
           .from('products')
           .select('current_stock')
@@ -350,6 +428,7 @@ export function useUpdatePurchase() {
       const purchaseItems = input.items.map(item => ({
         purchase_id: purchaseId,
         product_id: item.product_id,
+        variation_id: item.variation_id || null,
         quantity: item.quantity,
         unit_cost: item.unit_cost,
         selling_price: item.selling_price || 0,
@@ -364,6 +443,42 @@ export function useUpdatePurchase() {
 
       // Add new stock for new items
       for (const item of input.items) {
+        if (item.variation_id) {
+          const { data: variation, error: variationError } = await supabase
+            .from('product_variations' as any)
+            .select('current_stock')
+            .eq('id', item.variation_id)
+            .eq('product_id', item.product_id)
+            .single();
+          if (variationError) throw variationError;
+
+          const previousStock = Number((variation as any).current_stock);
+          const newStock = previousStock + item.quantity;
+          const variationUpdate: Record<string, number> = { current_stock: newStock };
+          if (item.unit_cost > 0) variationUpdate.cost_price = item.unit_cost;
+          if (item.selling_price > 0) variationUpdate.selling_price = item.selling_price;
+          const { error: updateError } = await supabase
+            .from('product_variations' as any)
+            .update(variationUpdate)
+            .eq('id', item.variation_id);
+          if (updateError) throw updateError;
+
+          const { error: historyError } = await supabase
+            .from('stock_history')
+            .insert({
+              product_id: item.product_id,
+              variation_id: item.variation_id,
+              previous_stock: previousStock,
+              new_stock: newStock,
+              change_amount: item.quantity,
+              change_type: 'purchase',
+              notes: `Edit purchase ${purchase.purchase_number}`,
+              changed_by: user?.id,
+            } as any);
+          if (historyError) throw historyError;
+          continue;
+        }
+
         const { data: product, error: productError } = await supabase
           .from('products')
           .select('current_stock')
@@ -418,15 +533,140 @@ export function useUpdatePurchase() {
 
 export function useDeletePurchase() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (purchase: Purchase) => {
-      const { error } = await supabase.rpc('delete_purchase', {
-        _purchase_id: purchase.id,
-      });
+      const { data: purchaseReturns, error: returnsQueryError } = await supabase
+        .from('purchase_returns')
+        .select('id, purchase_return_items(product_id, variation_id, quantity)')
+        .eq('purchase_id', purchase.id);
+
+      if (returnsQueryError) throw returnsQueryError;
+
+      const returnedQuantities = new Map<string, number>();
+      for (const purchaseReturn of (purchaseReturns || []) as unknown as Array<{
+        id: string;
+        purchase_return_items?: Array<{ product_id: string; variation_id: string | null; quantity: number }>;
+      }>) {
+        for (const item of purchaseReturn.purchase_return_items || []) {
+          const key = getPurchaseItemKey(item.product_id, item.variation_id);
+          returnedQuantities.set(
+            key,
+            (returnedQuantities.get(key) || 0) + Number(item.quantity),
+          );
+        }
+      }
+
+      // First, reverse the stock changes
+      if (purchase.purchase_items) {
+        for (const item of purchase.purchase_items) {
+          const returnedKey = getPurchaseItemKey(item.product_id, item.variation_id);
+          const netQuantity = Math.max(
+            0,
+            Number(item.quantity) - (returnedQuantities.get(returnedKey) || 0),
+          );
+
+          if (item.variation_id) {
+            const { data: variation, error: variationError } = await supabase
+              .from('product_variations' as any)
+              .select('current_stock')
+              .eq('id', item.variation_id)
+              .eq('product_id', item.product_id)
+              .single();
+            if (variationError) throw variationError;
+            const previousStock = Number((variation as any).current_stock);
+            const newStock = Math.max(0, previousStock - netQuantity);
+            const { error: updateError } = await supabase
+              .from('product_variations' as any)
+              .update({ current_stock: newStock })
+              .eq('id', item.variation_id);
+            if (updateError) throw updateError;
+            const { error: historyError } = await supabase
+              .from('stock_history')
+              .insert({
+                product_id: item.product_id,
+                variation_id: item.variation_id,
+                previous_stock: previousStock,
+                new_stock: newStock,
+                change_amount: -netQuantity,
+                change_type: 'purchase_reversal',
+                notes: `Deleted purchase ${purchase.purchase_number}`,
+                changed_by: user?.id,
+              } as any);
+            if (historyError) throw historyError;
+            continue;
+          }
+
+          // Get current stock
+          const { data: product, error: productError } = await supabase
+            .from('products')
+            .select('current_stock')
+            .eq('id', item.product_id)
+            .single();
+
+          if (productError) throw productError;
+
+          const previousStock = Number(product.current_stock);
+          const newStock = previousStock - netQuantity;
+
+          // Update product stock (allow negative for correction)
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({ current_stock: Math.max(0, newStock) })
+            .eq('id', item.product_id);
+
+          if (updateError) throw updateError;
+
+          // Create stock history entry for reversal
+          const { error: historyError } = await supabase
+            .from('stock_history')
+            .insert({
+              product_id: item.product_id,
+              previous_stock: previousStock,
+              new_stock: Math.max(0, newStock),
+              change_amount: -netQuantity,
+              change_type: 'purchase_reversal',
+              notes: `Deleted purchase ${purchase.purchase_number}`,
+              changed_by: user?.id,
+            });
+
+          if (historyError) throw historyError;
+        }
+      }
+
+      // Remove returns explicitly because purchase_returns references purchases without cascade.
+      for (const purchaseReturn of purchaseReturns || []) {
+        const { error: returnItemsError } = await supabase
+          .from('purchase_return_items')
+          .delete()
+          .eq('return_id', purchaseReturn.id);
+        if (returnItemsError) throw returnItemsError;
+
+        const { error: returnError } = await supabase
+          .from('purchase_returns')
+          .delete()
+          .eq('id', purchaseReturn.id);
+        if (returnError) throw returnError;
+      }
+
+      const { error: purchaseItemsError } = await supabase
+        .from('purchase_items')
+        .delete()
+        .eq('purchase_id', purchase.id);
+      if (purchaseItemsError) throw purchaseItemsError;
+
+      const { data: deletedPurchase, error } = await supabase
+        .from('purchases')
+        .delete()
+        .eq('id', purchase.id)
+        .select('id');
 
       if (error) throw error;
+      if (!deletedPurchase || deletedPurchase.length === 0) {
+        throw new Error('Purchase was not deleted. You may not have permission to delete it.');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
@@ -443,7 +683,7 @@ export function useDeletePurchase() {
 
 export async function uploadPurchaseReceipt(file: File, organizationId: string): Promise<string> {
   const fileExt = file.name.split('.').pop();
-  const fileName = `${organizationId}/${crypto.randomUUID()}.${fileExt}`;
+  const fileName = `${organizationId}/${createId()}.${fileExt}`;
   const { error } = await supabase.storage.from('purchase-receipts').upload(fileName, file);
   if (error) throw error;
   return fileName;

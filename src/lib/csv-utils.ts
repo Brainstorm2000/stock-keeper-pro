@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Product } from '@/hooks/useProducts';
+import { getProductType } from '@/lib/product-type';
 import type { ProductVariation } from '@/hooks/useProductVariations';
 import type { Attendance } from '@/hooks/useAttendance';
 
@@ -31,6 +32,7 @@ export interface ParsedCSVProduct {
   branch_name?: string;
   supplier_name?: string;
   brand_name?: string;
+  product_category_name?: string;
   // Variation row fields
   is_variation?: boolean;
   parent_sku?: string;
@@ -57,8 +59,8 @@ export function exportProductsToCSV(
 ): string {
   const headers = [
     'Product Name',
-    'Item Type',
-    'Category',
+    'Type',
+    'Product Category',
     'Unit',
     'Opening Stock',
     'Current Stock',
@@ -88,8 +90,8 @@ export function exportProductsToCSV(
     const brandName = brands?.find((b) => b.id === product.brand_id)?.name || '';
     rows.push([
       escapeCSV(product.name),
-      product.item_type || 'product',
-      product.category || 'sellable',
+      getProductType(product),
+      escapeCSV(product.product_categories?.name || 'Uncategorized'),
       escapeCSV(product.units?.name || ''),
       product.opening_stock.toString(),
       product.current_stock.toString(),
@@ -114,7 +116,7 @@ export function exportProductsToCSV(
         rows.push([
           escapeCSV(product.name),
           'variable',
-          product.category || 'sellable',
+          escapeCSV(product.product_categories?.name || 'Uncategorized'),
           escapeCSV(product.units?.name || ''),
           '0', '0', '0', '0', '0', '0',
           escapeCSV(product.sku || ''),
@@ -159,7 +161,8 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
   const headerMap = {
     name: findHeader(headers, ['product name', 'name', 'product']),
     item_type: findHeader(headers, ['item type', 'type', 'item_type']),
-    category: findHeader(headers, ['category', 'product category']),
+    category: findHeader(headers, ['category', 'stock category', 'legacy category']),
+    product_category: findHeader(headers, ['product category', 'product category name']),
     unit: findHeader(headers, ['unit', 'unit of measurement', 'uom']),
     opening_stock: findHeader(headers, ['opening stock', 'opening', 'initial stock']),
     current_stock: findHeader(headers, ['current stock', 'current', 'stock', 'quantity']),
@@ -226,6 +229,9 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
         category = 'consumable';
       }
     }
+    const typeValue = headerMap.item_type === -1 ? '' : (values[headerMap.item_type] || '').trim().toLowerCase();
+    if (typeValue === 'consumable') category = 'consumable';
+    if (typeValue === 'sellable') category = 'sellable';
 
     const product: ParsedCSVProduct = {
       name,
@@ -254,6 +260,9 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
     }
     if (headerMap.brand !== -1 && values[headerMap.brand]) {
       product.brand_name = values[headerMap.brand].trim();
+    }
+    if (headerMap.product_category !== -1 && values[headerMap.product_category]) {
+      product.product_category_name = values[headerMap.product_category].trim();
     }
 
     if (isVariationRow) {
@@ -361,8 +370,8 @@ export function downloadCSV(content: string, filename: string): void {
 export function generateCSVTemplate(): string {
   const headers = [
     'Product Name',
-    'Item Type',
-    'Category',
+    'Type',
+    'Product Category',
     'Unit',
     'Opening Stock',
     'Current Stock',
@@ -386,8 +395,8 @@ export function generateCSVTemplate(): string {
 
   const sampleRow = [
     'Sample Product',
-    'product',
-    'sellable',
+    'Sellable',
+    'Uncategorized',
     'Pieces',
     '100',
     '50',
@@ -404,20 +413,20 @@ export function generateCSVTemplate(): string {
   ];
 
   const parentVariable = [
-    'Sample T-Shirt', 'variable', 'sellable', 'Pieces',
+    'Sample T-Shirt', 'Variable', 'Uncategorized', 'Pieces',
     '0', '0', '0', '0', '0', '0',
     'TSHIRT-001', 'Variable parent example',
     'Main Store', '', '',
     'no', '', '', '', '', '', '',
   ];
   const variationRow1 = [
-    'Sample T-Shirt', 'variable', 'sellable', 'Pieces',
+    'Sample T-Shirt', 'Variable', 'Uncategorized', 'Pieces',
     '0', '0', '0', '0', '0', '0',
     'TSHIRT-001', '', 'Main Store', '', '',
     'yes', 'TSHIRT-001', 'Size:Small|Color:Red', 'TSHIRT-001-SR', '20', '3000', '5000',
   ];
   const variationRow2 = [
-    'Sample T-Shirt', 'variable', 'sellable', 'Pieces',
+    'Sample T-Shirt', 'Variable', 'Uncategorized', 'Pieces',
     '0', '0', '0', '0', '0', '0',
     'TSHIRT-001', '', 'Main Store', '', '',
     'yes', 'TSHIRT-001', 'Size:Medium|Color:Red', 'TSHIRT-001-MR', '15', '3000', '5000',

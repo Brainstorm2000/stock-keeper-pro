@@ -16,6 +16,7 @@ import {
 } from '@/hooks/useProductVariations';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useCreateProductCategory, useProductCategories } from '@/hooks/useProductCategories';
 import { useToast } from '@/hooks/use-toast';
  import { ArrowDown, FileText, AlertCircle, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -46,6 +47,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
   const { data: branches = [] } = useBranches();
   const { data: suppliers = [] } = useSuppliers();
   const { data: brands = [] } = useBrands();
+  const { data: productCategories = [] } = useProductCategories();
   const { data: organization } = useOrganization();
   const { data: attributes = [], refetch: refetchAttributes } = useProductAttributes();
   const createAttribute = useCreateAttribute();
@@ -54,6 +56,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
   const createBranch = useCreateBranch();
   const createSupplier = useCreateSupplier();
   const createBrand = useCreateBrand();
+  const createProductCategory = useCreateProductCategory();
   const createProduct = useCreateProduct();
   const { toast } = useToast();
 
@@ -102,6 +105,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
       const branchMap = new Map(branches.map((b) => [b.name.toLowerCase(), b.id]));
       const supplierMap = new Map(suppliers.map((s) => [s.name.toLowerCase(), s.id]));
       const brandMap = new Map(brands.map((b) => [b.name.toLowerCase(), b.id]));
+      const productCategoryMap = new Map(productCategories.map((category) => [category.name.toLowerCase(), category.id]));
 
       for (const product of parentRows) {
         const unitName = product.unit_name.toLowerCase();
@@ -187,11 +191,19 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
           continue;
         }
 
+        const productCategoryName = product.product_category_name?.trim() || 'Uncategorized';
+        const productCategoryKey = productCategoryName.toLowerCase();
+        if (!productCategoryMap.has(productCategoryKey)) {
+          const createdCategory = await createProductCategory.mutateAsync(productCategoryName);
+          productCategoryMap.set(productCategoryKey, createdCategory.id);
+        }
+
         const created = await createProduct.mutateAsync({
           name: product.name,
           unit_id: unitId,
           item_type: product.item_type,
           category: product.category,
+          product_category_id: productCategoryMap.get(productCategoryKey),
           opening_stock: product.opening_stock,
           current_stock: product.current_stock,
           low_stock_threshold: product.low_stock_threshold,

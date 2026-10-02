@@ -50,6 +50,8 @@ import { useProducts } from "@/hooks/useProducts";
 import { useRawMaterials } from "@/hooks/useRawMaterials";
 import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
 import { formatCurrency } from "@/lib/currency";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { BulkActionBar, BulkSelectCheckbox } from "@/components/ui/bulk-action-bar";
 
 interface BOMItemForm {
   raw_material_id: string;
@@ -82,6 +84,7 @@ export function BOMTab() {
   const filtered = boms.filter((b) =>
     b.name.toLowerCase().includes(search.toLowerCase()),
   );
+  const selection = useBulkSelection(filtered);
 
   const sellableProducts = products.filter((p) => p.category === "sellable");
 
@@ -211,10 +214,23 @@ export function BOMTab() {
         )}
       </div>
 
+      <div className="space-y-3">
+      <BulkActionBar
+        selectedCount={selection.selectedIds.size}
+        itemLabel="BOMs"
+        canDelete={canDelete}
+        deleting={deleteBOM.isPending}
+        onClear={selection.clearSelection}
+        onDelete={async () => {
+          await Promise.all(Array.from(selection.selectedIds, (id) => deleteBOM.mutateAsync(id)));
+          selection.clearSelection();
+        }}
+      />
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
+              {canDelete && <TableHead className="w-10"><BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all BOMs" /></TableHead>}
               <TableHead>BOM Name</TableHead>
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Material Cost/Unit</TableHead>
@@ -228,7 +244,7 @@ export function BOMTab() {
             {isLoading ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={canDelete ? 8 : 7}
                   className="text-center py-8 text-muted-foreground"
                 >
                   Loading...
@@ -237,7 +253,7 @@ export function BOMTab() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={canDelete ? 8 : 7}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No BOMs found
@@ -252,6 +268,7 @@ export function BOMTab() {
                   Number(b.overhead_cost_per_unit);
                 return (
                   <TableRow key={b.id}>
+                    {canDelete && <TableCell><BulkSelectCheckbox checked={selection.selectedIds.has(b.id)} onCheckedChange={(checked) => selection.toggleOne(b.id, checked)} label={`Select ${b.name}`} /></TableCell>}
                     <TableCell className="font-medium">{b.name}</TableCell>
                     <TableCell>{b.products?.name || "—"}</TableCell>
                     <TableCell className="text-right">
@@ -325,6 +342,7 @@ export function BOMTab() {
           </TableBody>
         </Table>
       </Card>
+      </div>
 
       {/* Detail Dialog */}
       <Dialog

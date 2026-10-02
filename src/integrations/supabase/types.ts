@@ -1471,6 +1471,41 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           branch_id: string
@@ -1488,6 +1523,7 @@ export type Database = {
           name: string
           opening_stock: number
           organization_id: string
+          product_category_id: string | null
           out_of_stock_threshold: number
           selling_price: number
           sku: string | null
@@ -1511,6 +1547,7 @@ export type Database = {
           name: string
           opening_stock?: number
           organization_id: string
+          product_category_id?: string | null
           out_of_stock_threshold?: number
           selling_price?: number
           sku?: string | null
@@ -1534,6 +1571,7 @@ export type Database = {
           name?: string
           opening_stock?: number
           organization_id?: string
+          product_category_id?: string | null
           out_of_stock_threshold?: number
           selling_price?: number
           sku?: string | null
@@ -1561,6 +1599,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_product_category_id_fkey"
+            columns: ["product_category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
             referencedColumns: ["id"]
           },
           {

@@ -14,6 +14,7 @@ import type { Purchase } from '@/hooks/usePurchases';
 import { formatCurrency } from '@/lib/currency';
 import { getMaxReturnableQuantity } from '@/lib/purchase-products';
 import { useToast } from '@/hooks/use-toast';
+import { getPurchaseItemKey } from '@/lib/purchase-item-key';
 
 interface PurchaseReturnDialogProps {
   purchase: Purchase | null;
@@ -23,7 +24,9 @@ interface PurchaseReturnDialogProps {
 
 interface ReturnItem {
   product_id: string;
+  variation_id: string | null;
   product_name: string;
+  variation_label?: string;
   max_quantity: number;
   quantity: number;
   unit_cost: number;
@@ -46,19 +49,31 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
       return acc;
     }, {});
   }, [products]);
+  const stockByVariationId = useMemo(() => {
+    return products.reduce<Record<string, number>>((acc, product) => {
+      for (const variation of product.variations || []) {
+        acc[variation.id] = Number(variation.current_stock) || 0;
+      }
+      return acc;
+    }, {});
+  }, [products]);
 
   useEffect(() => {
     if (open && purchase?.purchase_items) {
       setItems(purchase.purchase_items.map(pi => {
-        const alreadyReturnedQty = alreadyReturned[pi.product_id] || 0;
+        const variationId = pi.variation_id || null;
+        const itemKey = getPurchaseItemKey(pi.product_id, variationId);
+        const alreadyReturnedQty = alreadyReturned[itemKey] || 0;
         const maxReturnable = getMaxReturnableQuantity(
           Number(pi.quantity),
-          stockByProductId[pi.product_id] || 0,
+          variationId ? stockByVariationId[variationId] || 0 : stockByProductId[pi.product_id] || 0,
           alreadyReturnedQty,
         );
         return {
           product_id: pi.product_id,
+          variation_id: variationId,
           product_name: pi.products?.name || 'Unknown',
+          variation_label: pi.product_variations?.sku || undefined,
           max_quantity: maxReturnable,
           quantity: maxReturnable,
           unit_cost: pi.unit_cost,
@@ -68,7 +83,7 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
       setReason('');
       setNotes('');
     }
-  }, [open, purchase, alreadyReturned, stockByProductId]);
+  }, [open, purchase, alreadyReturned, stockByProductId, stockByVariationId]);
 
   const selectedItems = items.filter(i => i.selected && i.quantity > 0);
   const totalReturn = selectedItems.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
@@ -90,6 +105,7 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
       notes: notes || undefined,
       items: selectedItems.map(i => ({
         product_id: i.product_id,
+        variation_id: i.variation_id,
         quantity: i.quantity,
         unit_cost: i.unit_cost,
       })),
@@ -122,7 +138,7 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
             </TableHeader>
             <TableBody>
               {items.map((item, idx) => (
-                <TableRow key={item.product_id}>
+                <TableRow key={getPurchaseItemKey(item.product_id, item.variation_id)}>
                   <TableCell>
                     <Checkbox
                       checked={item.selected}
@@ -133,7 +149,7 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
                       }}
                     />
                   </TableCell>
-                  <TableCell>{item.product_name}</TableCell>
+                  <TableCell>{item.product_name}{item.variation_label && <span className="block text-xs text-muted-foreground">{item.variation_label}</span>}</TableCell>
                   <TableCell>
                     <Input
                       type="number"

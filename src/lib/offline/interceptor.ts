@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { enqueue, type QueueOp, type QueuedFilter } from "./queue";
+import { createId } from "@/lib/utils";
 
 /**
  * Patches `supabase.from(...)` so that write operations performed while the
@@ -23,7 +24,7 @@ export function isOffline() {
 function withIds(values: unknown): unknown {
   const stamp = (row: any) =>
     row && typeof row === "object" && !row.id
-      ? { ...row, id: crypto.randomUUID() }
+      ? { ...row, id: createId() }
       : row;
   return Array.isArray(values) ? values.map(stamp) : stamp(values);
 }

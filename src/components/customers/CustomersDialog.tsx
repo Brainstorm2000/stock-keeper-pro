@@ -35,6 +35,8 @@ import { useBranches } from '@/hooks/useBranches';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { parseGenericCSV, exportToCSV, generateCustomersCSVTemplate, downloadCSV } from '@/lib/csv-utils';
 import { useToast } from '@/hooks/use-toast';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
 
 interface CustomersDialogProps {
   branchId?: string;
@@ -76,6 +78,7 @@ export function CustomersDialog({ branchId }: CustomersDialogProps) {
     c.email?.toLowerCase().includes(search.toLowerCase()) ||
     c.phone?.toLowerCase().includes(search.toLowerCase())
   );
+  const selection = useBulkSelection(filteredCustomers);
 
   const resetForm = () => {
     setFormData({ branch_id: branchId ?? null, name: '', email: '', phone: '', address: '', notes: '', debt_limit: 0 });
@@ -327,10 +330,24 @@ export function CustomersDialog({ branchId }: CustomersDialogProps) {
           </Dialog>
         </div>
 
+        <BulkActionBar
+          selectedCount={selection.selectedIds.size}
+          itemLabel="customers"
+          canDelete
+          onClear={selection.clearSelection}
+          onDelete={async () => {
+            await Promise.all(Array.from(selection.selectedIds, (id) => deleteCustomer.mutateAsync(id)));
+            selection.clearSelection();
+          }}
+          deleting={deleteCustomer.isPending}
+        />
         <div className="flex-1 overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select all customers" />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
@@ -342,19 +359,22 @@ export function CustomersDialog({ branchId }: CustomersDialogProps) {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : filteredCustomers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No customers found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
+                    <TableCell>
+                      <BulkSelectCheckbox checked={selection.selectedIds.has(customer.id)} onCheckedChange={(checked) => selection.toggleOne(customer.id, checked)} label={`Select ${customer.name}`} />
+                    </TableCell>
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>{customer.email || '-'}</TableCell>
                     <TableCell>{customer.phone || '-'}</TableCell>

@@ -15,6 +15,7 @@ import {
   ChevronRight,
   LayoutGrid,
   CreditCard,
+  Tags,
 } from "lucide-react";
 
 // UI Components
@@ -60,12 +61,15 @@ import { SuppliersDialog } from "@/components/suppliers/SuppliersDialog";
 import { BrandsDialog } from "@/components/brands/BrandsDialog";
 import { PaymentMethodsDialog } from "@/components/organization/PaymentMethodsDialog";
 import { ExpirationAlerts } from "@/components/products/ExpirationAlerts";
+import { ProductCategoriesDialog } from "@/components/products/ProductCategoriesDialog";
 
 // Hooks & Logic
 import {
   useProducts,
   useDeleteProduct,
+  getProductType,
   type Product,
+  type ProductType,
 } from "@/hooks/useProducts";
 import { useBranches, useMyBranchAssignments } from "@/hooks/useBranches";
 import { useSales } from "@/hooks/useSales";
@@ -96,6 +100,7 @@ function DashboardContent() {
   const [branchesDialogOpen, setBranchesDialogOpen] = useState(false);
   const [usersDialogOpen, setUsersDialogOpen] = useState(false);
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
+  const [productCategoriesOpen, setProductCategoriesOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
@@ -103,9 +108,8 @@ function DashboardContent() {
   const [productStatusFilter, setProductStatusFilter] = useState<
     "all" | "normal" | "low" | "out"
   >("all");
-  const [productCategoryTab, setProductCategoryTab] = useState<
-    "all" | "sellable" | "consumable"
-  >("all");
+  const [productTypeFilter, setProductTypeFilter] = useState<"all" | ProductType>("all");
+  const [productCategoryFilter, setProductCategoryFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -176,27 +180,24 @@ function DashboardContent() {
     });
   }, [archiveFilteredProducts, productSearchQuery, productStatusFilter]);
 
-  const categoryCounts = useMemo(
+  const typeCounts = useMemo(
     () => ({
       all: filteredBySearchAndStatus.length,
-      sellable: filteredBySearchAndStatus.filter(
-        (p) => p.category === "sellable",
-      ).length,
-      consumable: filteredBySearchAndStatus.filter(
-        (p) => p.category === "consumable",
-      ).length,
+      sellable: filteredBySearchAndStatus.filter((product) => getProductType(product) === "sellable").length,
+      consumable: filteredBySearchAndStatus.filter((product) => getProductType(product) === "consumable").length,
+      variable: filteredBySearchAndStatus.filter((product) => getProductType(product) === "variable").length,
+      service: filteredBySearchAndStatus.filter((product) => getProductType(product) === "service").length,
     }),
     [filteredBySearchAndStatus],
   );
 
   const filteredProducts = useMemo(
-    () =>
-      productCategoryTab === "all"
-        ? filteredBySearchAndStatus
-        : filteredBySearchAndStatus.filter(
-            (p) => p.category === productCategoryTab,
-          ),
-    [filteredBySearchAndStatus, productCategoryTab],
+    () => filteredBySearchAndStatus.filter((product) => {
+      const matchesType = productTypeFilter === "all" || getProductType(product) === productTypeFilter;
+      const matchesCategory = productCategoryFilter === "all" || product.product_category_id === productCategoryFilter;
+      return matchesType && matchesCategory;
+    }),
+    [filteredBySearchAndStatus, productTypeFilter, productCategoryFilter],
   );
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -245,7 +246,7 @@ function DashboardContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedBranchId, productSearchQuery, productStatusFilter, productCategoryTab]);
+  }, [selectedBranchId, productSearchQuery, productStatusFilter, productTypeFilter, productCategoryFilter]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -342,6 +343,9 @@ function DashboardContent() {
                 <DropdownMenuContent align="end" className="w-64">
                   <DropdownMenuItem onClick={() => setUnitsDialogOpen(true)}>
                     <Ruler className="mr-2 h-4 w-4" /> Units
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setProductCategoriesOpen(true)}>
+                    <Tags className="mr-2 h-4 w-4" /> Product Categories
                   </DropdownMenuItem>
                   <SuppliersDialog />
                   <BrandsDialog />
@@ -472,9 +476,11 @@ function DashboardContent() {
                 onSearchQueryChange={setProductSearchQuery}
                 statusFilter={productStatusFilter}
                 onStatusFilterChange={setProductStatusFilter}
-                categoryTab={productCategoryTab}
-                onCategoryTabChange={setProductCategoryTab}
-                categoryCounts={categoryCounts}
+                typeFilter={productTypeFilter}
+                onTypeFilterChange={setProductTypeFilter}
+                productCategoryFilter={productCategoryFilter}
+                onProductCategoryFilterChange={setProductCategoryFilter}
+                typeCounts={typeCounts}
                 totalSellableStockValue={filteredSellableStockValue}
               />
 
@@ -569,7 +575,7 @@ function DashboardContent() {
           {/* Table content containers for other tabs */}
           <TabsContent value="history">
             <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 md:p-6 shadow-sm">
-              <StockHistoryTable limit={1000} />
+              <StockHistoryTable />
             </div>
           </TabsContent>
           <TabsContent value="forecast">
@@ -591,6 +597,7 @@ function DashboardContent() {
         allProducts={filteredProducts}
       />
       <UnitsDialog open={unitsDialogOpen} onOpenChange={setUnitsDialogOpen} />
+      <ProductCategoriesDialog open={productCategoriesOpen} onOpenChange={setProductCategoriesOpen} />
       <BranchesDialog
         open={branchesDialogOpen}
         onOpenChange={setBranchesDialogOpen}

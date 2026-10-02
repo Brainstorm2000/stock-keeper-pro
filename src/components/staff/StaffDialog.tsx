@@ -14,6 +14,7 @@ import { useStaffPositions, useCreateStaffPosition, useCreateDepartment } from '
 import { Plus, Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createId } from '@/lib/utils';
 
 interface StaffDialogProps {
   staff: Staff | null;
@@ -90,7 +91,7 @@ export function StaffDialog({ staff, open, onOpenChange }: StaffDialogProps) {
     setUploading(true);
     try {
       const ext = file.name.split('.').pop();
-      const path = `${crypto.randomUUID()}.${ext}`;
+      const path = `${createId()}.${ext}`;
       const { error } = await supabase.storage.from('staff-photos').upload(path, file, { upsert: false });
       if (error) throw error;
       const { data } = supabase.storage.from('staff-photos').getPublicUrl(path);

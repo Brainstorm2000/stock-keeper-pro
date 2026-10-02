@@ -32,11 +32,11 @@ export interface StockTrend {
   changes: number;
 }
 
-export function useStockHistory(productId?: string, limit = 50, category?: 'sellable' | 'consumable') {
+export function useStockHistory(productId?: string, category?: 'sellable' | 'consumable') {
   const { user, organizationId } = useAuth();
 
   return useQuery({
-    queryKey: ['stock-history', productId, limit, category, user?.id],
+    queryKey: ['stock-history', productId, category, user?.id],
     queryFn: async () => {
       const localRows = await localDb.stockHistory.toArray();
       const localProducts = await localDb.products.toArray();
@@ -57,7 +57,7 @@ export function useStockHistory(productId?: string, limit = 50, category?: 'sell
         }));
 
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        return localHistory.sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, limit);
+        return localHistory.sort((a, b) => b.created_at.localeCompare(a.created_at));
       }
 
       let query = supabase
@@ -66,8 +66,7 @@ export function useStockHistory(productId?: string, limit = 50, category?: 'sell
           *,
           products (id, name, category, units (abbreviation))
         `)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+        .order('created_at', { ascending: false });
 
       if (productId) {
         query = query.eq('product_id', productId);
@@ -75,7 +74,7 @@ export function useStockHistory(productId?: string, limit = 50, category?: 'sell
 
       const { data, error } = await query;
       if (error) {
-        if (localHistory.length) return localHistory.slice(0, limit);
+        if (localHistory.length) return localHistory.sort((a, b) => b.created_at.localeCompare(a.created_at));
         throw error;
       }
       

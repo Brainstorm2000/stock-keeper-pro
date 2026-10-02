@@ -25,6 +25,8 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import { getTaxableSales } from "@/lib/taxable-sales";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import { BulkActionBar, BulkSelectCheckbox } from "@/components/ui/bulk-action-bar";
 
 const DEFAULT_CIT_RATE = 7.5;
 
@@ -106,6 +108,15 @@ export default function Tax() {
     });
   }, [whtRows, whtSearch, whtSource]);
   const { paginatedItems: paginatedWhtRows, currentPage, totalPages, totalItems, pageSize, goToPage, setPageSize } = usePagination(filteredWhtRows);
+  const selectableWhtRows = paginatedWhtRows.filter((row) => row.source === "Manual credit");
+  const selection = useBulkSelection(selectableWhtRows);
+
+  const handleBulkDeleteCredits = async () => {
+    for (const credit of whtCredits.filter((item) => selection.selectedIds.has(`credit-${item.id}`))) {
+      await deleteWhtCredit.mutateAsync(credit.id);
+    }
+    selection.clearSelection();
+  };
 
   const saveCredit = async () => {
     if (!payerName || !creditAmount) return;
@@ -185,10 +196,19 @@ export default function Tax() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  <BulkActionBar
+                    selectedCount={selection.selectedIds.size}
+                    itemLabel="manual WHT credits"
+                    canDelete={isAdmin}
+                    deleting={deleteWhtCredit.isPending}
+                    onClear={selection.clearSelection}
+                    onDelete={handleBulkDeleteCredits}
+                  />
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          {isAdmin && <TableHead className="w-10"><BulkSelectCheckbox checked={selection.allVisibleSelected} indeterminate={selection.someVisibleSelected} onCheckedChange={selection.toggleAllVisible} label="Select manual credits on this page" /></TableHead>}
                           <TableHead>Date</TableHead>
                           <TableHead>Source</TableHead>
                           <TableHead>Payer</TableHead>
@@ -200,6 +220,7 @@ export default function Tax() {
                       <TableBody>
                         {paginatedWhtRows.map((row) => (
                           <TableRow key={row.id}>
+                            {isAdmin && <TableCell><BulkSelectCheckbox checked={selection.selectedIds.has(row.id)} disabled={row.source !== "Manual credit"} onCheckedChange={(checked) => selection.toggleOne(row.id, checked)} label={`Select ${row.source.toLowerCase()} ${row.reference}`} /></TableCell>}
                             <TableCell>{format(new Date(row.date), "MMM dd, yyyy")}</TableCell>
                             <TableCell><Badge variant={row.source === "Sale" ? "secondary" : "outline"}>{row.source}</Badge></TableCell>
                             <TableCell>{row.payer}</TableCell>
@@ -215,7 +236,7 @@ export default function Tax() {
                         ))}
                         {!whtRows.length && (
                           <TableRow>
-                            <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No WHT records found</TableCell>
+                            <TableCell colSpan={isAdmin ? 7 : 6} className="py-8 text-center text-muted-foreground">No WHT records found</TableCell>
                           </TableRow>
                         )}
                       </TableBody>

@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 import { customersTable, readLocalFirst, saveLocal, removeLocal } from '@/lib/offline/repository';
+import { createId } from '@/lib/utils';
 
 export interface Customer {
   id: string;
@@ -56,7 +57,7 @@ export function useCreateCustomer() {
         const now = new Date().toISOString();
         return saveLocal(customersTable, {
           ...customer,
-          id: crypto.randomUUID(),
+          id: createId(),
           created_by: user?.id ?? null,
           created_at: now,
           updated_at: now,

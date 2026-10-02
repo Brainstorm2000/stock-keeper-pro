@@ -44,10 +44,11 @@ import {
 import { StatusBadge, getStockStatus } from "./StatusBadge";
 import { StockUpdateDialog } from "./StockUpdateDialog";
 import { BulkEditProductsDialog } from "./BulkEditProductsDialog";
-import { useBulkDeleteProducts, useArchiveProduct, type Product } from "@/hooks/useProducts";
+import { getProductType, useBulkDeleteProducts, useArchiveProduct, type Product, type ProductType } from "@/hooks/useProducts";
 import { useBranches } from "@/hooks/useBranches";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useBrands } from "@/hooks/useBrands";
+import { useProductCategories } from "@/hooks/useProductCategories";
 import { exportProductsToCSV, downloadCSV } from "@/lib/csv-utils";
 import { useAuth } from "@/lib/auth";
 import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
@@ -62,12 +63,16 @@ interface ProductTableProps {
   onSearchQueryChange?: (value: string) => void;
   statusFilter?: "all" | "normal" | "low" | "out";
   onStatusFilterChange?: (value: "all" | "normal" | "low" | "out") => void;
-  categoryTab?: "all" | "sellable" | "consumable";
-  onCategoryTabChange?: (value: "all" | "sellable" | "consumable") => void;
-  categoryCounts?: {
+  typeFilter?: "all" | ProductType;
+  onTypeFilterChange?: (value: "all" | ProductType) => void;
+  productCategoryFilter?: string;
+  onProductCategoryFilterChange?: (value: string) => void;
+  typeCounts?: {
     all: number;
     sellable: number;
     consumable: number;
+    variable: number;
+    service: number;
   };
   totalSellableStockValue?: number;
 }
@@ -82,9 +87,11 @@ export function ProductTable({
   onSearchQueryChange,
   statusFilter,
   onStatusFilterChange,
-  categoryTab,
-  onCategoryTabChange,
-  categoryCounts,
+  typeFilter,
+  onTypeFilterChange,
+  productCategoryFilter,
+  onProductCategoryFilterChange,
+  typeCounts,
   totalSellableStockValue,
 }: ProductTableProps) {
   const { canEdit: canEditProduct, canDelete: canDeleteProduct } =
@@ -93,9 +100,8 @@ export function ProductTable({
   const [internalStatusFilter, setInternalStatusFilter] = useState<
     "all" | "normal" | "low" | "out"
   >("all");
-  const [internalCategoryTab, setInternalCategoryTab] = useState<
-    "all" | "sellable" | "consumable"
-  >("all");
+  const [internalTypeFilter, setInternalTypeFilter] = useState<"all" | ProductType>("all");
+  const [internalProductCategoryFilter, setInternalProductCategoryFilter] = useState("all");
   const [stockUpdateProduct, setStockUpdateProduct] = useState<Product | null>(
     null,
   );
@@ -111,18 +117,22 @@ export function ProductTable({
   const { data: branchesAll = [] } = useBranches();
   const { data: suppliersAll = [] } = useSuppliers();
   const { data: brandsAll = [] } = useBrands();
+  const { data: productCategories = [] } = useProductCategories();
 
   const effectiveSearchQuery =
     searchQuery !== undefined ? searchQuery : internalSearchQuery;
   const effectiveStatusFilter =
     statusFilter !== undefined ? statusFilter : internalStatusFilter;
-  const effectiveCategoryTab =
-    categoryTab !== undefined ? categoryTab : internalCategoryTab;
+  const effectiveTypeFilter = typeFilter !== undefined ? typeFilter : internalTypeFilter;
+  const effectiveProductCategoryFilter = productCategoryFilter !== undefined
+    ? productCategoryFilter
+    : internalProductCategoryFilter;
 
   const isControlled =
     onSearchQueryChange !== undefined ||
     onStatusFilterChange !== undefined ||
-    onCategoryTabChange !== undefined;
+    onTypeFilterChange !== undefined ||
+    onProductCategoryFilterChange !== undefined;
 
   const filteredProducts = useMemo(() => {
     if (isControlled) return products;
@@ -135,7 +145,10 @@ export function ProductTable({
       if (!matchesSearch) return false;
 
       // Category filter
-      if (effectiveCategoryTab !== "all" && product.category !== effectiveCategoryTab)
+      if (effectiveTypeFilter !== "all" && getProductType(product) !== effectiveTypeFilter)
+        return false;
+
+      if (effectiveProductCategoryFilter !== "all" && product.product_category_id !== effectiveProductCategoryFilter)
         return false;
 
       if (effectiveStatusFilter === "all") return true;
@@ -149,7 +162,7 @@ export function ProductTable({
 
       return status === effectiveStatusFilter;
     });
-  }, [products, isControlled, effectiveSearchQuery, effectiveStatusFilter, effectiveCategoryTab]);
+  }, [products, isControlled, effectiveSearchQuery, effectiveStatusFilter, effectiveTypeFilter, effectiveProductCategoryFilter]);
 
   const productsToRender = isControlled ? products : filteredProducts;
   const visibleSelectableIds = productsToRender.map((p) => p.id);
@@ -248,7 +261,7 @@ export function ProductTable({
       : sellableProducts.reduce((sum, p) => sum + calculateStockValue(p), 0);
 
   const renderProductRows = (productsToRender: Product[]) => {
-    const baseCols = (isAdmin ? (showBranch ? 9 : 8) : showBranch ? 8 : 7) + (isAdmin ? 1 : 0);
+    const baseCols = (isAdmin ? (showBranch ? 10 : 9) : showBranch ? 9 : 8) + (isAdmin ? 1 : 0);
     if (isLoading) {
       return (
         <TableRow>
@@ -316,19 +329,13 @@ export function ProductTable({
           </TableCell>
           <TableCell>
             <Badge
-              variant={
-                product.category === "sellable" ? "default" : "secondary"
-              }
-              className="text-xs"
+              variant={getProductType(product) === "service" ? "outline" : getProductType(product) === "consumable" ? "secondary" : "default"}
+              className="text-xs capitalize"
             >
-              {product.category === "sellable" ? "Sellable" : "Consumable"}
+              {getProductType(product)}
             </Badge>
-            {product.item_type === "variable" && (
-              <Badge variant="outline" className="text-[10px] ml-1">
-                Variable
-              </Badge>
-            )}
           </TableCell>
+          <TableCell>{product.product_categories?.name || "Uncategorized"}</TableCell>
           <TableCell>
             {product.units?.name}
             {product.units?.abbreviation && (
@@ -444,8 +451,8 @@ export function ProductTable({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <CardTitle className="text-lg font-semibold">Products</CardTitle>
-              {effectiveCategoryTab === "sellable" &&
-                (categoryCounts?.sellable ?? sellableProducts.length) > 0 && (
+              {effectiveTypeFilter === "sellable" &&
+                (typeCounts?.sellable ?? sellableProducts.length) > 0 && (
                   <Badge variant="outline" className="text-sm font-medium">
                     Total Sale Value: {formatCurrency(totalStockValue)}
                   </Badge>
@@ -482,6 +489,21 @@ export function ProductTable({
                 <option value="low">Low Stock</option>
                 <option value="out">Out of Stock</option>
               </select>
+              <select
+                value={effectiveProductCategoryFilter}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (onProductCategoryFilterChange) onProductCategoryFilterChange(next);
+                  else setInternalProductCategoryFilter(next);
+                }}
+                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Filter by product category"
+              >
+                <option value="all">All Product Categories</option>
+                {productCategories.map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
             </div>
           </div>
         </CardHeader>
@@ -517,30 +539,32 @@ export function ProductTable({
           )}
 
           <Tabs
-            value={effectiveCategoryTab}
+            value={effectiveTypeFilter}
             onValueChange={(v) => {
-              const next = v as typeof effectiveCategoryTab;
-              if (onCategoryTabChange) {
-                onCategoryTabChange(next);
+              const next = v as typeof effectiveTypeFilter;
+              if (onTypeFilterChange) {
+                onTypeFilterChange(next);
               } else {
-                setInternalCategoryTab(next);
+                setInternalTypeFilter(next);
               }
             }}
             className="mb-4"
           >
             <TabsList>
               <TabsTrigger value="all">
-                All ({categoryCounts?.all ?? products.length})
+                All ({typeCounts?.all ?? products.length})
               </TabsTrigger>
               <TabsTrigger value="sellable">
-                Sellable (
-                {categoryCounts?.sellable ??
-                  products.filter((p) => p.category === "sellable").length})
+                Sellable ({typeCounts?.sellable ?? products.filter((p) => getProductType(p) === "sellable").length})
               </TabsTrigger>
               <TabsTrigger value="consumable">
-                Consumable (
-                {categoryCounts?.consumable ??
-                  products.filter((p) => p.category === "consumable").length})
+                Consumable ({typeCounts?.consumable ?? products.filter((p) => getProductType(p) === "consumable").length})
+              </TabsTrigger>
+              <TabsTrigger value="variable">
+                Variable ({typeCounts?.variable ?? products.filter((p) => getProductType(p) === "variable").length})
+              </TabsTrigger>
+              <TabsTrigger value="service">
+                Service ({typeCounts?.service ?? products.filter((p) => getProductType(p) === "service").length})
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -565,7 +589,8 @@ export function ProductTable({
                     </TableHead>
                   )}
                   <TableHead>Product Name</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Product Category</TableHead>
                   <TableHead>Unit</TableHead>
                   {showBranch && <TableHead>Branch</TableHead>}
                   <TableHead className="text-right">Current Stock</TableHead>

@@ -50,6 +50,7 @@ import { Switch } from "@/components/ui/switch";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ModuleAccessGuard } from "@/components/access/ModuleAccessGuard";
 import { useProducts, type Product } from "@/hooks/useProducts";
+import { useProductCategories } from "@/hooks/useProductCategories";
 import { useBranches, useMyBranchAssignments } from "@/hooks/useBranches";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCustomers, type Customer } from "@/hooks/useCustomers";
@@ -81,6 +82,7 @@ import { VariationPickerDialog } from "@/components/pos/VariationPickerDialog";
 import type { ProductVariation } from "@/hooks/useProductVariations";
 import { usePaymentMethods } from "@/hooks/usePaymentMethods";
 import { PaymentIcon } from "@/lib/payment-icons";
+import { getLocalDateString, getSaleDateTimestamp } from "@/lib/sale-date";
 
 interface CartItem extends SaleItem {
   product_name: string;
@@ -92,6 +94,7 @@ export default function POS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeTab, setActiveTab] = useState<"products" | "cart">("products");
   const [searchQuery, setSearchQuery] = useState("");
+  const [productCategoryFilter, setProductCategoryFilter] = useState("all");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
@@ -118,9 +121,7 @@ export default function POS() {
   );
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [dueDate, setDueDate] = useState("");
-  const [saleDate, setSaleDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [saleDate, setSaleDate] = useState(getLocalDateString);
   const [variationPickerProduct, setVariationPickerProduct] = useState<Product | null>(null);
 
   const {
@@ -132,6 +133,7 @@ export default function POS() {
     organizationId,
   } = useAuth();
   const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: productCategories = [] } = useProductCategories();
   const { data: branches = [] } = useBranches();
   const { data: myBranchAssignments = [] } = useMyBranchAssignments();
   const { data: organization } = useOrganization();
@@ -207,7 +209,7 @@ export default function POS() {
     setWhtEnabled(existingWhtAmount > 0);
     setWhtRate(existingTotal > 0 ? Number(((existingWhtAmount / existingTotal) * 100).toFixed(2)) : 0);
     setDueDate(editSale.due_date || '');
-    setSaleDate(editSale.created_at.split('T')[0] || new Date().toISOString().split('T')[0]);
+    setSaleDate(getLocalDateString(new Date(editSale.created_at)));
 
     if (editSale.payment_status === 'partial') {
       setPaymentType('partial');
@@ -286,10 +288,12 @@ export default function POS() {
         (p.sku && p.sku.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesBranch =
         !selectedBranchId || p.branch_id === selectedBranchId || !p.branch_id;
+      const matchesCategory =
+        productCategoryFilter === "all" || p.product_category_id === productCategoryFilter;
       const hasStock = p.item_type === "service" || Number(p.current_stock) > 0;
-      return isSellable && matchesSearch && matchesBranch && hasStock;
+      return isSellable && matchesSearch && matchesBranch && matchesCategory && hasStock;
     });
-  }, [products, searchQuery, selectedBranchId]);
+  }, [products, searchQuery, selectedBranchId, productCategoryFilter]);
 
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.total_price, 0);
@@ -506,6 +510,15 @@ export default function POS() {
   };
 
   const handleCheckout = async () => {
+    if (!getSaleDateTimestamp(saleDate)) {
+      toast({
+        title: "Invalid sale date",
+        description: "Sales can only be dated today or earlier.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const checkoutOrganizationId = organization?.id || organizationId;
     if (!checkoutOrganizationId) {
       toast({ title: "Organization not found", variant: "destructive" });
@@ -809,6 +822,19 @@ export default function POS() {
                   </SelectContent>
                 </Select>
               )}
+              {productCategories.length > 0 && (
+                <Select value={productCategoryFilter} onValueChange={setProductCategoryFilter}>
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="All Product Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Product Categories</SelectItem>
+                    {productCategories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <ScrollArea className="flex-1">
@@ -1071,6 +1097,7 @@ export default function POS() {
                 <Input
                   type="date"
                   value={saleDate}
+                  max={getLocalDateString()}
                   onChange={(e) => setSaleDate(e.target.value)}
                 />
               </div>

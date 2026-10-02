@@ -23,6 +23,8 @@ import {
 } from '@/hooks/useDamagesWaste';
 import { useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { formatCurrency } from '@/lib/currency';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
+import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
 
 export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilter?: string; productsOnly?: boolean }) {
   const { data: allProducts = [] } = useProducts();
@@ -160,6 +162,30 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
   const filteredWaste = wasteHistory.filter(w =>
     !search || w.raw_materials?.name?.toLowerCase().includes(search.toLowerCase()) || w.notes?.toLowerCase().includes(search.toLowerCase())
   );
+  const damageSelection = useBulkSelection(filteredDamage);
+  const wasteSelection = useBulkSelection(filteredWaste);
+
+  const handleBulkDeleteDamage = async () => {
+    for (const record of filteredDamage.filter((item) => damageSelection.selectedIds.has(item.id))) {
+      await deleteDamage.mutateAsync({
+        recordId: record.id,
+        productId: record.product_id,
+        changeAmount: record.change_amount,
+      });
+    }
+    damageSelection.clearSelection();
+  };
+
+  const handleBulkDeleteWaste = async () => {
+    for (const record of filteredWaste.filter((item) => wasteSelection.selectedIds.has(item.id))) {
+      await deleteWaste.mutateAsync({
+        recordId: record.id,
+        materialId: record.raw_material_id,
+        changeAmount: record.change_amount,
+      });
+    }
+    wasteSelection.clearSelection();
+  };
 
   return (
     <div className="space-y-4">
@@ -202,9 +228,18 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
 
         <TabsContent value="damage">
           <Card>
+            <BulkActionBar
+              selectedCount={damageSelection.selectedIds.size}
+              itemLabel="damage records"
+              canDelete={canDelete}
+              deleting={deleteDamage.isPending}
+              onClear={damageSelection.clearSelection}
+              onDelete={handleBulkDeleteDamage}
+            />
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canDelete && <TableHead className="w-10"><BulkSelectCheckbox checked={damageSelection.allVisibleSelected} indeterminate={damageSelection.someVisibleSelected} onCheckedChange={damageSelection.toggleAllVisible} label="Select all damage records" /></TableHead>}
                   <TableHead>Date</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
@@ -216,12 +251,13 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
               </TableHeader>
               <TableBody>
                 {damageLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6 + ((canEdit || canDelete) ? 1 : 0) + (canDelete ? 1 : 0)} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
                 ) : filteredDamage.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No damage records found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6 + ((canEdit || canDelete) ? 1 : 0) + (canDelete ? 1 : 0)} className="text-center py-8 text-muted-foreground">No damage records found</TableCell></TableRow>
                 ) : (
                   filteredDamage.map((record) => (
                     <TableRow key={record.id}>
+                      {canDelete && <TableCell><BulkSelectCheckbox checked={damageSelection.selectedIds.has(record.id)} onCheckedChange={(checked) => damageSelection.toggleOne(record.id, checked)} label={`Select damage record for ${record.products?.name || 'product'}`} /></TableCell>}
                       <TableCell className="text-sm whitespace-nowrap">{format(new Date(record.created_at), 'MMM d, yyyy HH:mm')}</TableCell>
                       <TableCell className="font-medium">{record.products?.name || 'Unknown'}</TableCell>
                       <TableCell className="text-right text-destructive font-semibold">{Math.abs(record.change_amount)}</TableCell>
@@ -250,9 +286,18 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
 
         <TabsContent value="waste">
           <Card>
+            <BulkActionBar
+              selectedCount={wasteSelection.selectedIds.size}
+              itemLabel="waste records"
+              canDelete={canDelete}
+              deleting={deleteWaste.isPending}
+              onClear={wasteSelection.clearSelection}
+              onDelete={handleBulkDeleteWaste}
+            />
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canDelete && <TableHead className="w-10"><BulkSelectCheckbox checked={wasteSelection.allVisibleSelected} indeterminate={wasteSelection.someVisibleSelected} onCheckedChange={wasteSelection.toggleAllVisible} label="Select all waste records" /></TableHead>}
                   <TableHead>Date</TableHead>
                   <TableHead>Material</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
@@ -264,12 +309,13 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
               </TableHeader>
               <TableBody>
                 {wasteLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6 + ((canEdit || canDelete) ? 1 : 0) + (canDelete ? 1 : 0)} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
                 ) : filteredWaste.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No waste records found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6 + ((canEdit || canDelete) ? 1 : 0) + (canDelete ? 1 : 0)} className="text-center py-8 text-muted-foreground">No waste records found</TableCell></TableRow>
                 ) : (
                   filteredWaste.map((record) => (
                     <TableRow key={record.id}>
+                      {canDelete && <TableCell><BulkSelectCheckbox checked={wasteSelection.selectedIds.has(record.id)} onCheckedChange={(checked) => wasteSelection.toggleOne(record.id, checked)} label={`Select waste record for ${record.raw_materials?.name || 'material'}`} /></TableCell>}
                       <TableCell className="text-sm whitespace-nowrap">{format(new Date(record.created_at), 'MMM d, yyyy HH:mm')}</TableCell>
                       <TableCell className="font-medium">{record.raw_materials?.name || 'Unknown'}</TableCell>
                       <TableCell className="text-right text-destructive font-semibold">{Math.abs(record.change_amount)}</TableCell>

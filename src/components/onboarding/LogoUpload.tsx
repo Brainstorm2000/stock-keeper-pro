@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createId } from '@/lib/utils';
 
 interface LogoUploadProps {
   value: string;
@@ -43,7 +44,7 @@ export function LogoUpload({ value, onChange, disabled }: LogoUploadProps) {
     setIsUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const fileName = `${createId()}.${fileExt}`;
       const filePath = `logos/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
