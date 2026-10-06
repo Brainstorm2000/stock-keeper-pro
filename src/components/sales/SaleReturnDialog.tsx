@@ -22,6 +22,7 @@ interface SaleReturnDialogProps {
 
 interface ReturnItem {
   product_id: string;
+  variation_id: string | null;
   product_name: string;
   max_quantity: number;
   quantity: number;
@@ -43,16 +44,18 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
       // Fetch sale items
       supabase
         .from('sale_items')
-        .select('*, products(name)')
+        .select('product_id, variation_id, quantity, unit_price, products(name), product_variations(sku)')
         .eq('sale_id', sale.id)
         .then(({ data }) => {
           if (data) {
             setItems(data.map((si: any) => {
-              const alreadyReturnedQty = alreadyReturned[si.product_id] || 0;
+              const itemKey = `${si.product_id}:${si.variation_id || ''}`;
+              const alreadyReturnedQty = alreadyReturned[itemKey] || 0;
               const maxReturnable = Math.max(0, si.quantity - alreadyReturnedQty);
               return {
                 product_id: si.product_id,
-                product_name: si.products?.name || 'Unknown',
+                variation_id: si.variation_id,
+                product_name: `${si.products?.name || 'Unknown'}${si.product_variations?.sku ? ` (${si.product_variations.sku})` : ''}`,
                 max_quantity: maxReturnable,
                 quantity: maxReturnable,
                 unit_price: si.unit_price,
@@ -81,6 +84,7 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
       notes: notes || undefined,
       items: selectedItems.map(i => ({
         product_id: i.product_id,
+        variation_id: i.variation_id,
         quantity: i.quantity,
         unit_price: i.unit_price,
       })),
@@ -128,7 +132,7 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
             </TableHeader>
             <TableBody>
               {items.map((item, idx) => (
-                <TableRow key={item.product_id}>
+                <TableRow key={`${item.product_id}:${item.variation_id || ''}`}>
                   <TableCell>
                     <Checkbox
                       checked={item.selected}

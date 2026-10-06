@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, ArrowDown, ArrowUp, Pencil, Trash2, Search, FileDown, Truck } from 'lucide-react';
+import { Plus, ArrowDown, ArrowUp, Pencil, Trash2, Search, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,10 +35,16 @@ import { parseGenericCSV, exportToCSV, generateSuppliersCSVTemplate, downloadCSV
 import { useToast } from '@/hooks/use-toast';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
-export function SuppliersDialog({ menuItem = false }: { menuItem?: boolean }) {
-  const [open, setOpen] = useState(false);
+interface SuppliersDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function SuppliersDialog({ open, onOpenChange }: SuppliersDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const dialogOpen = open ?? internalOpen;
+  const setDialogOpen = onOpenChange ?? setInternalOpen;
   const [formOpen, setFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -172,18 +178,14 @@ export function SuppliersDialog({ menuItem = false }: { menuItem?: boolean }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {menuItem ? (
-          <DropdownMenuItem>
-            <Truck className="mr-2 h-4 w-4" /> Suppliers
-          </DropdownMenuItem>
-        ) : (
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {open === undefined && (
+        <DialogTrigger asChild>
           <Button variant="outline" size="sm">
             Suppliers
           </Button>
-        )}
-      </DialogTrigger>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Manage Suppliers</DialogTitle>

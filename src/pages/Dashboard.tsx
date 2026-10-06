@@ -16,6 +16,7 @@ import {
   LayoutGrid,
   CreditCard,
   Tags,
+  Truck,
 } from "lucide-react";
 
 // UI Components
@@ -101,6 +102,9 @@ function DashboardContent() {
   const [usersDialogOpen, setUsersDialogOpen] = useState(false);
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
   const [productCategoriesOpen, setProductCategoriesOpen] = useState(false);
+  const [suppliersDialogOpen, setSuppliersDialogOpen] = useState(false);
+  const [brandsDialogOpen, setBrandsDialogOpen] = useState(false);
+  const [customersDialogOpen, setCustomersDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
@@ -347,8 +351,12 @@ function DashboardContent() {
                   <DropdownMenuItem onClick={() => setProductCategoriesOpen(true)}>
                     <Tags className="mr-2 h-4 w-4" /> Product Categories
                   </DropdownMenuItem>
-                  <SuppliersDialog menuItem />
-                  <BrandsDialog menuItem />
+                  <DropdownMenuItem onClick={() => setSuppliersDialogOpen(true)}>
+                    <Truck className="mr-2 h-4 w-4" /> Suppliers
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setBrandsDialogOpen(true)}>
+                    <Tags className="mr-2 h-4 w-4" /> Brands
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setPaymentMethodsOpen(true)}>
                     <CreditCard className="mr-2 h-4 w-4" /> Payment Methods
                   </DropdownMenuItem>
@@ -359,7 +367,9 @@ function DashboardContent() {
                       >
                         <MapPin className="mr-2 h-4 w-4" /> Branches
                       </DropdownMenuItem>
-                      <CustomersDialog menuItem />
+                      <DropdownMenuItem onClick={() => setCustomersDialogOpen(true)}>
+                        <Users className="mr-2 h-4 w-4" /> Customers
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setUsersDialogOpen(true)}
                       >
@@ -610,6 +620,9 @@ function DashboardContent() {
         open={paymentMethodsOpen}
         onOpenChange={setPaymentMethodsOpen}
       />
+      <SuppliersDialog open={suppliersDialogOpen} onOpenChange={setSuppliersDialogOpen} />
+      <BrandsDialog open={brandsDialogOpen} onOpenChange={setBrandsDialogOpen} />
+      <CustomersDialog open={customersDialogOpen} onOpenChange={setCustomersDialogOpen} />
 
       <AlertDialog
         open={!!deleteProductId}

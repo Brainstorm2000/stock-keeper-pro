@@ -16,7 +16,16 @@ export function getSaleDateTimestamp(
   const year = Number(yearText);
   const month = Number(monthText);
   const day = Number(dayText);
-  const date = new Date(year, month - 1, day, 12);
+  const isToday = saleDate === getLocalDateString(now);
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+    isToday ? now.getHours() : 12,
+    isToday ? now.getMinutes() : 0,
+    isToday ? now.getSeconds() : 0,
+    isToday ? now.getMilliseconds() : 0,
+  );
 
   if (
     date.getFullYear() !== year ||

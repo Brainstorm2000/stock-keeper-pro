@@ -406,24 +406,21 @@ export default function POS() {
   const updateQuantity = (index: number, newQty: number) => {
     const newCart = [...cart];
 
-    if (newQty <= 0) {
-      newCart.splice(index, 1);
-    } else {
-      newCart[index].quantity = newQty;
-      newCart[index].total_price =
-        newQty * newCart[index].unit_price - newCart[index].discount_amount;
+    newCart[index].quantity = newQty;
+    newCart[index].total_price = newQty === 0
+      ? 0
+      : newQty * newCart[index].unit_price - newCart[index].discount_amount;
 
-      if (
-        newCart[index].item_type === "product" &&
-        newCart[index].max_quantity !== undefined &&
-        newQty > newCart[index].max_quantity
-      ) {
-        toast({
-          title: "Stock warning",
-          description: `${newCart[index].product_name} exceeds available stock (${newCart[index].max_quantity} available)`,
-          variant: "destructive",
-        });
-      }
+    if (
+      newCart[index].item_type === "product" &&
+      newCart[index].max_quantity !== undefined &&
+      newQty > newCart[index].max_quantity
+    ) {
+      toast({
+        title: "Stock warning",
+        description: `${newCart[index].product_name} exceeds available stock (${newCart[index].max_quantity} available)`,
+        variant: "destructive",
+      });
     }
 
     setCart(newCart);
@@ -432,8 +429,9 @@ export default function POS() {
   const updatePrice = (index: number, newPrice: number) => {
     const newCart = [...cart];
     newCart[index].unit_price = newPrice;
-    newCart[index].total_price =
-      newCart[index].quantity * newPrice - newCart[index].discount_amount;
+    newCart[index].total_price = newCart[index].quantity === 0
+      ? 0
+      : newCart[index].quantity * newPrice - newCart[index].discount_amount;
     setCart(newCart);
   };
 

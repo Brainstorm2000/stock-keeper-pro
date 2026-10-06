@@ -3218,6 +3218,16 @@ export type Database = {
         Args: { _org_id: string }
         Returns: number
       }
+      adjust_sale_return_stock: {
+        Args: {
+          _change_amount: number
+          _permission: string
+          _product_id: string
+          _return_number: string
+          _variation_id: string | null
+        }
+        Returns: undefined
+      }
       generate_purchase_number: { Args: { org_id: string }; Returns: string }
       generate_purchase_return_number: {
         Args: { org_id: string }
@@ -3225,6 +3235,10 @@ export type Database = {
       }
       generate_sale_number: { Args: { org_id: string }; Returns: string }
       generate_sale_return_number: { Args: { org_id: string }; Returns: string }
+      sync_sale_return_debt_credit: {
+        Args: { _permission: string; _return_id: string; _total_override?: number | null }
+        Returns: undefined
+      }
       generate_work_order_number: { Args: { org_id: string }; Returns: string }
       get_org_user_names: {
         Args: { _user_ids: string[] }

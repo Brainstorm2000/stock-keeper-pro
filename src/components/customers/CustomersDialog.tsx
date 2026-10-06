@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, ArrowDown, ArrowUp, Pencil, Trash2, Search, FileDown, Users } from 'lucide-react';
+import { Plus, ArrowDown, ArrowUp, Pencil, Trash2, Search, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,15 +37,17 @@ import { parseGenericCSV, exportToCSV, generateCustomersCSVTemplate, downloadCSV
 import { useToast } from '@/hooks/use-toast';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 interface CustomersDialogProps {
   branchId?: string;
-  menuItem?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function CustomersDialog({ branchId, menuItem = false }: CustomersDialogProps) {
-  const [open, setOpen] = useState(false);
+export function CustomersDialog({ branchId, open, onOpenChange }: CustomersDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const dialogOpen = open ?? internalOpen;
+  const setDialogOpen = onOpenChange ?? setInternalOpen;
   const [formOpen, setFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -198,18 +200,14 @@ export function CustomersDialog({ branchId, menuItem = false }: CustomersDialogP
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {menuItem ? (
-          <DropdownMenuItem>
-            <Users className="mr-2 h-4 w-4" /> Customers
-          </DropdownMenuItem>
-        ) : (
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {open === undefined && (
+        <DialogTrigger asChild>
           <Button variant="outline" size="sm">
             Customers
           </Button>
-        )}
-      </DialogTrigger>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Manage Customers</DialogTitle>

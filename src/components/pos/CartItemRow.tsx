@@ -43,7 +43,7 @@ export function CartItemRow({
 
   const handleQtyBlur = () => {
     const val = parseInt(qtyInput, 10);
-    if (isNaN(val) || val < 1) {
+    if (isNaN(val) || val < 0) {
       setQtyInput(String(item.quantity));
       return;
     }
@@ -109,7 +109,7 @@ export function CartItemRow({
       <div className="flex items-center gap-1">
         <Input
           type="number"
-          min="1"
+          min="0"
           value={qtyInput}
           onChange={(e) => setQtyInput(e.target.value)}
           onBlur={handleQtyBlur}

@@ -6,12 +6,20 @@ describe('sale date helpers', () => {
     expect(getLocalDateString(new Date(2026, 9, 2, 0, 30))).toBe('2026-10-02');
   });
 
-  it('converts an allowed sale date at local noon', () => {
+  it('keeps the current local time for a sale dated today', () => {
+    const now = new Date(2026, 9, 2, 10, 24, 36, 789);
+    const timestamp = getSaleDateTimestamp('2026-10-02', now);
+
+    expect(timestamp).toBe(now.toISOString());
+  });
+
+  it('normalizes past sale dates to local noon', () => {
     const now = new Date(2026, 9, 2, 10);
     const timestamp = getSaleDateTimestamp('2026-09-30', now);
 
     expect(timestamp).not.toBeNull();
     expect(getLocalDateString(new Date(timestamp!))).toBe('2026-09-30');
+    expect(new Date(timestamp!).getHours()).toBe(12);
   });
 
   it('allows today and rejects future or invalid calendar dates', () => {

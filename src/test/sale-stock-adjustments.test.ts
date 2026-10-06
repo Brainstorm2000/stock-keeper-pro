@@ -22,6 +22,15 @@ describe('buildSaleStockAdjustments', () => {
     ]);
   });
 
+  it('restores the sold quantity when an edited item is set to zero', () => {
+    expect(
+      buildSaleStockAdjustments(
+        [{ product_id: 'prod-1', quantity: 3 }],
+        [{ product_id: 'prod-1', quantity: 0 }],
+      ),
+    ).toEqual([{ product_id: 'prod-1', variation_id: null, quantity: -3 }]);
+  });
+
   it('defaults attendance hours to zero when a staff clocks in without clocking out', () => {
     expect(getDefaultAttendanceHours()).toEqual({
       hoursWorked: 0,

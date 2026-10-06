@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { TablePagination } from '@/components/ui/table-pagination';
 import { format } from 'date-fns';
-import { RotateCcw, Undo2, Search, Loader2, FileSpreadsheet } from 'lucide-react';
+import { RotateCcw, Undo2, Search, Loader2, FileSpreadsheet, Pencil } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { ModuleAccessGuard } from '@/components/access/ModuleAccessGuard';
+import { ModuleAccessGuard, useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -15,10 +15,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useSaleReturns, useUndoSaleReturn, type SaleReturn } from '@/hooks/useSaleReturns';
 import { usePurchaseReturns, useUndoPurchaseReturn, type PurchaseReturn } from '@/hooks/usePurchaseReturns';
+import { SaleReturnEditDialog } from '@/components/sales/SaleReturnEditDialog';
 import { formatCurrency } from '@/lib/currency';
 import { exportToXLSX } from '@/lib/export-utils';
 
 export default function Returns() {
+  const { canEdit, canDelete } = useModuleAccess('returns');
   const { data: saleReturns = [], isLoading: saleLoading } = useSaleReturns();
   const { data: purchaseReturns = [], isLoading: purchaseLoading } = usePurchaseReturns();
   const undoSaleReturn = useUndoSaleReturn();
@@ -26,6 +28,7 @@ export default function Returns() {
   const [search, setSearch] = useState('');
   const [detailReturn, setDetailReturn] = useState<SaleReturn | PurchaseReturn | null>(null);
   const [detailType, setDetailType] = useState<'sale' | 'purchase'>('sale');
+  const [editSaleReturn, setEditSaleReturn] = useState<SaleReturn | null>(null);
   const [undoConfirm, setUndoConfirm] = useState<{ ret: SaleReturn | PurchaseReturn; type: 'sale' | 'purchase' } | null>(null);
 
   const filteredSaleReturns = saleReturns.filter(r =>
@@ -167,7 +170,7 @@ export default function Returns() {
                             <TableHead>Reason</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
                             <TableHead>Items</TableHead>
-                            <TableHead className="w-[80px]">Actions</TableHead>
+                            <TableHead className="w-[100px]">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -182,15 +185,22 @@ export default function Returns() {
                               <TableCell className="text-right font-medium">{formatCurrency(ret.total_amount)}</TableCell>
                               <TableCell>{ret.sale_return_items?.length || 0} items</TableCell>
                               <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  title="Undo return"
-                                  onClick={e => { e.stopPropagation(); setUndoConfirm({ ret, type: 'sale' }); }}
-                                >
-                                  <Undo2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center">
+                                  {canEdit && <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title="Edit return"
+                                    onClick={e => { e.stopPropagation(); setEditSaleReturn(ret); }}
+                                  ><Pencil className="h-4 w-4" /></Button>}
+                                  {canDelete && <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    title="Undo return"
+                                    onClick={e => { e.stopPropagation(); setUndoConfirm({ ret, type: 'sale' }); }}
+                                  ><Undo2 className="h-4 w-4" /></Button>}
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -237,7 +247,7 @@ export default function Returns() {
                               <TableCell className="text-right font-medium">{formatCurrency(ret.total_amount)}</TableCell>
                               <TableCell>{ret.purchase_return_items?.length || 0} items</TableCell>
                               <TableCell>
-                                <Button
+                                {canDelete && <Button
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 text-destructive hover:text-destructive"
@@ -245,7 +255,7 @@ export default function Returns() {
                                   onClick={e => { e.stopPropagation(); setUndoConfirm({ ret, type: 'purchase' }); }}
                                 >
                                   <Undo2 className="h-4 w-4" />
-                                </Button>
+                                </Button>}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -343,18 +353,36 @@ export default function Returns() {
 
                 <div className="flex items-center justify-between border-t pt-3">
                   <div className="text-lg font-bold">Total: {formatCurrency(detailReturn.total_amount)}</div>
-                  <Button
+                  <div className="flex gap-2">
+                  {detailType === 'sale' && canEdit && <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditSaleReturn(detailReturn as SaleReturn);
+                      setDetailReturn(null);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" /> Edit Return
+                  </Button>}
+                  {canDelete && <Button
                     variant="destructive"
                     size="sm"
                     onClick={() => setUndoConfirm({ ret: detailReturn, type: detailType })}
                   >
                     <Undo2 className="h-4 w-4 mr-2" /> Undo Return
-                  </Button>
+                  </Button>}
+                  </div>
                 </div>
               </div>
             )}
           </DialogContent>
         </Dialog>
+
+        <SaleReturnEditDialog
+          saleReturn={editSaleReturn}
+          open={!!editSaleReturn}
+          onOpenChange={open => { if (!open) setEditSaleReturn(null); }}
+        />
 
         {/* Undo Confirmation */}
         <AlertDialog open={!!undoConfirm} onOpenChange={() => setUndoConfirm(null)}>
