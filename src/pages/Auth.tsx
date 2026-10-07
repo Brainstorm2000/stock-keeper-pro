@@ -10,7 +10,10 @@ import { Loader2, ShieldAlert, ArrowRight } from "lucide-react";
 import { z } from "zod";
 
 const authSchema = z.object({
-  email: z.string().trim().email({ message: "Invalid email address" }).max(255),
+  username: z.string().trim().min(3).max(30).regex(/^[a-z0-9][a-z0-9._-]*$/i, {
+    message: "Use 3-30 letters, numbers, dots, underscores, or hyphens",
+  }),
+  email: z.string().trim().email({ message: "Invalid email address" }).max(255).optional(),
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters" })
@@ -19,6 +22,7 @@ const authSchema = z.object({
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +64,7 @@ export default function Auth() {
 
   const validateForm = () => {
     try {
-      authSchema.parse({ email, password });
+      authSchema.parse({ username, email: isLogin ? undefined : email, password });
       setErrors({});
       return true;
     } catch (err) {
@@ -82,13 +86,13 @@ export default function Auth() {
 
     try {
       if (isLogin) {
-        const { error } = await signIn(email, password);
+        const { error } = await signIn(username, password);
         if (error) {
           toast({
             title: "Access Denied",
             description:
               error.message === "Invalid login credentials"
-                ? "Invalid email or password."
+                ? "Invalid username or password."
                 : error.message,
             variant: "destructive",
           });
@@ -96,7 +100,7 @@ export default function Auth() {
           setRedirectAfterSignIn(true);
         }
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(username, email, password);
         if (error) {
           toast({
             title: "Sign Up Failed",
@@ -201,26 +205,46 @@ export default function Auth() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label
-                    htmlFor="email"
+                    htmlFor="username"
                     className="text-[10px] uppercase tracking-widest text-slate-500 font-bold"
                   >
-                    Email
+                    Username
                   </Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="name@company.com"
-                    className={`h-11 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 ${errors.email ? "border-destructive" : ""}`}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="username"
+                    type="text"
+                    autoComplete="username"
+                    placeholder="your.username"
+                    className={`h-11 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 ${errors.username ? "border-destructive" : ""}`}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     disabled={isLoading}
                   />
-                  {errors.email && (
+                  {errors.username && (
                     <p className="text-[11px] text-destructive font-semibold uppercase">
-                      {errors.email}
+                      {errors.username}
                     </p>
                   )}
                 </div>
+
+                {!isLogin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                      Email for verification and recovery
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="name@company.com"
+                      className={`h-11 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 ${errors.email ? "border-destructive" : ""}`}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isLoading}
+                    />
+                    {errors.email && <p className="text-[11px] text-destructive font-semibold uppercase">{errors.email}</p>}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label
@@ -270,7 +294,9 @@ export default function Auth() {
                   }}
                   className="text-sm font-medium text-slate-500 hover:text-[#FF9E3D] transition-colors"
                   disabled={isLoading}
-                ></button>
+                >
+                  {isLogin ? "Need an account? Sign up" : "Already registered? Sign in"}
+                </button>
               </div>
             </form>
           )}

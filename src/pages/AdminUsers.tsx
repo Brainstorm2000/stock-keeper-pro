@@ -20,6 +20,7 @@ interface AdminUser {
   id: string;
   user_id: string;
   email: string | null;
+  username: string;
   full_name: string | null;
   organization_id: string | null;
   is_active: boolean;
@@ -84,6 +85,7 @@ export default function AdminUsersPage() {
 
   // Form state
   const [formEmail, setFormEmail] = useState('');
+  const [formUsername, setFormUsername] = useState('');
   const [formName, setFormName] = useState('');
   const [formPassword, setFormPassword] = useState('');
   const [formOrgId, setFormOrgId] = useState<string>('none');
@@ -93,7 +95,8 @@ export default function AdminUsersPage() {
     const q = search.toLowerCase();
     return (
       (u.full_name || '').toLowerCase().includes(q) ||
-      (u.email || '').toLowerCase().includes(q)
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.username || '').toLowerCase().includes(q)
     );
   });
 
@@ -102,6 +105,7 @@ export default function AdminUsersPage() {
   const openCreate = () => {
     setEditingUser(null);
     setFormEmail('');
+    setFormUsername('');
     setFormName('');
     setFormPassword('');
     setFormOrgId('none');
@@ -112,6 +116,7 @@ export default function AdminUsersPage() {
   const openEdit = (user: AdminUser) => {
     setEditingUser(user);
     setFormEmail(user.email || '');
+    setFormUsername(user.username || '');
     setFormName(user.full_name || '');
     setFormPassword('');
     setFormOrgId(user.organization_id || 'none');
@@ -120,6 +125,10 @@ export default function AdminUsersPage() {
   };
 
   const handleSave = async () => {
+    if (!/^[a-z0-9][a-z0-9._-]{2,29}$/i.test(formUsername.trim())) {
+      toast({ title: 'Invalid username', description: 'Use 3-30 letters, numbers, dots, underscores, or hyphens.', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       if (editingUser) {
@@ -134,6 +143,7 @@ export default function AdminUsersPage() {
           .update({
             full_name: formName || null,
             email: formEmail,
+            username: formUsername.trim().toLowerCase(),
             organization_id: newOrgId,
           })
           .eq('user_id', editingUser.user_id);
@@ -152,8 +162,8 @@ export default function AdminUsersPage() {
         }
         toast({ title: 'User updated' });
       } else {
-        if (!formEmail || !formPassword) {
-          toast({ title: 'Email and password are required', variant: 'destructive' });
+        if (!formEmail || !formPassword || !formUsername.trim()) {
+          toast({ title: 'Username, email, and password are required', variant: 'destructive' });
           setSaving(false);
           return;
         }
@@ -182,6 +192,7 @@ export default function AdminUsersPage() {
           {
             user_id: newUserId,
             email: formEmail,
+            username: formUsername.trim().toLowerCase(),
             full_name: formName || null,
             organization_id: newOrgId,
             is_active: true,
@@ -316,6 +327,7 @@ export default function AdminUsersPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>Username</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Organization</TableHead>
                       <TableHead>Role</TableHead>
@@ -327,7 +339,7 @@ export default function AdminUsersPage() {
                   <TableBody>
                     {filteredUsers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                           No users found
                         </TableCell>
                       </TableRow>
@@ -335,6 +347,7 @@ export default function AdminUsersPage() {
                       filteredUsers.map((u) => (
                         <TableRow key={u.user_id}>
                           <TableCell className="font-medium">{u.full_name || '—'}</TableCell>
+                          <TableCell>{u.username}</TableCell>
                           <TableCell>{u.email}</TableCell>
                           <TableCell>
                             {u.organization_id ? (
@@ -409,6 +422,11 @@ export default function AdminUsersPage() {
             <div className="space-y-2">
               <Label>Full Name</Label>
               <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="John Doe" />
+            </div>
+            <div className="space-y-2">
+              <Label>Username</Label>
+              <Input value={formUsername} onChange={(e) => setFormUsername(e.target.value)} placeholder="jane.smith" autoComplete="username" />
+              <p className="text-xs text-muted-foreground">A unique four-digit suffix is added after saving.</p>
             </div>
             <div className="space-y-2">
               <Label>Email</Label>

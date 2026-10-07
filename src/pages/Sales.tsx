@@ -80,13 +80,14 @@ import { exportToXLSX } from "@/lib/export-utils";
 import { useBulkSelection } from "@/hooks/useBulkSelection";
 import { BulkActionBar, BulkSelectCheckbox } from "@/components/ui/bulk-action-bar";
 
-const statusColors: Record<SaleStatus, string> = {
+const statusColors: Record<SaleStatus | "returned", string> = {
   completed:
     "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20",
   pending:
     "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/20",
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
   on_hold: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20",
+  returned: "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20",
 };
 
 const paymentStatusColors: Record<string, string> = {
@@ -183,6 +184,18 @@ export default function Sales() {
     }
   }, [branches, isSuperAdmin, authLoading]);
 
+  const returnsBySaleId = useMemo(
+    () => saleReturns.reduce<Record<string, number>>((totals, saleReturn) => {
+      totals[saleReturn.sale_id] = (totals[saleReturn.sale_id] || 0) + Number(saleReturn.total_amount || 0);
+      return totals;
+    }, {}),
+    [saleReturns],
+  );
+  const getNetSaleAmount = (sale: Pick<Sale, "id" | "total_amount">) =>
+    Math.max(0, Number(sale.total_amount || 0) - Number(returnsBySaleId[sale.id] || 0));
+  const hasSaleReturn = (sale: Pick<Sale, "id">) => Number(returnsBySaleId[sale.id] || 0) > 0;
+  const getDisplayStatus = (sale: Sale) => hasSaleReturn(sale) ? "returned" : sale.status;
+
   // Filter sales
   const filteredSales = useMemo(() => {
     return sales.filter((sale) => {
@@ -192,8 +205,8 @@ export default function Sales() {
         !q ||
         sale.sale_number.toLowerCase().includes(q) ||
         displayName.includes(q);
-      const matchesStatus =
-        filterStatus === "all" || sale.status === filterStatus;
+      const displayStatus = Number(returnsBySaleId[sale.id] || 0) > 0 ? "returned" : sale.status;
+      const matchesStatus = filterStatus === "all" || displayStatus === filterStatus;
       const paymentMethods =
         Array.isArray(sale.payment_details) && sale.payment_details.length > 0
           ? sale.payment_details.map((pd) => pd.method)
@@ -226,6 +239,7 @@ export default function Sales() {
     filterBranch,
     startDate,
     endDate,
+    returnsBySaleId,
   ]);
 
   const getPaymentDisplay = (sale: any) => {
@@ -256,29 +270,11 @@ export default function Sales() {
   };
 
   // Calculate totals
-  const totalSales = filteredSales.reduce(
-    (sum, s) => sum + Number(s.total_amount),
-    0,
-  );
   const displayedSalesTotal = paginatedSales.reduce(
-    (sum, sale) => sum + Number(sale.total_amount || 0),
+    (sum, sale) => sum + getNetSaleAmount(sale),
     0,
   );
-  // Map of return totals by sale id for quick lookup
-  const returnsBySaleId: Record<string, number> = (saleReturns || []).reduce(
-    (acc, r) => {
-      acc[r.sale_id] = (acc[r.sale_id] || 0) + Number(r.total_amount || 0);
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
-
-  // Adjust total sales value by subtracting returns for each sale
-  const adjustedTotalSales = filteredSales.reduce((sum, s) => {
-    const returns = Number(returnsBySaleId[s.id] || 0);
-    const adjusted = Math.max(0, Number(s.total_amount || 0) - returns);
-    return sum + adjusted;
-  }, 0);
+  const adjustedTotalSales = filteredSales.reduce((sum, sale) => sum + getNetSaleAmount(sale), 0);
   const totalRevenue = calculateCompletedRevenue(filteredSales, saleReturns);
 
   const handleOpenEdit = (sale: Sale) => {
@@ -357,13 +353,13 @@ export default function Sales() {
                     Date: format(new Date(s.created_at), "yyyy-MM-dd HH:mm"),
                     Customer: s.customer_name || "Walk-in",
                     Payment: s.payment_method,
-                    Status: s.status,
+                    Status: getDisplayStatus(s),
                     "Payment Status": s.payment_status || "-",
                     Subtotal: Number(s.subtotal || 0),
                     Discount: Number(s.discount_amount || 0),
                     Tax: Number(s.tax_amount || 0),
                     WHT: Number(s.wht_amount || 0),
-                    Total: Number(s.total_amount || 0),
+                    Total: getNetSaleAmount(s),
                     "Amount Paid": Number(s.amount_paid || 0),
                     "Balance Due": Number(s.balance_due || 0),
                     Branch: branches.find((b) => b.id === s.branch_id)?.name || "-",
@@ -440,6 +436,7 @@ export default function Sales() {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
                 <SelectItem value="on_hold">On Hold</SelectItem>
+                <SelectItem value="returned">Returned</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterPayment} onValueChange={setFilterPayment}>
@@ -549,7 +546,9 @@ export default function Sales() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {sale.status === "completed" && sale.payment_status && sale.payment_status !== "paid" ? (
+                        {hasSaleReturn(sale) ? (
+                          <Badge className={statusColors.returned}>returned</Badge>
+                        ) : sale.status === "completed" && sale.payment_status && sale.payment_status !== "paid" ? (
                           <Badge className={paymentStatusColors[sale.payment_status]}>
                             {sale.payment_status === "partial" ? "Partial" : "Credit"}
                           </Badge>
@@ -560,7 +559,7 @@ export default function Sales() {
                         )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(Number(sale.total_amount))}
+                        {formatCurrency(getNetSaleAmount(sale))}
                       </TableCell>
                       <TableCell className="text-right text-emerald-600">
                         {Number(sale.wht_amount || 0) > 0
@@ -683,7 +682,9 @@ export default function Sales() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Status</p>
-                    {selectedSale.status === "completed" && selectedSale.payment_status && selectedSale.payment_status !== "paid" ? (
+                    {hasSaleReturn(selectedSale) ? (
+                      <Badge className={statusColors.returned}>returned</Badge>
+                    ) : selectedSale.status === "completed" && selectedSale.payment_status && selectedSale.payment_status !== "paid" ? (
                       <Badge className={paymentStatusColors[selectedSale.payment_status]}>
                         {selectedSale.payment_status === "partial" ? "Partial" : "Credit"}
                       </Badge>
@@ -740,7 +741,7 @@ export default function Sales() {
                   <div className="flex justify-between text-lg font-bold pt-2 border-t">
                     <span>Total</span>
                     <span>
-                      {formatCurrency(Number(selectedSale.total_amount))}
+                      {formatCurrency(getNetSaleAmount(selectedSale))}
                     </span>
                   </div>
                 </div>

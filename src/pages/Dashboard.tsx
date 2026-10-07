@@ -632,7 +632,7 @@ function DashboardContent() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete product?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will permanently remove the record from the database.
+              This permanently deletes the product and its linked stock history, sales and purchase line items, returns, bills of materials, and work orders. Parent transactions remain but will no longer include this product.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">

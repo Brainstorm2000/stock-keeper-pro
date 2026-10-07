@@ -13,7 +13,7 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { signIn, user, isSuperSuperAdmin, loading } = useAuth();
+  const { signInWithEmail, user, isSuperSuperAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -29,7 +29,7 @@ export default function AdminLogin() {
 
     setIsLoading(true);
     try {
-      const { error } = await signIn(email, password);
+      const { error } = await signInWithEmail(email, password);
       if (error) {
         toast({
           title: 'Login Failed',
@@ -71,6 +71,7 @@ export default function AdminLogin() {
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   placeholder="admin@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

@@ -38,8 +38,9 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   isSuperSuperAdmin: boolean;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (username: string, email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (username: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -201,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (username: string, email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/onboarding`;
 
     const { error } = await supabase.auth.signUp({
@@ -209,20 +210,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         emailRedirectTo: redirectUrl,
+        data: { username },
       },
     });
 
     return { error };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+  const signIn = async (username: string, password: string) => {
+    const { data: loginData, error: loginError } = await supabase.functions.invoke('username-login', {
+      body: { username, password },
     });
+
+    if (loginError) {
+      const context = 'context' in loginError ? loginError.context : null;
+      if (context instanceof Response) {
+        const body = await context.clone().json().catch(() => null) as { error?: string } | null;
+        return { error: new Error(body?.error || 'Unable to sign in. Please try again.') };
+      }
+      return { error: loginError };
+    }
+
+    const { access_token, refresh_token } = loginData as {
+      access_token?: string;
+      refresh_token?: string;
+    };
+    if (!access_token || !refresh_token) {
+      return { error: new Error('Unable to sign in. Please try again.') };
+    }
+
+    const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
 
     if (!error && data.user) {
       // Enforce is_active flag client-side (no server-side auth ban available).
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_active")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+      if (profile && profile.is_active === false) {
+        await supabase.auth.signOut();
+        return {
+          error: new Error(
+            "This account has been deactivated. Please contact your administrator if you believe this is an error.",
+          ),
+        };
+      }
+    }
+
+    return { error };
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (!error && data.user) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("is_active")
@@ -267,6 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     signUp,
     signIn,
+    signInWithEmail,
     signOut,
     refreshProfile,
   };

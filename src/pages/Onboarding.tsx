@@ -26,6 +26,7 @@ export default function Onboarding() {
   const [joinRole, setJoinRole] = useState<'admin' | 'user'>('user');
   const [isLoading, setIsLoading] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
+  const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminFullName, setAdminFullName] = useState('');
 
@@ -68,12 +69,16 @@ export default function Onboarding() {
 
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orgName.trim() || !orgSlug.trim() || !fullName.trim() || !adminEmail.trim() || !adminPassword.trim() || !adminFullName.trim()) {
+    if (!orgName.trim() || !orgSlug.trim() || !fullName.trim() || !adminUsername.trim() || !adminEmail.trim() || !adminPassword.trim() || !adminFullName.trim()) {
       toast({ title: 'Please fill in all required fields', variant: 'destructive' });
       return;
     }
     if (adminPassword.length < 6) {
       toast({ title: 'Admin password must be at least 6 characters', variant: 'destructive' });
+      return;
+    }
+    if (!/^[a-z0-9][a-z0-9._-]{2,29}$/i.test(adminUsername.trim())) {
+      toast({ title: 'Invalid admin username', description: 'Use 3-30 letters, numbers, dots, underscores, or hyphens.', variant: 'destructive' });
       return;
     }
 
@@ -87,6 +92,7 @@ export default function Onboarding() {
         email: orgEmail || undefined,
         address: orgAddress || undefined,
         adminEmail,
+        adminUsername,
         adminPassword,
         adminFullName,
       });
@@ -276,6 +282,19 @@ export default function Onboarding() {
                         onChange={(e) => setAdminFullName(e.target.value)}
                         disabled={isLoading}
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="adminUsername">Admin Username *</Label>
+                      <Input
+                        id="adminUsername"
+                        placeholder="jane.smith"
+                        autoComplete="username"
+                        value={adminUsername}
+                        onChange={(e) => setAdminUsername(e.target.value)}
+                        disabled={isLoading}
+                      />
+                      <p className="text-xs text-muted-foreground">A unique four-digit suffix is added after creating the account.</p>
                     </div>
 
                     <div className="space-y-2">

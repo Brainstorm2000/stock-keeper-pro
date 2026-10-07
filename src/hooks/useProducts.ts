@@ -334,8 +334,14 @@ export function useDeleteProduct() {
         await removeLocal(productsTable, id);
         return;
       }
-      const { error } = await supabase.from('products').delete().eq('id', id);
+      const { data, error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error('Product was not deleted. Check that you have delete access and an active subscription.');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -355,8 +361,11 @@ export function useBulkDeleteProducts() {
   return useMutation({
     mutationFn: async (ids: string[]) => {
       if (!ids.length) return;
-      const { error } = await supabase.from('products').delete().in('id', ids);
+      const { data, error } = await supabase.from('products').delete().in('id', ids).select('id');
       if (error) throw error;
+      if ((data?.length ?? 0) !== ids.length) {
+        throw new Error('Some products were not deleted. Check that you have delete access and an active subscription.');
+      }
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -396,11 +405,16 @@ export function useArchiveProduct() {
 
   return useMutation({
     mutationFn: async ({ id, archived }: { id: string; archived: boolean }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('products')
         .update({ is_archived: archived })
-        .eq('id', id);
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error(`Product was not ${archived ? 'archived' : 'restored'}. Check that you have edit access and an active subscription.`);
+      }
     },
     onSuccess: (_, { archived }) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });

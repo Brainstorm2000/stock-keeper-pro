@@ -80,6 +80,7 @@ export function useUserProfile() {
 
 export interface CreateOrgInput extends OrganizationInput {
   fullName: string;
+  adminUsername: string;
   adminEmail: string;
   adminPassword: string;
   adminFullName: string;
@@ -91,7 +92,7 @@ export function useCreateOrganization() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ name, slug, fullName, logo_url, email, address, adminEmail, adminPassword, adminFullName }: CreateOrgInput) => {
+    mutationFn: async ({ name, slug, fullName, logo_url, email, address, adminUsername, adminEmail, adminPassword, adminFullName }: CreateOrgInput) => {
       if (!user) throw new Error('User not authenticated');
 
       // 1. Create the organization
@@ -111,6 +112,7 @@ export function useCreateOrganization() {
       const { error: profileInsertError } = await supabase.from('profiles').insert({
         user_id: newUserId,
         email: adminEmail,
+        username: adminUsername.trim().toLowerCase(),
         full_name: adminFullName || null,
         organization_id: org.id,
         is_active: true,
@@ -135,6 +137,7 @@ export function useCreateOrganization() {
         await supabase.from('profiles').insert({
           user_id: user.id,
           email: user.email,
+          username: user.user_metadata?.username || user.email?.split('@')[0] || `user_${user.id.slice(0, 8)}`,
           full_name: fullName,
         });
       }
@@ -196,6 +199,7 @@ export function useJoinOrganization() {
         .insert({
           user_id: user.id,
           email: user.email,
+          username: user.user_metadata?.username || user.email?.split('@')[0] || `user_${user.id.slice(0, 8)}`,
           full_name: fullName,
           organization_id: org.id,
         });

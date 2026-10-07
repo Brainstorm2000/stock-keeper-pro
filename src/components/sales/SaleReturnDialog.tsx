@@ -33,42 +33,74 @@ interface ReturnItem {
 export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogProps) {
   const { data: organization } = useOrganization();
   const createReturn = useCreateSaleReturn();
-  const { data: alreadyReturned = {} } = useAlreadyReturnedQuantities(sale?.id);
+  const {
+    data: alreadyReturned = {},
+    isLoading: loadingReturnedQuantities,
+    error: returnedQuantitiesError,
+  } = useAlreadyReturnedQuantities(sale?.id);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [refundMethod, setRefundMethod] = useState('cash');
   const [items, setItems] = useState<ReturnItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const [itemsError, setItemsError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open && sale) {
-      // Fetch sale items
-      supabase
+    if (!open || !sale) {
+      setLoadingItems(false);
+      return;
+    }
+    if (loadingReturnedQuantities) {
+      setLoadingItems(true);
+      return;
+    }
+    if (returnedQuantitiesError) {
+      setItems([]);
+      setItemsError(returnedQuantitiesError.message);
+      setLoadingItems(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingItems(true);
+    setItemsError(null);
+
+    supabase
         .from('sale_items')
         .select('product_id, variation_id, quantity, unit_price, products(name), product_variations(sku)')
         .eq('sale_id', sale.id)
-        .then(({ data }) => {
-          if (data) {
-            setItems(data.map((si: any) => {
-              const itemKey = `${si.product_id}:${si.variation_id || ''}`;
-              const alreadyReturnedQty = alreadyReturned[itemKey] || 0;
-              const maxReturnable = Math.max(0, si.quantity - alreadyReturnedQty);
-              return {
-                product_id: si.product_id,
-                variation_id: si.variation_id,
-                product_name: `${si.products?.name || 'Unknown'}${si.product_variations?.sku ? ` (${si.product_variations.sku})` : ''}`,
-                max_quantity: maxReturnable,
-                quantity: maxReturnable,
-                unit_price: si.unit_price,
-                selected: false,
-              };
-            }).filter((i: ReturnItem) => i.max_quantity > 0));
-          }
+        .then(({ data, error }) => {
+          if (cancelled) return;
+          if (error) throw error;
+          setItems((data || []).map((si) => {
+            const itemKey = `${si.product_id}:${si.variation_id || ''}`;
+            const alreadyReturnedQty = alreadyReturned[itemKey] || 0;
+            const maxReturnable = Math.max(0, Number(si.quantity) - alreadyReturnedQty);
+            return {
+              product_id: si.product_id,
+              variation_id: si.variation_id,
+              product_name: `${si.products?.name || 'Unknown'}${si.product_variations?.sku ? ` (${si.product_variations.sku})` : ''}`,
+              max_quantity: maxReturnable,
+              quantity: maxReturnable,
+              unit_price: Number(si.unit_price),
+              selected: false,
+            };
+          }).filter((item) => item.max_quantity > 0));
+        })
+        .catch((error: unknown) => {
+          if (cancelled) return;
+          setItems([]);
+          setItemsError(error instanceof Error ? error.message : 'Unable to load products for this sale.');
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingItems(false);
         });
-      setReason('');
-      setNotes('');
-      setRefundMethod('cash');
-    }
-  }, [open, sale, alreadyReturned]);
+    setReason('');
+    setNotes('');
+    setRefundMethod('cash');
+
+    return () => { cancelled = true; };
+  }, [open, sale, alreadyReturned, loadingReturnedQuantities, returnedQuantitiesError]);
 
   const selectedItems = items.filter(i => i.selected && i.quantity > 0);
   const totalReturn = selectedItems.reduce((s, i) => s + i.quantity * i.unit_price, 0);
@@ -131,7 +163,25 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item, idx) => (
+              {loadingItems ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <Loader2 className="inline-block h-4 w-4 animate-spin mr-2" /> Loading sale products...
+                  </TableCell>
+                </TableRow>
+              ) : itemsError ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-destructive">
+                    Could not load products: {itemsError}
+                  </TableCell>
+                </TableRow>
+              ) : items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    No products are available to return for this sale. Items with zero quantity or already fully returned are omitted.
+                  </TableCell>
+                </TableRow>
+              ) : items.map((item, idx) => (
                 <TableRow key={`${item.product_id}:${item.variation_id || ''}`}>
                   <TableCell>
                     <Checkbox

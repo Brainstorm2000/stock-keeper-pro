@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { useUserProfile } from '@/hooks/useOrganization';
 import { Loader2, User, Lock } from 'lucide-react';
 
 interface ProfileSettingsDialogProps {
@@ -16,6 +17,7 @@ interface ProfileSettingsDialogProps {
 
 export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDialogProps) {
   const { user } = useAuth();
+  const { data: profile } = useUserProfile();
   const { toast } = useToast();
   
   // Profile state
@@ -129,6 +131,17 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
 
           <TabsContent value="profile" className="mt-4">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  value={profile?.username || ''}
+                  readOnly
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">Use this username to sign in.</p>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
