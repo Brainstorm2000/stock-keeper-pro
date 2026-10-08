@@ -632,7 +632,7 @@ function DashboardContent() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete product?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes the product and its linked stock history, sales and purchase line items, returns, bills of materials, and work orders. Parent transactions remain but will no longer include this product.
+              This permanently deletes the product and its linked stock history, sale and purchase line items, returns, bills of materials, and work orders. Sales containing only this product, plus their return and payment records, are deleted; sales with other products remain without this item.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">

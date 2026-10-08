@@ -76,6 +76,7 @@ import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
 import { SaleReturnDialog } from "@/components/sales/SaleReturnDialog";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
+import { getPaymentMethodDisplayName } from "@/lib/payment-display";
 import { exportToXLSX } from "@/lib/export-utils";
 import { useBulkSelection } from "@/hooks/useBulkSelection";
 import { BulkActionBar, BulkSelectCheckbox } from "@/components/ui/bulk-action-bar";
@@ -94,15 +95,6 @@ const paymentStatusColors: Record<string, string> = {
   paid: "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20",
   partial: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20",
   outstanding: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20",
-};
-
-const paymentMethodLabels: Record<PaymentMethod, string> = {
-  cash: "Cash",
-  card: "Card",
-  mobile_money: "Mobile Money",
-  bank_transfer: "Bank Transfer",
-  credit: "Credit",
-  pos: "POS",
 };
 
 export default function Sales() {
@@ -242,13 +234,13 @@ export default function Sales() {
     returnsBySaleId,
   ]);
 
-  const getPaymentDisplay = (sale: any) => {
-    if (Array.isArray(sale.payment_details) && sale.payment_details.length > 1) {
+  const getPaymentDisplay = (sale: Pick<Sale, "payment_method" | "payment_details">) => {
+    if (Array.isArray(sale.payment_details) && sale.payment_details.length > 0) {
       return sale.payment_details
-        .map((pd: any) => paymentMethodLabels[pd.method] || pd.method || "Unknown")
+        .map((payment) => `${getPaymentMethodDisplayName(payment.method, payment.method_name)} ${formatCurrency(Number(payment.amount))}`)
         .join(" | ");
     }
-    return paymentMethodLabels[sale.payment_method] || sale.payment_method || "Unknown";
+    return getPaymentMethodDisplayName(sale.payment_method);
   };
 
   const {

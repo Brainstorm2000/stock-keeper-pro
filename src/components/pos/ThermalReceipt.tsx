@@ -4,6 +4,7 @@ import type { Sale, PaymentDetail } from "@/hooks/useSales";
 import { useAuth } from "@/lib/auth";
 import { useUserProfile } from "@/hooks/useOrganization";
 import { formatCurrency } from "@/lib/currency";
+import { getPaymentMethodDisplayName } from "@/lib/payment-display";
 
 interface ThermalReceiptProps {
   sale: Sale;
@@ -23,17 +24,8 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
       user?.email ||
       null;
     const currentYear = new Date().getFullYear();
-    const paymentMethodLabels: Record<string, string> = {
-      cash: "CASH",
-      card: "CARD",
-      mobile_money: "MOBILE MONEY",
-      bank_transfer: "TRANSFER",
-      credit: "CREDIT",
-      pos: "POS",
-    };
-
     const paymentDetails = sale.payment_details as PaymentDetail[] | undefined;
-    const hasSplitPayment = paymentDetails && paymentDetails.length > 1;
+    const hasSplitPayment = paymentDetails && paymentDetails.length > 0;
     const amountPaid = Number(sale.amount_paid ?? 0);
     const balanceDue = Number(sale.balance_due ?? Math.max(0, Number(sale.total_amount) - amountPaid));
     const shouldShowBalance = sale.payment_status === 'partial' || sale.payment_status === 'outstanding';
@@ -236,7 +228,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
                   }}
                 >
                   <span style={{ fontWeight: "600" }}>
-                    {paymentMethodLabels[payment.method] || payment.method}:
+                    {getPaymentMethodDisplayName(payment.method, payment.method_name).toUpperCase()}:
                   </span>
                   <span>{formatCurrency(Number(payment.amount))}</span>
                 </div>
@@ -280,8 +272,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
               >
                 <span>METHOD:</span>
                 <span>
-                  {paymentMethodLabels[sale.payment_method] ||
-                    sale.payment_method.toUpperCase()}
+                  {getPaymentMethodDisplayName(sale.payment_method).toUpperCase()}
                 </span>
               </div>
               {shouldShowBalance && (
