@@ -322,50 +322,53 @@ export default function Sales() {
       <ModuleAccessGuard module="sales">
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Sales</h1>
-              <p className="text-muted-foreground">
-                View and manage your sales history
-              </p>
-            </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  <div>
+    <h1 className="text-2xl font-bold text-foreground">Sales</h1>
+    <p className="text-muted-foreground">
+      View and manage your sales history
+    </p>
+  </div>
 
-            <Button
-              onClick={() => navigate("/pos")}
-              className="w-full sm:w-auto bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-md shadow-amber-500/10 transition-all active:scale-[0.98]"
-            >
-              Go to POS
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() =>
-                exportToXLSX(
-                  filteredSales.map((s) => ({
-                    "Invoice #": s.sale_number,
-                    Date: format(new Date(s.created_at), "yyyy-MM-dd HH:mm"),
-                    Customer: s.customer_name || "Walk-in",
-                    Payment: s.payment_method,
-                    Status: getDisplayStatus(s),
-                    "Payment Status": s.payment_status || "-",
-                    Subtotal: Number(s.subtotal || 0),
-                    Discount: Number(s.discount_amount || 0),
-                    Tax: Number(s.tax_amount || 0),
-                    WHT: Number(s.wht_amount || 0),
-                    Total: getNetSaleAmount(s),
-                    "Amount Paid": Number(s.amount_paid || 0),
-                    "Balance Due": Number(s.balance_due || 0),
-                    Branch: branches.find((b) => b.id === s.branch_id)?.name || "-",
-                  })),
-                  "sales",
-                  "Sales",
-                )
-              }
-              disabled={filteredSales.length === 0}
-            >
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Export Excel
-            </Button>
-          </div>
+  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+    <Button
+      onClick={() => navigate("/pos")}
+      className="w-full sm:w-auto bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold shadow-md shadow-amber-500/10 transition-all active:scale-[0.98]"
+    >
+      Go to POS
+    </Button>
+    <Button
+      variant="outline"
+      onClick={() =>
+        exportToXLSX(
+          filteredSales.map((s) => ({
+            "Invoice #": s.sale_number,
+            Date: format(new Date(s.created_at), "yyyy-MM-dd HH:mm"),
+            Customer: s.customer_name || "Walk-in",
+            Payment: s.payment_method,
+            Status: getDisplayStatus(s),
+            "Payment Status": s.payment_status || "-",
+            Subtotal: Number(s.subtotal || 0),
+            Discount: Number(s.discount_amount || 0),
+            Tax: Number(s.tax_amount || 0),
+            WHT: Number(s.wht_amount || 0),
+            Total: getNetSaleAmount(s),
+            "Amount Paid": Number(s.amount_paid || 0),
+            "Balance Due": Number(s.balance_due || 0),
+            Branch: branches.find((b) => b.id === s.branch_id)?.name || "-",
+          })),
+          "sales",
+          "Sales",
+        )
+      }
+      disabled={filteredSales.length === 0}
+      className="w-full sm:w-auto"
+    >
+      <FileSpreadsheet className="mr-2 h-4 w-4" />
+      Export Excel
+    </Button>
+  </div>
+</div>
 
           {/* Summary Cards */}
           {isSuperAdmin && (

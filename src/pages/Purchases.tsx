@@ -236,50 +236,53 @@ export default function Purchases() {
         <div className="space-y-6 p-4 md:p-6">
           {/* HEADER */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Purchases</h1>
+  <div>
+    <h1 className="text-2xl font-bold">Purchases</h1>
 
-              <p className="text-sm text-muted-foreground">
-                Manage inventory purchases from suppliers
-              </p>
-            </div>
+    <p className="text-sm text-muted-foreground">
+      Manage inventory purchases from suppliers
+    </p>
+  </div>
 
-            {canCreate && (
-              <Button
-                onClick={() => setDialogOpen(true)}
-                className="w-full bg-[#FF9E3D] font-bold text-[#000B26] hover:bg-[#e88d30] sm:w-auto"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Purchase
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() =>
-                exportToXLSX(
-                  filteredPurchases.map((p: any) => ({
-                    "PO Number": p.purchase_number,
-                    Date: format(new Date(p.purchase_date || p.created_at), "yyyy-MM-dd"),
-                    Supplier: p.suppliers?.name || "-",
-                    Branch: p.branches?.name || "-",
-                    Items: p.purchase_items?.length || 0,
-                    Subtotal: Number(p.subtotal || 0),
-                    Tax: Number(p.tax_amount || 0),
-                    Total: Number(p.total_amount || 0),
-                    "Amount Paid": Number(p.amount_paid || 0),
-                    "Balance Due": Number((p.total_amount || 0) - (p.amount_paid || 0)),
-                    "Payment Status": p.payment_status,
-                  })),
-                  "purchases",
-                  "Purchases",
-                )
-              }
-              disabled={filteredPurchases.length === 0}
-            >
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Export Excel
-            </Button>
-          </div>
+  <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+    {canCreate && (
+      <Button
+        onClick={() => setDialogOpen(true)}
+        className="w-full sm:w-auto bg-[#FF9E3D] font-bold text-[#000B26] hover:bg-[#e88d30]"
+      >
+        <Plus className="mr-2 h-4 w-4" />
+        New Purchase
+      </Button>
+    )}
+    <Button
+      variant="outline"
+      onClick={() =>
+        exportToXLSX(
+          filteredPurchases.map((p: any) => ({
+            "PO Number": p.purchase_number,
+            Date: format(new Date(p.purchase_date || p.created_at), "yyyy-MM-dd"),
+            Supplier: p.suppliers?.name || "-",
+            Branch: p.branches?.name || "-",
+            Items: p.purchase_items?.length || 0,
+            Subtotal: Number(p.subtotal || 0),
+            Tax: Number(p.tax_amount || 0),
+            Total: Number(p.total_amount || 0),
+            "Amount Paid": Number(p.amount_paid || 0),
+            "Balance Due": Number((p.total_amount || 0) - (p.amount_paid || 0)),
+            "Payment Status": p.payment_status,
+          })),
+          "purchases",
+          "Purchases",
+        )
+      }
+      disabled={filteredPurchases.length === 0}
+      className="w-full sm:w-auto"
+    >
+      <FileSpreadsheet className="mr-2 h-4 w-4" />
+      Export Excel
+    </Button>
+  </div>
+</div>
 
           {/* SUMMARY */}
           {isSuperAdmin && (

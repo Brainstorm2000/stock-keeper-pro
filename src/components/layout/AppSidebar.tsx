@@ -259,7 +259,7 @@ export function AppSidebar({
                     asChild
                     className="h-11 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white"
                   >
-                    <NavLink
+                    {/* <NavLink
                       to="/subscription"
                       end
                       preventScrollReset={true}
@@ -269,7 +269,7 @@ export function AppSidebar({
                       <span className="font-bold text-sm tracking-tight">
                         Subscription
                       </span>
-                    </NavLink>
+                    </NavLink> */}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
