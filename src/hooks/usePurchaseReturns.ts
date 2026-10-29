@@ -28,9 +28,17 @@ export interface PurchaseReturnItem {
   product_id: string;
   variation_id: string | null;
   quantity: number;
+  unit_multiplier: number;
+  unit_label: string | null;
   unit_cost: number;
   total_cost: number;
-  products?: { id: string; name: string; units?: { name: string; abbreviation: string | null } };
+  products?: {
+    id: string;
+    name: string;
+    sub_unit_id?: string | null;
+    sub_unit_factor?: number | null;
+    units?: { name: string; abbreviation: string | null };
+  };
 }
 
 export function usePurchaseReturns() {
@@ -39,7 +47,7 @@ export function usePurchaseReturns() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_returns')
-        .select(`*, purchases(id, purchase_number), branches(id, name), purchase_return_items(*, products(id, name, units(name, abbreviation)), product_variations(id, sku))`)
+        .select(`*, purchases(id, purchase_number), branches(id, name), purchase_return_items(*, products(id, name, sub_unit_id, sub_unit_factor, units:units!products_unit_id_fkey(name, abbreviation)), product_variations(id, sku))`)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as unknown as PurchaseReturn[];
@@ -54,12 +62,16 @@ export function useAlreadyReturnedPurchaseQuantities(purchaseId: string | undefi
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_return_items')
-        .select('product_id, variation_id, quantity, purchase_returns!inner(purchase_id)')
+        .select('product_id, variation_id, quantity, unit_multiplier, unit_label, products(sub_unit_id, sub_unit_factor), purchase_returns!inner(purchase_id)')
         .eq('purchase_returns.purchase_id', purchaseId!);
       if (error) throw error;
       const map: Record<string, number> = {};
       for (const item of (data || [])) {
-        const key = getPurchaseItemKey(item.product_id, item.variation_id);
+        const product = item.products as { sub_unit_id?: string | null; sub_unit_factor?: number | null } | null;
+        const multiplier = item.unit_label
+          ? Number(item.unit_multiplier) || 1
+          : product?.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1;
+        const key = getPurchaseItemKey(item.product_id, item.variation_id, multiplier);
         map[key] = (map[key] || 0) + Number(item.quantity);
       }
       return map;
@@ -76,6 +88,9 @@ export function useUndoPurchaseReturn() {
     mutationFn: async (ret: PurchaseReturn) => {
       // Reverse stock: re-add items that were deducted
       for (const item of (ret.purchase_return_items || [])) {
+        const multiplier = item.unit_label
+          ? Number(item.unit_multiplier) || 1
+          : item.products?.sub_unit_id ? Number(item.products.sub_unit_factor) || 1 : 1;
         if (item.variation_id) {
           const { data: variation, error: variationError } = await supabase
             .from('product_variations' as any)
@@ -85,7 +100,8 @@ export function useUndoPurchaseReturn() {
             .single();
           if (variationError) throw variationError;
           const previousStock = Number((variation as any).current_stock);
-          const newStock = previousStock + Number(item.quantity);
+          const restoredQuantity = Number(item.quantity) * multiplier;
+          const newStock = previousStock + restoredQuantity;
           const { error: updateError } = await supabase
             .from('product_variations' as any)
             .update({ current_stock: newStock })
@@ -96,7 +112,7 @@ export function useUndoPurchaseReturn() {
             variation_id: item.variation_id,
             previous_stock: previousStock,
             new_stock: newStock,
-            change_amount: Number(item.quantity),
+            change_amount: restoredQuantity,
             change_type: 'purchase_return',
             notes: `Undo purchase return ${ret.return_number}`,
             changed_by: user?.id,
@@ -113,13 +129,14 @@ export function useUndoPurchaseReturn() {
 
         if (product) {
           const prev = Number(product.current_stock);
-          const newStock = prev + item.quantity;
+          const restoredQuantity = Number(item.quantity) * multiplier;
+          const newStock = prev + restoredQuantity;
           await supabase.from('products').update({ current_stock: newStock }).eq('id', item.product_id);
           await supabase.from('stock_history').insert({
             product_id: item.product_id,
             previous_stock: prev,
             new_stock: newStock,
-            change_amount: item.quantity,
+            change_amount: restoredQuantity,
             change_type: 'purchase_return',
             notes: `Undo purchase return ${ret.return_number}`,
             changed_by: user?.id,
@@ -174,7 +191,7 @@ export function useCreatePurchaseReturn() {
       branch_id: string;
       reason?: string;
       notes?: string;
-      items: { product_id: string; variation_id?: string | null; quantity: number; unit_cost: number }[];
+      items: { product_id: string; variation_id?: string | null; quantity: number; unit_multiplier?: number; unit_label?: string | null; unit_cost: number }[];
     }) => {
       const { data: returnNumber, error: numErr } = await supabase
         .rpc('generate_purchase_return_number', { org_id: input.organization_id });
@@ -184,32 +201,37 @@ export function useCreatePurchaseReturn() {
 
       const { data: purchaseItems, error: purchaseItemsError } = await supabase
         .from('purchase_items')
-        .select('product_id, variation_id, quantity')
+        .select('product_id, variation_id, quantity, unit_multiplier, unit_label, products(sub_unit_id, sub_unit_factor)')
         .eq('purchase_id', input.purchase_id);
 
       if (purchaseItemsError) throw purchaseItemsError;
 
       const { data: returnedItems, error: returnedItemsError } = await supabase
         .from('purchase_return_items')
-        .select('product_id, variation_id, quantity, purchase_returns!inner(purchase_id)')
+        .select('product_id, variation_id, quantity, unit_multiplier, unit_label, products(sub_unit_id, sub_unit_factor), purchase_returns!inner(purchase_id)')
         .eq('purchase_returns.purchase_id', input.purchase_id);
 
       if (returnedItemsError) throw returnedItemsError;
 
       const purchasedQuantities = new Map<string, number>();
+      const getMultiplier = (item: { unit_multiplier?: number | null; unit_label?: string | null; products?: unknown }) => {
+        if (item.unit_label) return Number(item.unit_multiplier) || 1;
+        const product = item.products as { sub_unit_id?: string | null; sub_unit_factor?: number | null } | null;
+        return product?.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1;
+      };
       for (const item of purchaseItems || []) {
-        const key = getPurchaseItemKey(item.product_id, item.variation_id);
+        const key = getPurchaseItemKey(item.product_id, item.variation_id, getMultiplier(item));
         purchasedQuantities.set(key, (purchasedQuantities.get(key) || 0) + Number(item.quantity));
       }
 
       const alreadyReturnedQuantities = new Map<string, number>();
       for (const item of returnedItems || []) {
-        const key = getPurchaseItemKey(item.product_id, item.variation_id);
+        const key = getPurchaseItemKey(item.product_id, item.variation_id, getMultiplier(item));
         alreadyReturnedQuantities.set(key, (alreadyReturnedQuantities.get(key) || 0) + Number(item.quantity));
       }
 
       for (const item of input.items) {
-        const key = getPurchaseItemKey(item.product_id, item.variation_id);
+        const key = getPurchaseItemKey(item.product_id, item.variation_id, Number(item.unit_multiplier) || 1);
         const purchasedQuantity = purchasedQuantities.get(key);
         if (purchasedQuantity === undefined) {
           throw new Error('Selected item was not found on the purchase.');
@@ -229,7 +251,7 @@ export function useCreatePurchaseReturn() {
             .eq('product_id', item.product_id)
             .single();
           if (variationError) throw variationError;
-          if (!variation || Number((variation as any).current_stock) < item.quantity) {
+          if (!variation || Number((variation as any).current_stock) < item.quantity * Number(item.unit_multiplier || 1)) {
             throw new Error('Return quantity cannot exceed the current variation stock available.');
           }
           continue;
@@ -242,7 +264,7 @@ export function useCreatePurchaseReturn() {
           .single();
 
         if (productError) throw productError;
-        if (!product || Number(product.current_stock) < item.quantity) {
+        if (!product || Number(product.current_stock) < item.quantity * Number(item.unit_multiplier || 1)) {
           throw new Error('Return quantity cannot exceed the current stock available.');
         }
       }
@@ -268,6 +290,8 @@ export function useCreatePurchaseReturn() {
         product_id: i.product_id,
         variation_id: i.variation_id || null,
         quantity: i.quantity,
+        unit_multiplier: i.unit_multiplier || 1,
+        unit_label: i.unit_label || null,
         unit_cost: i.unit_cost,
         total_cost: i.quantity * i.unit_cost,
       }));
@@ -286,7 +310,8 @@ export function useCreatePurchaseReturn() {
             .single();
           if (variationError) throw variationError;
           const previousStock = Number((variation as any).current_stock);
-          const newStock = Math.max(0, previousStock - item.quantity);
+          const stockQuantity = item.quantity * Number(item.unit_multiplier || 1);
+          const newStock = Math.max(0, previousStock - stockQuantity);
           const { error: updateError } = await supabase
             .from('product_variations' as any)
             .update({ current_stock: newStock })
@@ -297,7 +322,7 @@ export function useCreatePurchaseReturn() {
             variation_id: item.variation_id,
             previous_stock: previousStock,
             new_stock: newStock,
-            change_amount: -item.quantity,
+            change_amount: -stockQuantity,
             change_type: 'purchase_return',
             notes: `Purchase return ${returnNumber}`,
             changed_by: user?.id,
@@ -314,14 +339,15 @@ export function useCreatePurchaseReturn() {
 
         if (product) {
           const prev = Number(product.current_stock);
-          const newStock = Math.max(0, prev - item.quantity);
+          const stockQuantity = item.quantity * Number(item.unit_multiplier || 1);
+          const newStock = Math.max(0, prev - stockQuantity);
 
           await supabase.from('products').update({ current_stock: newStock }).eq('id', item.product_id);
           await supabase.from('stock_history').insert({
             product_id: item.product_id,
             previous_stock: prev,
             new_stock: newStock,
-            change_amount: -item.quantity,
+            change_amount: -stockQuantity,
             change_type: 'purchase_return',
             notes: `Purchase return ${returnNumber}`,
             changed_by: user?.id,

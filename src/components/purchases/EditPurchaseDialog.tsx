@@ -21,6 +21,7 @@ import { calculateMarkupPercent, calculateSellingPrice } from '@/lib/markup';
 import { PurchaseVariationPicker } from './PurchaseVariationPicker';
 import { fetchVariationsForProduct, formatVariationLabel, type ProductVariation } from '@/hooks/useProductVariations';
 import { getPurchaseItemKey } from '@/lib/purchase-item-key';
+import { getProductStockFactor, getUnitLabel, getUnitMultiplier, formatProductStock } from '@/lib/product-units';
 
 interface EditPurchaseDialogProps {
   purchase: Purchase;
@@ -72,20 +73,26 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
       setCart(purchase.purchase_items
         .filter(item => item.products)
         .map(item => {
+          const purchasedProduct = products.find(p => p.id === item.product_id) || {
+            id: item.product_id,
+            name: item.products?.name || 'Unknown',
+            category: item.products?.category as 'sellable' | 'consumable' || 'sellable',
+            units: item.products?.units,
+          } as Product;
           const variation = item.variation_id
             ? variationsByProduct.get(item.product_id)?.find((entry) => entry.id === item.variation_id)
             : undefined;
           return {
             product_id: item.product_id,
             variation_id: item.variation_id,
-            product: products.find(p => p.id === item.product_id) || {
-              id: item.product_id,
-              name: item.products?.name || 'Unknown',
-              category: item.products?.category as 'sellable' | 'consumable' || 'sellable',
-              units: item.products?.units,
-            } as Product,
+            product: purchasedProduct,
             variation,
             quantity: Number(item.quantity),
+            unit_multiplier: item.unit_label
+              ? Number(item.unit_multiplier) || 1
+              : getProductStockFactor(purchasedProduct),
+            unit_label: item.unit_label ||
+              (purchasedProduct.units?.abbreviation || purchasedProduct.units?.name || null),
             unit_cost: Number(item.unit_cost),
             selling_price: Number((item as any).selling_price) || 0,
           };
@@ -127,11 +134,16 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
     }).format(value);
   };
 
-  const getCartKey = (item: CartItem) => getPurchaseItemKey(item.product_id, item.variation_id);
+  const getCartKey = (item: CartItem) =>
+    getPurchaseItemKey(item.product_id, item.variation_id, Number(item.unit_multiplier) || 1);
 
   const addToCart = (product: Product, variation?: ProductVariation) => {
     const variationId = variation?.id || null;
-    const cartKey = getPurchaseItemKey(product.id, variationId);
+    const cartKey = getPurchaseItemKey(
+      product.id,
+      variationId,
+      variation ? 1 : getProductStockFactor(product),
+    );
     setCart((currentCart) => {
       const existing = currentCart.find(item => getCartKey(item) === cartKey);
       if (existing) {
@@ -147,6 +159,8 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
         product,
         variation,
         quantity: 1,
+        unit_multiplier: variation ? 1 : getProductStockFactor(product),
+        unit_label: variation ? formatVariationLabel(variation) : getUnitLabel(product, "main"),
         unit_cost: Number(variation?.cost_price ?? product.cost_price) || 0,
         selling_price: Number(variation?.selling_price ?? product.selling_price) || 0,
       }];
@@ -168,6 +182,25 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
 
   const removeFromCart = (key: string) => {
     setCart(cart.filter(item => getCartKey(item) !== key));
+  };
+
+  const changeCartUnit = (key: string, unit: "main" | "sub") => {
+    setCart((currentCart) => currentCart.map((item) => {
+      if (getCartKey(item) !== key || item.variation || !item.product.sub_unit_id) return item;
+      const oldMultiplier = Number(item.unit_multiplier) || 1;
+      const nextMultiplier = getUnitMultiplier(item.product, unit);
+      const nextPrice = unit === "main"
+        ? Number(item.product.selling_price) || 0
+        : Number(item.product.sub_unit_selling_price) || 0;
+      return {
+        ...item,
+        quantity: item.quantity * oldMultiplier / nextMultiplier,
+        unit_multiplier: nextMultiplier,
+        unit_label: getUnitLabel(item.product, unit),
+        unit_cost: item.unit_cost * nextMultiplier / oldMultiplier,
+        selling_price: nextPrice,
+      };
+    }));
   };
 
   const handleSubmit = async () => {
@@ -327,7 +360,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
                           <p className="font-medium">{product.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {product.sku && `SKU: ${product.sku} • `}
-                            Stock: {Number(product.current_stock).toLocaleString()} {product.units?.abbreviation}
+                            Stock: {formatProductStock(product)}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -370,7 +403,20 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
                           <div>
                             <p className="font-medium">{item.product.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {item.variation ? formatVariationLabel(item.variation) : item.product.units?.abbreviation || item.product.units?.name}
+                              {item.variation
+                                ? formatVariationLabel(item.variation)
+                                : item.product.sub_unit_id
+                                  ? <Select
+                                      value={Number(item.unit_multiplier) === 1 ? "sub" : "main"}
+                                      onValueChange={(unit: "main" | "sub") => changeCartUnit(key, unit)}
+                                    >
+                                      <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="main">{getUnitLabel(item.product, "main")}</SelectItem>
+                                        <SelectItem value="sub">{getUnitLabel(item.product, "sub")}</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  : item.product.units?.abbreviation || item.product.units?.name}
                             </p>
                           </div>
                         </TableCell>

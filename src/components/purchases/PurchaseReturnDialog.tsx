@@ -15,6 +15,7 @@ import { formatCurrency } from '@/lib/currency';
 import { getMaxReturnableQuantity } from '@/lib/purchase-products';
 import { useToast } from '@/hooks/use-toast';
 import { getPurchaseItemKey } from '@/lib/purchase-item-key';
+import { getProductStockFactor, getUnitLabel } from '@/lib/product-units';
 
 interface PurchaseReturnDialogProps {
   purchase: Purchase | null;
@@ -29,6 +30,8 @@ interface ReturnItem {
   variation_label?: string;
   max_quantity: number;
   quantity: number;
+  unit_multiplier: number;
+  unit_label: string;
   unit_cost: number;
   selected: boolean;
 }
@@ -62,11 +65,19 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
     if (open && purchase?.purchase_items) {
       setItems(purchase.purchase_items.map(pi => {
         const variationId = pi.variation_id || null;
-        const itemKey = getPurchaseItemKey(pi.product_id, variationId);
+        const product = products.find((entry) => entry.id === pi.product_id);
+        const unitMultiplier = pi.unit_label
+          ? Number(pi.unit_multiplier) || 1
+          : product
+            ? getProductStockFactor(product)
+            : pi.products?.sub_unit_id ? Number(pi.products.sub_unit_factor) || 1 : 1;
+        const itemKey = getPurchaseItemKey(pi.product_id, variationId, unitMultiplier);
         const alreadyReturnedQty = alreadyReturned[itemKey] || 0;
         const maxReturnable = getMaxReturnableQuantity(
           Number(pi.quantity),
-          variationId ? stockByVariationId[variationId] || 0 : stockByProductId[pi.product_id] || 0,
+          variationId
+            ? stockByVariationId[variationId] || 0
+            : (stockByProductId[pi.product_id] || 0) / unitMultiplier,
           alreadyReturnedQty,
         );
         return {
@@ -76,6 +87,10 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
           variation_label: pi.product_variations?.sku || undefined,
           max_quantity: maxReturnable,
           quantity: maxReturnable,
+          unit_multiplier: unitMultiplier,
+          unit_label: pi.unit_label || (product
+            ? getUnitLabel(product, "main")
+            : pi.products?.units?.abbreviation || pi.products?.units?.name || "unit"),
           unit_cost: pi.unit_cost,
           selected: false,
         };
@@ -83,7 +98,7 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
       setReason('');
       setNotes('');
     }
-  }, [open, purchase, alreadyReturned, stockByProductId, stockByVariationId]);
+  }, [open, purchase, products, alreadyReturned, stockByProductId, stockByVariationId]);
 
   const selectedItems = items.filter(i => i.selected && i.quantity > 0);
   const totalReturn = selectedItems.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
@@ -107,6 +122,8 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
         product_id: i.product_id,
         variation_id: i.variation_id,
         quantity: i.quantity,
+        unit_multiplier: i.unit_multiplier,
+        unit_label: i.unit_label,
         unit_cost: i.unit_cost,
       })),
     });
@@ -131,14 +148,14 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
               <TableRow>
                 <TableHead className="w-10"></TableHead>
                 <TableHead>Product</TableHead>
-                <TableHead className="w-[100px]">Qty (max)</TableHead>
+                <TableHead className="w-[120px]">Qty (max)</TableHead>
                 <TableHead className="text-right">Unit Cost</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((item, idx) => (
-                <TableRow key={getPurchaseItemKey(item.product_id, item.variation_id)}>
+                <TableRow key={getPurchaseItemKey(item.product_id, item.variation_id, item.unit_multiplier)}>
                   <TableCell>
                     <Checkbox
                       checked={item.selected}
@@ -149,7 +166,7 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
                       }}
                     />
                   </TableCell>
-                  <TableCell>{item.product_name}{item.variation_label && <span className="block text-xs text-muted-foreground">{item.variation_label}</span>}</TableCell>
+                  <TableCell>{item.product_name}<span className="block text-xs text-muted-foreground">{item.variation_label || item.unit_label}</span></TableCell>
                   <TableCell>
                     <Input
                       type="number"

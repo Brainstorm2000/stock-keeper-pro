@@ -17,6 +17,7 @@ import { useBranches, useMyBranchAssignments } from "@/hooks/useBranches";
 import { RawMaterialsTab } from "@/components/production/RawMaterialsTab";
 import { BOMTab } from "@/components/production/BOMTab";
 import { WorkOrdersTab } from "@/components/production/WorkOrdersTab";
+import { QuickProductionTab } from "@/components/production/QuickProductionTab";
 import { ProductionAnalyticsTab } from "@/components/production/ProductionAnalyticsTab";
 import { DamagesTab } from "@/components/production/DamagesTab";
 
@@ -84,7 +85,7 @@ export default function Production() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">Production</h1>
               <p className="text-muted-foreground">
-                Manage raw materials, BOMs, and manufacturing work orders
+                Record production directly or manage materials, BOMs, and work orders
               </p>
             </div>
             {accessibleBranches.length > 1 && (
@@ -108,7 +109,13 @@ export default function Production() {
           </div>
 
           <Tabs defaultValue="raw-materials" className="space-y-4">
-            <TabsList className="flex w-full justify-start overflow-x-auto overflow-y-hidden whitespace-nowrap border-b bg-transparent p-0 scrollbar-hide lg:inline-grid lg:grid-cols-5 lg:w-auto lg:bg-muted lg:p-1">
+            <TabsList className="flex w-full justify-start overflow-x-auto overflow-y-hidden whitespace-nowrap border-b bg-transparent p-0 scrollbar-hide lg:inline-grid lg:grid-cols-6 lg:w-auto lg:bg-muted lg:p-1">
+              <TabsTrigger
+                value="quick-production"
+                className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-[#FF9E3D] data-[state=active]:bg-transparent lg:rounded-sm lg:border-none lg:data-[state=active]:bg-background"
+              >
+                Quick Production
+              </TabsTrigger>
               <TabsTrigger
                 value="raw-materials"
                 className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-[#FF9E3D] data-[state=active]:bg-transparent lg:rounded-sm lg:border-none lg:data-[state=active]:bg-background"
@@ -141,6 +148,9 @@ export default function Production() {
               </TabsTrigger>
             </TabsList>
 
+            <TabsContent value="quick-production">
+              <QuickProductionTab branchFilter={selectedBranchId} />
+            </TabsContent>
             <TabsContent value="raw-materials">
               <RawMaterialsTab />
             </TabsContent>

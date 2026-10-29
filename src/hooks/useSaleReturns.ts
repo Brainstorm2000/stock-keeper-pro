@@ -28,9 +28,11 @@ export interface SaleReturnItem {
   product_id: string;
   variation_id: string | null;
   quantity: number;
+  unit_multiplier: number;
+  unit_label: string | null;
   unit_price: number;
   total_price: number;
-  products?: { id: string; name: string };
+  products?: { id: string; name: string; sub_unit_id?: string | null; sub_unit_factor?: number | null };
 }
 
 export function useSaleReturns() {
@@ -39,7 +41,7 @@ export function useSaleReturns() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sale_returns')
-        .select(`*, sales(id, sale_number), branches(id, name), sale_return_items(*, products(id, name))`)
+        .select(`*, sales(id, sale_number), branches(id, name), sale_return_items(*, products(id, name, sub_unit_id, sub_unit_factor))`)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as unknown as SaleReturn[];
@@ -54,12 +56,16 @@ export function useAlreadyReturnedQuantities(saleId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sale_return_items')
-        .select('product_id, variation_id, quantity, sale_returns!inner(sale_id)')
+        .select('product_id, variation_id, quantity, unit_multiplier, unit_label, products(sub_unit_factor, sub_unit_id), sale_returns!inner(sale_id)')
         .eq('sale_returns.sale_id', saleId!);
       if (error) throw error;
       const map: Record<string, number> = {};
       for (const item of (data || [])) {
-        const key = `${item.product_id}:${item.variation_id || ''}`;
+        const product = item.products as { sub_unit_id?: string | null; sub_unit_factor?: number | null } | null;
+        const multiplier = item.unit_label
+          ? Number(item.unit_multiplier) || 1
+          : product?.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1;
+        const key = `${item.product_id}:${item.variation_id || ''}:${multiplier}`;
         map[key] = (map[key] || 0) + Number(item.quantity);
       }
       return map;
@@ -74,10 +80,13 @@ export function useUndoSaleReturn() {
   return useMutation({
     mutationFn: async (ret: SaleReturn) => {
       for (const item of (ret.sale_return_items || [])) {
+        const multiplier = item.unit_label
+          ? Number(item.unit_multiplier) || 1
+          : item.products?.sub_unit_id ? Number(item.products.sub_unit_factor) || 1 : 1;
         const { error } = await supabase.rpc('adjust_sale_return_stock', {
           _product_id: item.product_id,
           _variation_id: item.variation_id,
-          _change_amount: -Number(item.quantity),
+          _change_amount: -Number(item.quantity) * multiplier,
           _return_number: `Undo ${ret.return_number}`,
           _permission: 'delete',
         });
@@ -126,7 +135,7 @@ export function useCreateSaleReturn() {
       refund_method?: string;
       reason?: string;
       notes?: string;
-      items: { product_id: string; variation_id?: string | null; quantity: number; unit_price: number }[];
+      items: { product_id: string; variation_id?: string | null; quantity: number; unit_multiplier?: number; unit_label?: string | null; unit_price: number }[];
     }) => {
       const { data: returnNumber, error: numErr } = await supabase
         .rpc('generate_sale_return_number', { org_id: input.organization_id });
@@ -156,6 +165,8 @@ export function useCreateSaleReturn() {
         product_id: i.product_id,
         variation_id: i.variation_id || null,
         quantity: i.quantity,
+        unit_multiplier: i.unit_multiplier || 1,
+        unit_label: i.unit_label || null,
         unit_price: i.unit_price,
         total_price: i.quantity * i.unit_price,
       }));
@@ -167,7 +178,7 @@ export function useCreateSaleReturn() {
         const { error } = await supabase.rpc('adjust_sale_return_stock', {
           _product_id: item.product_id,
           _variation_id: item.variation_id || null,
-          _change_amount: item.quantity,
+          _change_amount: item.quantity * Number(item.unit_multiplier || 1),
           _return_number: returnNumber,
           _permission: 'create',
         });
@@ -210,33 +221,39 @@ export function useUpdateSaleReturn() {
       return_date: string;
       reason: string | null;
       notes: string | null;
-      items: { product_id: string; variation_id: string | null; quantity: number; unit_price: number }[];
+      items: { product_id: string; variation_id: string | null; quantity: number; unit_multiplier?: number; unit_label?: string | null; unit_price: number }[];
     }) => {
       const { saleReturn, items } = input;
       if (items.length === 0) throw new Error('A sale return must contain at least one item.');
 
       const { data: saleItems, error: saleItemsError } = await supabase
         .from('sale_items')
-        .select('product_id, variation_id, quantity')
+        .select('product_id, variation_id, quantity, unit_multiplier, unit_label, products(sub_unit_factor, sub_unit_id)')
         .eq('sale_id', saleReturn.sale_id);
       if (saleItemsError) throw saleItemsError;
 
       const { data: otherReturnItems, error: otherItemsError } = await supabase
         .from('sale_return_items')
-        .select('product_id, variation_id, quantity, sale_returns!inner(sale_id)')
+        .select('product_id, variation_id, quantity, unit_multiplier, unit_label, products(sub_unit_factor, sub_unit_id), sale_returns!inner(sale_id)')
         .eq('sale_returns.sale_id', saleReturn.sale_id)
         .neq('return_id', saleReturn.id);
       if (otherItemsError) throw otherItemsError;
 
-      const itemKey = (productId: string, variationId: string | null) => `${productId}:${variationId || ''}`;
+      const getMultiplier = (item: { unit_multiplier?: number | null; unit_label?: string | null; products?: unknown }) => {
+        if (item.unit_label) return Number(item.unit_multiplier) || 1;
+        const product = item.products as { sub_unit_id?: string | null; sub_unit_factor?: number | null } | null;
+        return product?.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1;
+      };
+      const itemKey = (productId: string, variationId: string | null, multiplier: number) =>
+        `${productId}:${variationId || ''}:${multiplier}`;
       const soldQuantities = new Map<string, number>();
       const otherReturnedQuantities = new Map<string, number>();
       for (const item of saleItems || []) {
-        const key = itemKey(item.product_id, item.variation_id);
+        const key = itemKey(item.product_id, item.variation_id, getMultiplier(item));
         soldQuantities.set(key, (soldQuantities.get(key) || 0) + Number(item.quantity));
       }
       for (const item of otherReturnItems || []) {
-        const key = itemKey(item.product_id, item.variation_id);
+        const key = itemKey(item.product_id, item.variation_id, getMultiplier(item));
         otherReturnedQuantities.set(key, (otherReturnedQuantities.get(key) || 0) + Number(item.quantity));
       }
 
@@ -245,7 +262,7 @@ export function useUpdateSaleReturn() {
         if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
           throw new Error('Return quantities must be greater than zero.');
         }
-        const key = itemKey(item.product_id, item.variation_id);
+        const key = itemKey(item.product_id, item.variation_id, Number(item.unit_multiplier) || 1);
         newQuantities.set(key, (newQuantities.get(key) || 0) + item.quantity);
       }
       for (const [key, quantity] of newQuantities) {
@@ -254,22 +271,29 @@ export function useUpdateSaleReturn() {
       }
 
       const oldItems = saleReturn.sale_return_items || [];
-      const oldQuantities = new Map<string, number>();
+      const stockDeltas = new Map<string, { product_id: string; variation_id: string | null; quantity: number }>();
+      const addStockDelta = (item: { product_id: string; variation_id: string | null; quantity: number; unit_multiplier?: number | null }, sign: number) => {
+        const key = `${item.product_id}:${item.variation_id || ''}`;
+        const entry = stockDeltas.get(key) || { product_id: item.product_id, variation_id: item.variation_id, quantity: 0 };
+        entry.quantity += sign * Number(item.quantity) * Number(item.unit_multiplier || 1);
+        stockDeltas.set(key, entry);
+      };
       for (const item of oldItems) {
-        const key = itemKey(item.product_id, item.variation_id || null);
-        oldQuantities.set(key, (oldQuantities.get(key) || 0) + Number(item.quantity));
+        addStockDelta({
+          ...item,
+          unit_multiplier: item.unit_label
+            ? Number(item.unit_multiplier) || 1
+            : item.products?.sub_unit_id ? Number(item.products.sub_unit_factor) || 1 : 1,
+        }, -1);
       }
-      const productIds = new Map<string, { product_id: string; variation_id: string | null }>();
-      for (const item of oldItems) productIds.set(itemKey(item.product_id, item.variation_id || null), item);
-      for (const item of items) productIds.set(itemKey(item.product_id, item.variation_id), item);
+      for (const item of items) addStockDelta(item, 1);
 
-      for (const [key, item] of productIds) {
-        const quantityDelta = (newQuantities.get(key) || 0) - (oldQuantities.get(key) || 0);
-        if (quantityDelta === 0) continue;
+      for (const item of stockDeltas.values()) {
+        if (item.quantity === 0) continue;
         const { error } = await supabase.rpc('adjust_sale_return_stock', {
           _product_id: item.product_id,
           _variation_id: item.variation_id,
-          _change_amount: quantityDelta,
+          _change_amount: item.quantity,
           _return_number: saleReturn.return_number,
           _permission: 'edit',
         });
@@ -300,6 +324,8 @@ export function useUpdateSaleReturn() {
         product_id: item.product_id,
         variation_id: item.variation_id,
         quantity: item.quantity,
+        unit_multiplier: item.unit_multiplier || 1,
+        unit_label: item.unit_label || null,
         unit_price: item.unit_price,
         total_price: item.quantity * item.unit_price,
       })));

@@ -24,6 +24,8 @@ interface ReturnItem {
   product_id: string;
   variation_id: string | null;
   product_name: string;
+  unit_multiplier: number;
+  unit_label: string;
   max_quantity: number;
   quantity: number;
   unit_price: number;
@@ -67,19 +69,31 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
 
     supabase
         .from('sale_items')
-        .select('product_id, variation_id, quantity, unit_price, products(name), product_variations(sku)')
+          .select('product_id, variation_id, quantity, unit_price, unit_multiplier, unit_label, products(name, sub_unit_id, sub_unit_factor, units:units!products_unit_id_fkey(name, abbreviation)), product_variations(sku)')
         .eq('sale_id', sale.id)
         .then(({ data, error }) => {
           if (cancelled) return;
           if (error) throw error;
           setItems((data || []).map((si) => {
-            const itemKey = `${si.product_id}:${si.variation_id || ''}`;
+            const product = si.products as {
+              name: string;
+              sub_unit_id: string | null;
+              sub_unit_factor: number | null;
+              units: { name: string; abbreviation: string | null } | null;
+            } | null;
+            const multiplier = si.unit_label
+              ? Number(si.unit_multiplier) || 1
+              : product?.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1;
+            const unitLabel = si.unit_label || (product?.units?.abbreviation || product?.units?.name || 'unit');
+            const itemKey = `${si.product_id}:${si.variation_id || ''}:${multiplier}`;
             const alreadyReturnedQty = alreadyReturned[itemKey] || 0;
             const maxReturnable = Math.max(0, Number(si.quantity) - alreadyReturnedQty);
             return {
               product_id: si.product_id,
               variation_id: si.variation_id,
-              product_name: `${si.products?.name || 'Unknown'}${si.product_variations?.sku ? ` (${si.product_variations.sku})` : ''}`,
+              product_name: `${product?.name || 'Unknown'}${si.product_variations?.sku ? ` (${si.product_variations.sku})` : ''}`,
+              unit_multiplier: multiplier,
+              unit_label: unitLabel,
               max_quantity: maxReturnable,
               quantity: maxReturnable,
               unit_price: Number(si.unit_price),
@@ -118,6 +132,8 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
         product_id: i.product_id,
         variation_id: i.variation_id,
         quantity: i.quantity,
+        unit_multiplier: i.unit_multiplier,
+        unit_label: i.unit_label,
         unit_price: i.unit_price,
       })),
     });
@@ -182,7 +198,7 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
                   </TableCell>
                 </TableRow>
               ) : items.map((item, idx) => (
-                <TableRow key={`${item.product_id}:${item.variation_id || ''}`}>
+                <TableRow key={`${item.product_id}:${item.variation_id || ''}:${item.unit_multiplier}`}>
                   <TableCell>
                     <Checkbox
                       checked={item.selected}
@@ -193,7 +209,7 @@ export function SaleReturnDialog({ sale, open, onOpenChange }: SaleReturnDialogP
                       }}
                     />
                   </TableCell>
-                  <TableCell>{item.product_name}</TableCell>
+                  <TableCell>{item.product_name}<span className="block text-xs text-muted-foreground">{item.unit_label}</span></TableCell>
                   <TableCell>
                     <Input
                       type="number"

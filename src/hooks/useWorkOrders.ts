@@ -348,13 +348,15 @@ export function useCompleteWorkOrder() {
       const actorId = requireAuthenticatedUserId(user?.id);
       const { data: product } = await supabase
         .from('products')
-        .select('current_stock')
+        .select('current_stock, sub_unit_id, sub_unit_factor')
         .eq('id', workOrder.product_id)
         .single();
 
       if (product) {
         const currentStock = Number(product.current_stock);
-        const newStock = currentStock + Number(workOrder.quantity);
+        const stockQuantity = Number(workOrder.quantity) *
+          (product.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1);
+        const newStock = currentStock + stockQuantity;
 
         const { error: updateProductError } = await supabase
           .from('products')
@@ -366,7 +368,7 @@ export function useCompleteWorkOrder() {
           product_id: workOrder.product_id,
           previous_stock: currentStock,
           new_stock: newStock,
-          change_amount: Number(workOrder.quantity),
+          change_amount: stockQuantity,
           change_type: 'production',
           notes: `Produced via ${workOrder.work_order_number}`,
           changed_by: actorId,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { useUpdateSaleReturn, useAlreadyReturnedQuantities, type SaleReturn } from '@/hooks/useSaleReturns';
+import { useUpdateSaleReturn, type SaleReturn } from '@/hooks/useSaleReturns';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/currency';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ interface EditableItem {
   product_id: string;
   variation_id: string | null;
   product_name: string;
+  unit_multiplier: number;
+  unit_label: string;
   max_quantity: number;
   quantity: number;
   unit_price: number;
@@ -26,8 +28,15 @@ interface SaleItemOption {
   product_id: string;
   variation_id: string | null;
   quantity: number;
+  unit_multiplier: number;
+  unit_label: string | null;
   unit_price: number;
-  products: { name: string } | null;
+  products: {
+    name: string;
+    sub_unit_id: string | null;
+    sub_unit_factor: number | null;
+    units: { name: string; abbreviation: string | null } | null;
+  } | null;
   product_variations: { sku: string | null } | null;
 }
 
@@ -37,11 +46,11 @@ interface SaleReturnEditDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const itemKey = (productId: string, variationId: string | null) => `${productId}:${variationId || ''}`;
+const itemKey = (productId: string, variationId: string | null, multiplier: number) =>
+  `${productId}:${variationId || ''}:${multiplier}`;
 
 export function SaleReturnEditDialog({ saleReturn, open, onOpenChange }: SaleReturnEditDialogProps) {
   const updateReturn = useUpdateSaleReturn();
-  const { data: alreadyReturned = {} } = useAlreadyReturnedQuantities(saleReturn?.sale_id);
   const [items, setItems] = useState<EditableItem[]>([]);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
@@ -61,11 +70,11 @@ export function SaleReturnEditDialog({ saleReturn, open, onOpenChange }: SaleRet
     Promise.all([
       supabase
         .from('sale_items')
-        .select('product_id, variation_id, quantity, unit_price, products(name), product_variations(sku)')
+        .select('product_id, variation_id, quantity, unit_price, unit_multiplier, unit_label, products(name, sub_unit_id, sub_unit_factor, units:units!products_unit_id_fkey(name, abbreviation)), product_variations(sku)')
         .eq('sale_id', saleReturn.sale_id),
       supabase
         .from('sale_return_items')
-        .select('product_id, variation_id, quantity, sale_returns!inner(sale_id)')
+        .select('product_id, variation_id, quantity, unit_multiplier, unit_label, products(sub_unit_id, sub_unit_factor), sale_returns!inner(sale_id)')
         .eq('sale_returns.sale_id', saleReturn.sale_id)
         .neq('return_id', saleReturn.id),
     ]).then(([saleItemsResult, otherReturnsResult]) => {
@@ -77,26 +86,33 @@ export function SaleReturnEditDialog({ saleReturn, open, onOpenChange }: SaleRet
 
       const sold = new Map<string, number>();
       const otherReturned = new Map<string, number>();
+      const getMultiplier = (item: { unit_multiplier?: number | null; unit_label?: string | null; products?: { sub_unit_id?: string | null; sub_unit_factor?: number | null } | null }) =>
+        item.unit_label
+          ? Number(item.unit_multiplier) || 1
+          : item.products?.sub_unit_id ? Number(item.products.sub_unit_factor) || 1 : 1;
       for (const item of saleItemsResult.data || []) {
-        const key = itemKey(item.product_id, item.variation_id);
+        const key = itemKey(item.product_id, item.variation_id, getMultiplier(item));
         sold.set(key, (sold.get(key) || 0) + Number(item.quantity));
       }
       for (const item of otherReturnsResult.data || []) {
-        const key = itemKey(item.product_id, item.variation_id);
+        const key = itemKey(item.product_id, item.variation_id, getMultiplier(item));
         otherReturned.set(key, (otherReturned.get(key) || 0) + Number(item.quantity));
       }
       const currentItems = new Map((saleReturn.sale_return_items || []).map(item => [
-        itemKey(item.product_id, item.variation_id), item,
+        itemKey(item.product_id, item.variation_id, item.unit_label ? Number(item.unit_multiplier) || 1 : item.products?.sub_unit_id ? Number(item.products.sub_unit_factor) || 1 : 1), item,
       ]));
 
       const saleItemOptions = (saleItemsResult.data || []) as unknown as SaleItemOption[];
       setItems(saleItemOptions.map(saleItem => {
-        const key = itemKey(saleItem.product_id, saleItem.variation_id);
+        const multiplier = getMultiplier(saleItem);
+        const key = itemKey(saleItem.product_id, saleItem.variation_id, multiplier);
         const current = currentItems.get(key);
         const maximum = Math.max(0, (sold.get(key) || 0) - (otherReturned.get(key) || 0));
         return {
           product_id: saleItem.product_id,
           variation_id: saleItem.variation_id,
+          unit_multiplier: multiplier,
+          unit_label: saleItem.unit_label || saleItem.products?.units?.abbreviation || saleItem.products?.units?.name || 'unit',
           product_name: `${saleItem.products?.name || 'Unknown'}${saleItem.product_variations?.sku ? ` (${saleItem.product_variations.sku})` : ''}`,
           max_quantity: maximum,
           quantity: current ? Number(current.quantity) : maximum,
@@ -126,6 +142,8 @@ export function SaleReturnEditDialog({ saleReturn, open, onOpenChange }: SaleRet
         product_id: item.product_id,
         variation_id: item.variation_id,
         quantity: item.quantity,
+        unit_multiplier: item.unit_multiplier,
+        unit_label: item.unit_label,
         unit_price: item.unit_price,
       })),
     });
@@ -175,14 +193,14 @@ export function SaleReturnEditDialog({ saleReturn, open, onOpenChange }: SaleRet
                 </TableHeader>
                 <TableBody>
                   {items.map((item, index) => (
-                    <TableRow key={itemKey(item.product_id, item.variation_id)}>
+                    <TableRow key={itemKey(item.product_id, item.variation_id, item.unit_multiplier)}>
                       <TableCell>
                         <Checkbox
                           checked={item.selected}
                           onCheckedChange={checked => setItems(current => current.map((row, rowIndex) => rowIndex === index ? { ...row, selected: !!checked } : row))}
                         />
                       </TableCell>
-                      <TableCell>{item.product_name}</TableCell>
+                      <TableCell>{item.product_name}<span className="block text-xs text-muted-foreground">{item.unit_label}</span></TableCell>
                       <TableCell>
                         <Input
                           type="number"

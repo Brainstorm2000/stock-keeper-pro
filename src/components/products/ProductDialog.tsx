@@ -66,6 +66,9 @@ import { calculateMarkupPercent, calculateSellingPrice } from "@/lib/markup";
 const productSchema = z.object({
   name: z.string().trim().min(1, "Product name is required").max(200),
   unit_id: z.string().min(1, "Unit is required"),
+  sub_unit_id: z.string().optional(),
+  sub_unit_factor: z.coerce.number().min(1, "Must be at least 1"),
+  sub_unit_selling_price: z.coerce.number().min(0, "Must be 0 or greater"),
   branch_id: z.string().optional(),
   supplier_id: z.string().optional(),
   brand_id: z.string().optional(),
@@ -82,6 +85,21 @@ const productSchema = z.object({
   expiration_date: z.string().optional(),
   sku: z.string().max(50).optional(),
   description: z.string().max(500).optional(),
+}).superRefine((data, ctx) => {
+  if (data.sub_unit_id && data.sub_unit_factor < 2) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["sub_unit_factor"],
+      message: "Must be at least 2 when a subunit is enabled.",
+    });
+  }
+  if (data.sub_unit_id && data.sub_unit_id === data.unit_id) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["sub_unit_id"],
+      message: "Choose a different unit for the subunit.",
+    });
+  }
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -146,6 +164,9 @@ export function ProductDialog({
     defaultValues: {
       name: "",
       unit_id: "",
+      sub_unit_id: "",
+      sub_unit_factor: 2,
+      sub_unit_selling_price: 0,
       branch_id: "",
       supplier_id: "",
       brand_id: "",
@@ -170,16 +191,19 @@ export function ProductDialog({
       reset({
         name: product.name,
         unit_id: product.unit_id,
+        sub_unit_id: product.sub_unit_id || "",
+        sub_unit_factor: Number(product.sub_unit_factor) || 2,
+        sub_unit_selling_price: Number(product.sub_unit_selling_price) || 0,
         branch_id: product.branch_id || "",
         supplier_id: product.supplier_id || "",
         brand_id: product.brand_id || "",
         product_type: getProductType(product),
         product_category_id: product.product_category_id || "",
         is_taxable: product.is_taxable ?? true,
-        opening_stock: Number(product.opening_stock),
-        current_stock: Number(product.current_stock),
-        low_stock_threshold: Number(product.low_stock_threshold),
-        out_of_stock_threshold: Number(product.out_of_stock_threshold),
+        opening_stock: Number(product.opening_stock) / (product.sub_unit_id ? Number(product.sub_unit_factor) : 1),
+        current_stock: Number(product.current_stock) / (product.sub_unit_id ? Number(product.sub_unit_factor) : 1),
+        low_stock_threshold: Number(product.low_stock_threshold) / (product.sub_unit_id ? Number(product.sub_unit_factor) : 1),
+        out_of_stock_threshold: Number(product.out_of_stock_threshold) / (product.sub_unit_id ? Number(product.sub_unit_factor) : 1),
         cost_price: Number(product.cost_price) || 0,
         markup_percent: calculateMarkupPercent(Number(product.cost_price) || 0, Number(product.selling_price) || 0),
         selling_price: Number(product.selling_price) || 0,
@@ -192,6 +216,9 @@ export function ProductDialog({
       reset({
         name: "",
         unit_id: "",
+        sub_unit_id: "",
+        sub_unit_factor: 2,
+        sub_unit_selling_price: 0,
         branch_id: defaultBranchId || "",
         supplier_id: "",
         brand_id: "",
@@ -258,6 +285,15 @@ export function ProductDialog({
     }
   }, [product?.id, product?.item_type, existingVariations]);
 
+  const onInvalid = (formErrors: typeof errors) => {
+    const firstError = Object.values(formErrors).find((error) => error?.message);
+    toast({
+      title: "Check the product details",
+      description: firstError?.message || "Some required product details are missing or invalid.",
+      variant: "destructive",
+    });
+  };
+
   const onSubmit = async (data: ProductFormData) => {
     setIsCheckingDuplicate(true);
 
@@ -302,6 +338,9 @@ export function ProductDialog({
       const productData: ProductInput = {
         name: data.name,
         unit_id: data.unit_id,
+        sub_unit_id: data.sub_unit_id || null,
+        sub_unit_factor: data.sub_unit_id ? data.sub_unit_factor : 1,
+        sub_unit_selling_price: data.sub_unit_id ? data.sub_unit_selling_price : null,
         branch_id: data.branch_id || targetBranchIds[0],
         supplier_id: data.supplier_id || undefined,
         brand_id: data.brand_id || undefined,
@@ -313,10 +352,10 @@ export function ProductDialog({
             : "sellable",
         product_category_id: data.product_category_id,
         is_taxable: data.is_taxable,
-        opening_stock: data.product_type === "variable" ? 0 : data.opening_stock,
-        current_stock: data.product_type === "variable" ? 0 : data.current_stock,
-        low_stock_threshold: data.low_stock_threshold,
-        out_of_stock_threshold: data.out_of_stock_threshold,
+        opening_stock: data.product_type === "variable" ? 0 : data.opening_stock * (data.sub_unit_id ? data.sub_unit_factor : 1),
+        current_stock: data.product_type === "variable" ? 0 : data.current_stock * (data.sub_unit_id ? data.sub_unit_factor : 1),
+        low_stock_threshold: data.low_stock_threshold * (data.sub_unit_id ? data.sub_unit_factor : 1),
+        out_of_stock_threshold: data.out_of_stock_threshold * (data.sub_unit_id ? data.sub_unit_factor : 1),
         cost_price: data.product_type === "variable" ? 0 : data.cost_price,
         selling_price: data.product_type === "variable" ? 0 : data.selling_price,
         expiration_date: data.product_type === "service" ? null : data.expiration_date || null,
@@ -389,6 +428,7 @@ export function ProductDialog({
   };
 
   const selectedUnitId = watch("unit_id");
+  const selectedSubUnitId = watch("sub_unit_id");
   const selectedSupplierId = watch("supplier_id");
   const selectedBrandId = watch("brand_id");
   const selectedProductType = watch("product_type");
@@ -608,7 +648,7 @@ export function ProductDialog({
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="name">Name *</Label>
@@ -659,6 +699,9 @@ export function ProductDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.product_category_id && (
+                  <p className="text-sm text-destructive">{errors.product_category_id.message}</p>
+                )}
               </div>
 
               <div className="space-y-2 sm:col-span-2">
@@ -701,6 +744,86 @@ export function ProductDialog({
                   </p>
                 )}
               </div>
+
+              {selectedProductType !== "service" && selectedProductType !== "variable" && (
+                <div className="space-y-3 rounded-md border p-3 sm:col-span-2">
+                  <div>
+                    <Label>Optional Subunit</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Track inventory in subunits and sell or receive either unit.
+                    </p>
+                  </div>
+                  <Select
+                    value={selectedSubUnitId || "none"}
+                    onValueChange={(value) => setValue("sub_unit_id", value === "none" ? "" : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="No subunit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No subunit</SelectItem>
+                      {units.filter((unit) => unit.id !== selectedUnitId).map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.name}{unit.abbreviation ? ` (${unit.abbreviation})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedSubUnitId && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="sub_unit_factor">
+                          {units.find((unit) => unit.id === selectedUnitId)?.abbreviation ||
+                            units.find((unit) => unit.id === selectedUnitId)?.name ||
+                            "Main unit"}{" "}
+                          contains how many{" "}
+                          {units.find((unit) => unit.id === selectedSubUnitId)?.abbreviation ||
+                            units.find((unit) => unit.id === selectedSubUnitId)?.name ||
+                            "subunits"}?
+                        </Label>
+                        <Input
+                          id="sub_unit_factor"
+                          type="number"
+                          min="2"
+                          step="1"
+                          {...register("sub_unit_factor")}
+                        />
+                        {errors.sub_unit_factor && (
+                          <p className="text-sm text-destructive">{errors.sub_unit_factor.message}</p>
+                        )}
+                      </div>
+                      {selectedProductType === "sellable" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="sub_unit_selling_price">
+                            Selling Price per{" "}
+                            {units.find((unit) => unit.id === selectedSubUnitId)?.abbreviation ||
+                              units.find((unit) => unit.id === selectedSubUnitId)?.name ||
+                              "subunit"}
+                          </Label>
+                          <Input
+                            id="sub_unit_selling_price"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            {...register("sub_unit_selling_price")}
+                          />
+                          {errors.sub_unit_selling_price && (
+                            <p className="text-sm text-destructive">{errors.sub_unit_selling_price.message}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {selectedSubUnitId && (
+                    <p className="text-xs text-muted-foreground">
+                      Stock, opening quantity, and thresholds below are entered in the main unit and stored in subunits.
+                    </p>
+                  )}
+                  {errors.sub_unit_id && (
+                    <p className="text-sm text-destructive">{errors.sub_unit_id.message}</p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="branch_id">Branch{!createAcrossBranches && " *"}</Label>
@@ -903,7 +1026,6 @@ export function ProductDialog({
                     <Input
                       id="opening_stock"
                       type="number"
-                      min="0.00001"
                       step="0.00001"
                       {...register("opening_stock")}
                     />

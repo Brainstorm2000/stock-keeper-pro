@@ -11,4 +11,10 @@ describe('getPurchaseItemKey', () => {
   it('uses the same key for a regular product without a variation', () => {
     expect(getPurchaseItemKey('product-1')).toBe(getPurchaseItemKey('product-1', null));
   });
+
+  it('keeps different purchase units of the same product independent', () => {
+    expect(getPurchaseItemKey('product-1', null, 10)).not.toBe(
+      getPurchaseItemKey('product-1', null, 1),
+    );
+  });
 });

@@ -156,7 +156,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
                   {item.product_name}
                 </span>
                 <span style={{ textAlign: "center", fontWeight: "600" }}>
-                  {item.quantity}
+                  {item.quantity} {item.unit_label || ""}
                 </span>
                 <span style={{ textAlign: "right", fontWeight: "900" }}>
                   {formatCurrency(Number(item.total_price))}

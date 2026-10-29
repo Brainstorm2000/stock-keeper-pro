@@ -52,6 +52,7 @@ import { useProductCategories } from "@/hooks/useProductCategories";
 import { exportProductsToCSV, downloadCSV } from "@/lib/csv-utils";
 import { useAuth } from "@/lib/auth";
 import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
+import { formatProductStock, getProductStockFactor } from "@/lib/product-units";
 
 interface ProductTableProps {
   products: Product[];
@@ -226,6 +227,14 @@ export function ProductTable({
         0,
       );
     }
+    if (product.sub_unit_id) {
+      const factor = getProductStockFactor(product);
+      const stock = Number(product.current_stock);
+      const fullMainUnits = Math.floor(stock / factor);
+      const remainingSubUnits = stock - fullMainUnits * factor;
+      return fullMainUnits * Number(product.selling_price) +
+        remainingSubUnits * Number(product.sub_unit_selling_price || 0);
+    }
     return Number(product.current_stock) * Number(product.selling_price);
   };
 
@@ -350,7 +359,9 @@ export function ProductTable({
             </TableCell>
           )}
           <TableCell className="text-right font-semibold">
-            {getDisplayStock(product).toLocaleString()}
+            {product.sub_unit_id
+              ? formatProductStock(product)
+              : getDisplayStock(product).toLocaleString()}
             {product.item_type === "variable" && (
               <span className="block text-[10px] text-muted-foreground font-normal">
                 {product.variations?.length || 0} variation

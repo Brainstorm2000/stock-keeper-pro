@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
+import { useManualProductionHistory } from '@/hooks/useProduction';
 import { useRawMaterials } from '@/hooks/useRawMaterials';
 import { useDamageHistory, useWasteHistory } from '@/hooks/useDamagesWaste';
 import { formatCurrency } from '@/lib/currency';
@@ -19,6 +20,7 @@ const CHART_COLORS = [
 
 export function ProductionAnalyticsTab({ branchFilter }: { branchFilter?: string }) {
   const { data: allWorkOrders = [] } = useWorkOrders();
+  const { data: allManualProductions = [] } = useManualProductionHistory();
   const { data: materials = [] } = useRawMaterials();
   const { data: damageHistory = [] } = useDamageHistory();
   const { data: wasteHistory = [] } = useWasteHistory();
@@ -28,6 +30,13 @@ export function ProductionAnalyticsTab({ branchFilter }: { branchFilter?: string
     if (!branchFilter || branchFilter === 'all') return allWorkOrders;
     return allWorkOrders.filter(wo => wo.branch_id === branchFilter);
   }, [allWorkOrders, branchFilter]);
+
+  const manualProductions = useMemo(() => {
+    if (!branchFilter || branchFilter === 'all') return allManualProductions;
+    return allManualProductions.filter(
+      (record) => record.products?.branch_id === branchFilter
+    );
+  }, [allManualProductions, branchFilter]);
 
   // Production trends (last 30 days)
   const trendData = useMemo(() => {
@@ -40,6 +49,9 @@ export function ProductionAnalyticsTab({ branchFilter }: { branchFilter?: string
       const completed = workOrders.filter(
         (wo) => wo.status === 'completed' && wo.completed_at && format(new Date(wo.completed_at), 'yyyy-MM-dd') === dayStr
       );
+      const directProduction = manualProductions.filter(
+        (record) => format(new Date(record.created_at), 'yyyy-MM-dd') === dayStr
+      );
       const dayWaste = wasteHistory.filter(
         (w) => format(new Date(w.created_at), 'yyyy-MM-dd') === dayStr
       );
@@ -48,14 +60,17 @@ export function ProductionAnalyticsTab({ branchFilter }: { branchFilter?: string
       );
       data.push({
         date: label,
-        produced: completed.reduce((sum, wo) => sum + Number(wo.quantity), 0),
+        produced:
+          completed.reduce((sum, wo) => sum + Number(wo.quantity), 0) +
+          directProduction.reduce((sum, record) => sum + Number(record.change_amount) /
+            (record.products?.sub_unit_id ? Number(record.products.sub_unit_factor) || 1 : 1), 0),
         cost: completed.reduce((sum, wo) => sum + Number(wo.total_cost), 0),
         waste: dayWaste.reduce((sum, w) => sum + Math.abs(w.change_amount) * (w.raw_materials?.cost_per_unit || 0), 0),
         damage: dayDamage.reduce((sum, d) => sum + Math.abs(d.change_amount) * (d.products?.cost_price || 0), 0),
       });
     }
     return data;
-  }, [workOrders, wasteHistory, damageHistory]);
+  }, [workOrders, manualProductions, wasteHistory, damageHistory]);
 
   // Top produced products
   const topProducts = useMemo(() => {
@@ -71,8 +86,22 @@ export function ProductionAnalyticsTab({ branchFilter }: { branchFilter?: string
           map.set(key, { name: wo.products?.name || 'Unknown', quantity: Number(wo.quantity) });
         }
       });
+    manualProductions.forEach((record) => {
+      const key = record.product_id;
+      const existing = map.get(key);
+      if (existing) {
+        existing.quantity += Number(record.change_amount) /
+          (record.products?.sub_unit_id ? Number(record.products.sub_unit_factor) || 1 : 1);
+      } else {
+        map.set(key, {
+          name: record.products?.name || 'Unknown',
+          quantity: Number(record.change_amount) /
+            (record.products?.sub_unit_id ? Number(record.products.sub_unit_factor) || 1 : 1),
+        });
+      }
+    });
     return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity).slice(0, 5);
-  }, [workOrders]);
+  }, [workOrders, manualProductions]);
 
   // Material usage breakdown
   const materialUsage = useMemo(() => {
@@ -114,7 +143,10 @@ export function ProductionAnalyticsTab({ branchFilter }: { branchFilter?: string
   const lowStockMaterials = materials.filter((m) => m.current_stock <= m.low_stock_threshold);
 
   // Summary stats
-  const totalProduced = workOrders.filter((w) => w.status === 'completed').reduce((s, w) => s + Number(w.quantity), 0);
+  const totalProduced =
+    workOrders.filter((w) => w.status === 'completed').reduce((s, w) => s + Number(w.quantity), 0) +
+    manualProductions.reduce((sum, record) => sum + Number(record.change_amount) /
+      (record.products?.sub_unit_id ? Number(record.products.sub_unit_factor) || 1 : 1), 0);
   const totalCost = workOrders.filter((w) => w.status === 'completed').reduce((s, w) => s + Number(w.total_cost), 0);
   const totalWasteCost = wasteHistory.reduce((s, w) => s + Math.abs(w.change_amount) * (w.raw_materials?.cost_per_unit || 0), 0);
   const totalDamageCost = damageHistory.reduce((s, d) => s + Math.abs(d.change_amount) * (d.products?.cost_price || 0), 0);

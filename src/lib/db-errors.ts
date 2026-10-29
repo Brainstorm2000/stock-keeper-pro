@@ -9,6 +9,13 @@ interface ParsedError {
 
 export function parseDbError(error: Error, context: string): ParsedError {
   const message = error.message?.toLowerCase() || '';
+
+  if (message.startsWith('insufficient stock:')) {
+    return {
+      title: 'Insufficient stock',
+      description: error.message.slice('Insufficient stock:'.length).trim(),
+    };
+  }
   
   // Foreign key constraint violations
   if (message.includes('violates foreign key constraint')) {

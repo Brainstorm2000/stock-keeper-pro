@@ -10,8 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useUpdateStock, type Product } from "@/hooks/useProducts";
 import { Loader2, Plus, Minus } from "lucide-react";
+import { getProductStockFactor, getUnitLabel } from "@/lib/product-units";
 
 interface StockUpdateDialogProps {
   product: Product;
@@ -28,10 +36,11 @@ export function StockUpdateDialog({
 }: StockUpdateDialogProps) {
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
+  const [unit, setUnit] = useState<"main" | "sub">("main");
   const updateStock = useUpdateStock();
 
   const currentStock = Number(product.current_stock);
-  const amountNum = Number(amount) || 0;
+  const amountNum = (Number(amount) || 0) * (unit === "main" ? getProductStockFactor(product) : 1);
   const newStock =
     type === "increase" ? currentStock + amountNum : currentStock - amountNum;
 
@@ -52,6 +61,7 @@ export function StockUpdateDialog({
     onOpenChange(false);
     setAmount("");
     setNotes("");
+    setUnit("main");
   };
 
   return (
@@ -73,13 +83,29 @@ export function StockUpdateDialog({
             <p className="font-medium">{product.name}</p>
             <p className="text-sm text-muted-foreground">
               Current stock: {currentStock.toLocaleString()}{" "}
-              {product.units?.abbreviation || product.units?.name}
+              {product.sub_units?.abbreviation || product.units?.abbreviation || product.units?.name}
+              {product.sub_unit_id && (
+                <> ({(currentStock / getProductStockFactor(product)).toLocaleString()} {product.units?.abbreviation || product.units?.name})</>
+              )}
             </p>
           </div>
 
+          {product.sub_unit_id && (
+            <div className="space-y-2">
+              <Label>Unit</Label>
+              <Select value={unit} onValueChange={(value: "main" | "sub") => setUnit(value)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="main">{getUnitLabel(product, "main")}</SelectItem>
+                  <SelectItem value="sub">{getUnitLabel(product, "sub")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="amount">
-              Amount to {type === "increase" ? "add" : "remove"}
+              Amount to {type === "increase" ? "add" : "remove"} ({getUnitLabel(product, unit)})
             </Label>
             <Input
               id="amount"
@@ -89,7 +115,7 @@ export function StockUpdateDialog({
               max={type === "decrease" ? currentStock : undefined}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="Enter quantity"
+              placeholder={`Enter quantity in ${getUnitLabel(product, unit)}`}
             />
           </div>
 
@@ -111,7 +137,11 @@ export function StockUpdateDialog({
                 <span
                   className={`text-lg font-bold ${newStock < 0 ? "text-destructive" : "text-foreground"}`}
                 >
-                  {newStock.toLocaleString()}
+                  {newStock.toLocaleString()}{" "}
+                  {product.sub_units?.abbreviation || product.units?.abbreviation || product.units?.name}
+                  {product.sub_unit_id && (
+                    <> ({(newStock / getProductStockFactor(product)).toLocaleString()} {product.units?.abbreviation || product.units?.name})</>
+                  )}
                 </span>
               </div>
               {type === "decrease" && newStock < 0 && (

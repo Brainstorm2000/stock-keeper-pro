@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ShoppingCart,
@@ -83,12 +83,19 @@ import type { ProductVariation } from "@/hooks/useProductVariations";
 import { usePaymentMethods } from "@/hooks/usePaymentMethods";
 import { PaymentIcon } from "@/lib/payment-icons";
 import { getLocalDateString, getSaleDateTimestamp } from "@/lib/sale-date";
+import {
+  formatProductStockQuantity,
+  getProductStockFactor,
+  getUnitLabel,
+  getUnitMultiplier,
+} from "@/lib/product-units";
 
 interface CartItem extends SaleItem {
   product_name: string;
   max_quantity?: number;
   item_type: "product" | "service" | "variable";
 }
+type SaleUnitChoice = "main" | "sub";
 
 export default function POS() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -123,6 +130,8 @@ export default function POS() {
   const [dueDate, setDueDate] = useState("");
   const [saleDate, setSaleDate] = useState(getLocalDateString);
   const [variationPickerProduct, setVariationPickerProduct] = useState<Product | null>(null);
+  const [unitPickerProduct, setUnitPickerProduct] = useState<Product | null>(null);
+  const [unitPickerChoice, setUnitPickerChoice] = useState<SaleUnitChoice>("main");
 
   const {
     user,
@@ -172,18 +181,52 @@ export default function POS() {
     return map;
   }, [products]);
 
+  const getMaxQuantity = useCallback((productId: string, variationId?: string | null, unitMultiplier = 1) => {
+    const product = products.find((p) => p.id === productId);
+    const currentStock = variationId
+      ? product?.variations?.find((variation) => variation.id === variationId)?.current_stock
+      : product?.current_stock;
+    if (currentStock === undefined) return undefined;
+
+    const previouslySold = (editSale?.sale_items || [])
+      .filter(
+        (item) =>
+          item.product_id === productId &&
+          (item.variation_id || null) === (variationId || null),
+      )
+      .reduce((sum, item) => {
+        const multiplier = item.unit_label
+          ? Number(item.unit_multiplier) || 1
+          : product?.sub_unit_id ? getProductStockFactor(product) : 1;
+        return sum + Number(item.quantity) * multiplier;
+      }, 0);
+
+    return (Number(currentStock) + previouslySold) / unitMultiplier;
+  }, [editSale, products]);
+
   useEffect(() => {
     if (!editSale) return;
 
     const mappedCart = (editSale.sale_items || []).map((item) => {
       const product = products.find((p) => p.id === item.product_id);
-      const itemType = (product?.item_type as CartItem['item_type']) || 'product';
-      const maxQuantity = product ? Number(product.current_stock) : undefined;
+      const itemType = item.variation_id
+        ? 'product'
+        : (product?.item_type as CartItem['item_type']) || 'product';
+      const unitMultiplier = item.unit_label
+        ? Number(item.unit_multiplier) || 1
+        : product ? getProductStockFactor(product) : 1;
+      const maxQuantity = getMaxQuantity(
+        item.product_id,
+        item.variation_id,
+        unitMultiplier,
+      );
 
       return {
         ...item,
         product_name:
           item.product_name || product?.name || 'Unknown',
+        unit_multiplier: unitMultiplier,
+        unit_label: item.unit_label || (product ? getUnitLabel(product, 'main') : null),
         item_type: itemType,
         max_quantity: maxQuantity,
       } as CartItem;
@@ -224,7 +267,7 @@ export default function POS() {
 
     setUseSplitPayment(false);
     setPaymentSplits([]);
-  }, [editSale, products]);
+  }, [editSale, getMaxQuantity, products]);
 
   const resolveTransactionBranch = (): 
     | { ok: true; branchId?: string }
@@ -295,6 +338,22 @@ export default function POS() {
     });
   }, [products, searchQuery, selectedBranchId, productCategoryFilter]);
 
+  const cartStockByProduct = useMemo(() => {
+    const stockByProduct = new Map<string, number>();
+    for (const item of cart) {
+      if (item.item_type !== "product" || item.variation_id) continue;
+      stockByProduct.set(
+        item.product_id,
+        (stockByProduct.get(item.product_id) || 0) +
+          item.quantity * Number(item.unit_multiplier || 1),
+      );
+    }
+    return stockByProduct;
+  }, [cart]);
+
+  const getRemainingStock = (product: Product) =>
+    Number(product.current_stock) - (cartStockByProduct.get(product.id) || 0);
+
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.total_price, 0);
   const discountValue =
@@ -325,26 +384,37 @@ export default function POS() {
 
   // Check for stock warnings in cart
   const hasStockWarning = useMemo(() => {
-    return cart.some(
-      (item) =>
-        item.item_type === "product" &&
-        item.max_quantity !== undefined &&
-        item.quantity > item.max_quantity,
+    const quantities = new Map<string, { quantity: number; maxQuantity: number }>();
+    for (const item of cart) {
+      if (item.item_type !== "product" || item.max_quantity === undefined) continue;
+      const key = `${item.product_id}:${item.variation_id || ""}`;
+      const previous = quantities.get(key);
+      quantities.set(key, {
+        quantity: (previous?.quantity || 0) + item.quantity * Number(item.unit_multiplier || 1),
+        maxQuantity: item.max_quantity * Number(item.unit_multiplier || 1),
+      });
+    }
+    return Array.from(quantities.values()).some(
+      ({ quantity, maxQuantity }) => quantity > maxQuantity,
     );
   }, [cart]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, unitChoice: SaleUnitChoice = "main") => {
     const productType = (product as any).item_type || "product";
     if (productType === "variable") {
       setVariationPickerProduct(product);
       return;
     }
 
-    // Only track max_quantity for new sales; ignore stock limits when editing
+    const unitMultiplier = getUnitMultiplier(product, unitChoice);
     const maxQty =
-      editSaleId || productType === "service" ? Infinity : Number(product.current_stock);
+      productType === "service"
+        ? Infinity
+        : getMaxQuantity(product.id, null, unitMultiplier);
 
-    const sellingPrice = Number((product as any).selling_price) || 0;
+    const sellingPrice = unitChoice === "sub"
+      ? Number(product.sub_unit_selling_price) || 0
+      : Number(product.selling_price) || 0;
     const costPrice = Number((product as any).cost_price) || 0;
 
     // Always add as a new line item (allows capturing same item multiple times)
@@ -354,6 +424,8 @@ export default function POS() {
         product_id: product.id,
         product_name: product.name,
         quantity: 1,
+        unit_multiplier: unitMultiplier,
+        unit_label: getUnitLabel(product, unitChoice),
         unit_price: sellingPrice,
         cost_price: costPrice,
         discount_amount: 0,
@@ -367,7 +439,7 @@ export default function POS() {
   const addVariationToCart = (variation: ProductVariation) => {
     const product = variationPickerProduct;
     if (!product) return;
-    const maxQty = Number(variation.current_stock);
+    const maxQty = getMaxQuantity(product.id, variation.id) ?? Number(variation.current_stock);
     const existingIndex = cart.findIndex((i) => i.variation_id === variation.id);
     if (existingIndex > -1) {
       const newCart = [...cart];
@@ -401,6 +473,23 @@ export default function POS() {
         },
       ]);
     }
+  };
+
+  const handleProductClick = (product: Product) => {
+    if (product.item_type === "variable") {
+      setVariationPickerProduct(product);
+    } else if (product.sub_unit_id) {
+      setUnitPickerChoice("main");
+      setUnitPickerProduct(product);
+    } else {
+      addToCart(product);
+    }
+  };
+
+  const confirmUnitSelection = () => {
+    if (!unitPickerProduct) return;
+    addToCart(unitPickerProduct, unitPickerChoice);
+    setUnitPickerProduct(null);
   };
 
   const updateQuantity = (index: number, newQty: number) => {
@@ -508,6 +597,15 @@ export default function POS() {
   };
 
   const handleCheckout = async () => {
+    if (hasStockWarning) {
+      toast({
+        title: "Insufficient stock",
+        description: "Reduce the quantities to match available stock before completing this sale.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!getSaleDateTimestamp(saleDate)) {
       toast({
         title: "Invalid sale date",
@@ -851,7 +949,7 @@ export default function POS() {
                       <Card
                         key={product.id}
                         className="cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => addToCart(product)}
+                        onClick={() => handleProductClick(product)}
                       >
                         <CardContent className="p-3">
                           <div className="flex flex-col gap-1">
@@ -891,12 +989,21 @@ export default function POS() {
                             <span className="text-lg font-bold text-[#FF9E3D]">
                               {productType === "variable"
                                 ? "Pick variation"
-                                : formatCurrency(sellingPrice)}
+                                : product.sub_unit_id
+                                  ? `${formatCurrency(sellingPrice)} / ${product.units?.abbreviation || product.units?.name}`
+                                  : formatCurrency(sellingPrice)}
                             </span>
+                            {product.sub_unit_id && (
+                              <span className="text-xs text-muted-foreground">
+                                {formatCurrency(Number(product.sub_unit_selling_price) || 0)} / {product.sub_units?.abbreviation || product.sub_units?.name}
+                              </span>
+                            )}
 
                             {productType === "product" && (
                               <span className="text-xs text-muted-foreground">
-                                Stock: {Number(product.current_stock)}
+                                Stock: {product.sub_unit_id
+                                  ? formatProductStockQuantity(product, getRemainingStock(product))
+                                  : `${getRemainingStock(product).toLocaleString()} ${product.units?.abbreviation || product.units?.name || "unit"}`}
                               </span>
                             )}
                           </div>
@@ -946,7 +1053,7 @@ export default function POS() {
                   <div className="space-y-2">
                     {cart.map((item, index) => (
                       <CartItemRow
-                        key={item.product_id}
+                        key={`${item.product_id}:${item.variation_id || ""}:${index}`}
                         item={item}
                         index={index}
                         onQuantityChange={updateQuantity}
@@ -1397,13 +1504,12 @@ export default function POS() {
                 />
               </div>
 
-              {/* Stock Warning - only show for new sales */}
-              {!editSaleId && hasStockWarning && (
+              {hasStockWarning && (
                 <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <span>
-                    Some items exceed available stock. Proceeding may result in
-                    negative inventory.
+                    Some items exceed available stock. Reduce the quantities to
+                    continue without creating negative inventory.
                   </span>
                 </div>
               )}
@@ -1425,10 +1531,10 @@ export default function POS() {
               </Button>
               <Button
                 onClick={handleCheckout}
-                disabled={createSale.isPending || (!editSaleId && hasStockWarning)}
+                disabled={createSale.isPending || updateSale.isPending || hasStockWarning}
                 className="bg-[#FF9E3D] hover:bg-[#e68a2e] text-black border-none shadow-md transition-all active:scale-95"
               >
-                {createSale.isPending ? (
+                {createSale.isPending || updateSale.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Processing...
@@ -1527,6 +1633,51 @@ export default function POS() {
           onOpenChange={(o) => !o && setVariationPickerProduct(null)}
           onSelect={addVariationToCart}
         />
+        <Dialog
+          open={!!unitPickerProduct}
+          onOpenChange={(open) => !open && setUnitPickerProduct(null)}
+        >
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Choose a selling unit</DialogTitle>
+            </DialogHeader>
+            {unitPickerProduct && (
+              <div className="space-y-4">
+                <p className="font-medium">{unitPickerProduct.name}</p>
+                <Select
+                  value={unitPickerChoice}
+                  onValueChange={(value: SaleUnitChoice) => setUnitPickerChoice(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main">
+                      {unitPickerProduct.units?.name || "Main unit"} —{" "}
+                      {formatCurrency(Number(unitPickerProduct.selling_price) || 0)}
+                    </SelectItem>
+                    <SelectItem value="sub">
+                      {unitPickerProduct.sub_units?.name || "Subunit"} —{" "}
+                      {formatCurrency(Number(unitPickerProduct.sub_unit_selling_price) || 0)}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Available: {formatProductStockQuantity(
+                    unitPickerProduct,
+                    getRemainingStock(unitPickerProduct),
+                  )}
+                </p>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setUnitPickerProduct(null)}>
+                Cancel
+              </Button>
+              <Button onClick={confirmUnitSelection}>Add to cart</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </ModuleAccessGuard>
     </DashboardLayout>
   );

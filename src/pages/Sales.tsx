@@ -586,7 +586,7 @@ export default function Sales() {
                               <Edit2 className="h-4 w-4" />
                             </Button>
                           )}
-                          {canCreateReturn && (
+                          {(canCreateReturn || canEdit) && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -990,4 +990,3 @@ export default function Sales() {
     </DashboardLayout>
   );
 }
-

@@ -17,6 +17,9 @@ export interface Product {
   id: string;
   name: string;
   unit_id: string;
+  sub_unit_id: string | null;
+  sub_unit_factor: number;
+  sub_unit_selling_price: number | null;
   branch_id: string;
   supplier_id: string | null;
   brand_id: string | null;
@@ -41,6 +44,11 @@ export interface Product {
     name: string;
     abbreviation: string | null;
   };
+  sub_units?: {
+    id: string;
+    name: string;
+    abbreviation: string | null;
+  } | null;
   branches?: {
     id: string;
     name: string;
@@ -68,6 +76,9 @@ export interface Product {
 export interface ProductInput {
   name: string;
   unit_id: string;
+  sub_unit_id?: string | null;
+  sub_unit_factor?: number;
+  sub_unit_selling_price?: number | null;
   branch_id: string;
   supplier_id?: string;
   brand_id?: string;
@@ -103,7 +114,7 @@ export async function checkProductDuplicate(
   // Check for name + branch duplicate
   let query = supabase
     .from('products')
-    .select('id, name, sku, branch_id')
+    .select('id, name, sku, branch_id, current_stock, item_type')
     .ilike('name', name.trim());
 
   if (branchId) {
@@ -132,7 +143,7 @@ export async function checkProductDuplicate(
   if (sku && sku.trim()) {
     let skuQuery = supabase
       .from('products')
-      .select('id, name, sku, branch_id')
+      .select('id, name, sku, branch_id, current_stock, item_type')
       .ilike('sku', sku.trim());
 
     if (excludeProductId) {
@@ -170,7 +181,8 @@ export function useProducts(options?: { includeArchived?: boolean }) {
           .from('products')
           .select(`
           *,
-          units (id, name, abbreviation),
+          units:units!products_unit_id_fkey (id, name, abbreviation),
+          sub_units:units!products_sub_unit_id_fkey (id, name, abbreviation),
           branches (id, name),
           suppliers (id, name),
           brands (id, name),
@@ -295,14 +307,50 @@ export function useCreateProduct() {
 
 export function useUpdateProduct() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ id, ...product }: ProductInput & { id: string }) => {
       const existing = await productsTable.get(id);
-      if (typeof navigator !== 'undefined' && !navigator.onLine && existing) {
-        return saveLocal(productsTable, { ...existing.data, ...product, id } as Product);
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        if (!existing) throw new Error('Product is not available in the offline cache.');
+        const previousStock = Number(existing.data.current_stock);
+        const nextStock = Number(product.current_stock ?? previousStock);
+        const now = new Date().toISOString();
+        const updated = await saveLocal(productsTable, { ...existing.data, ...product, id } as Product);
+        if (
+          existing.data.item_type === 'product' &&
+          (product.item_type ?? existing.data.item_type) === 'product' &&
+          previousStock !== nextStock
+        ) {
+          await localDb.stockHistory.put({
+            id: createId(),
+            data: {
+              product_id: id,
+              previous_stock: previousStock,
+              new_stock: nextStock,
+              change_amount: nextStock - previousStock,
+              change_type: 'adjustment',
+              notes: 'Stock adjusted while editing product',
+              changed_by: user?.id ?? null,
+              created_at: now,
+            },
+            isSynced: false,
+            updatedAt: now,
+          });
+        }
+        return updated;
       }
+
+      const { data: previousProduct, error: previousProductError } = await supabase
+        .from('products')
+        .select('current_stock, item_type')
+        .eq('id', id)
+        .single();
+
+      if (previousProductError) throw previousProductError;
+
       const { data, error } = await supabase
         .from('products')
         .update(product)
@@ -311,10 +359,31 @@ export function useUpdateProduct() {
         .single();
 
       if (error) throw error;
+
+      const previousStock = Number(previousProduct.current_stock);
+      const nextStock = Number(product.current_stock ?? previousStock);
+      if (
+        previousProduct.item_type === 'product' &&
+        (product.item_type ?? previousProduct.item_type) === 'product' &&
+        previousStock !== nextStock
+      ) {
+        const { error: historyError } = await supabase.from('stock_history').insert({
+          product_id: id,
+          previous_stock: previousStock,
+          new_stock: nextStock,
+          change_amount: nextStock - previousStock,
+          change_type: 'adjustment',
+          notes: 'Stock adjusted while editing product',
+          changed_by: user?.id ?? null,
+        });
+        if (historyError) throw historyError;
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       toast({ title: 'Product updated successfully' });
     },
     onError: (error: Error) => {

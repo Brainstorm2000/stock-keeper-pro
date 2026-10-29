@@ -295,7 +295,7 @@ export default function Auth() {
                   className="text-sm font-medium text-slate-500 hover:text-[#FF9E3D] transition-colors"
                   disabled={isLoading}
                 >
-                  {isLogin ? "Need an account? Sign up" : "Already registered? Sign in"}
+                  {/* {isLogin ? "Need an account? Sign up" : "Already registered? Sign in"} */}
                 </button>
               </div>
             </form>

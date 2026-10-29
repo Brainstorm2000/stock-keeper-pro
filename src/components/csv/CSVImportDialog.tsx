@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { parseCSV, generateCSVTemplate, downloadCSV, type ParsedCSVProduct } from '@/lib/csv-utils';
@@ -18,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCreateProductCategory, useProductCategories } from '@/hooks/useProductCategories';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/auth';
  import { ArrowDown, FileText, AlertCircle, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -31,6 +33,7 @@ type ImportStatus = 'idle' | 'parsing' | 'preview' | 'importing' | 'complete' | 
 
 interface ImportResult {
   imported: number;
+  updated: number;
   skipped: number;
   skippedProducts: string[];
 }
@@ -42,6 +45,8 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
@@ -95,6 +100,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
     
     const result: ImportResult = {
       imported: 0,
+      updated: 0,
       skipped: 0,
       skippedProducts: [],
     };
@@ -108,13 +114,24 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
       const productCategoryMap = new Map(productCategories.map((category) => [category.name.toLowerCase(), category.id]));
 
       for (const product of parentRows) {
-        const unitName = product.unit_name.toLowerCase();
-        if (!unitMap.has(unitName)) {
-          const newUnit = await createUnit.mutateAsync({ 
-            name: product.unit_name,
-            abbreviation: product.unit_name.substring(0, 3).toLowerCase(),
-          });
-          unitMap.set(unitName, newUnit.id);
+        const unitNames = [product.unit_name, product.sub_unit_name].filter(
+          (name): name is string => !!name,
+        );
+        if (
+          product.sub_unit_name &&
+          product.sub_unit_name.toLowerCase() === product.unit_name.toLowerCase()
+        ) {
+          throw new Error(`Product "${product.name}" must use a different main unit and sub unit`);
+        }
+        for (const unitNameValue of unitNames) {
+          const unitName = unitNameValue.toLowerCase();
+          if (!unitMap.has(unitName)) {
+            const newUnit = await createUnit.mutateAsync({
+              name: unitNameValue,
+              abbreviation: unitNameValue.substring(0, 3).toLowerCase(),
+            });
+            unitMap.set(unitName, newUnit.id);
+          }
         }
 
         if (product.branch_name) {
@@ -156,6 +173,10 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
       for (let i = 0; i < parentRows.length; i++) {
         const product = parentRows[i];
         const unitId = unitMap.get(product.unit_name.toLowerCase());
+        const subUnitId = product.sub_unit_name
+          ? unitMap.get(product.sub_unit_name.toLowerCase())
+          : undefined;
+        const stockFactor = subUnitId ? product.sub_unit_factor : 1;
         const branchId = product.branch_name 
           ? branchMap.get(product.branch_name.toLowerCase()) 
           : undefined;
@@ -170,27 +191,6 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
           throw new Error(`Unit not found for product: ${product.name}`);
         }
 
-        // Check for duplicates before importing
-        const duplicateCheck = await checkProductDuplicate(
-          product.name,
-          branchId || null,
-          product.sku || null
-        );
-
-        if (duplicateCheck.isDuplicate) {
-          result.skipped++;
-          result.skippedProducts.push(
-            `${product.name}${product.sku ? ` (SKU: ${product.sku})` : ''}`
-          );
-          // Even when skipped, allow follow-up variation rows to attach
-          if (duplicateCheck.existingProduct?.id) {
-            if (product.sku) createdParentIdBySku.set(product.sku.toLowerCase(), duplicateCheck.existingProduct.id);
-            createdParentIdByName.set(product.name.toLowerCase(), duplicateCheck.existingProduct.id);
-          }
-          setImportProgress({ current: i + 1, total: parentRows.length + variationRows.length });
-          continue;
-        }
-
         const productCategoryName = product.product_category_name?.trim() || 'Uncategorized';
         const productCategoryKey = productCategoryName.toLowerCase();
         if (!productCategoryMap.has(productCategoryKey)) {
@@ -198,30 +198,89 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
           productCategoryMap.set(productCategoryKey, createdCategory.id);
         }
 
-        const created = await createProduct.mutateAsync({
+        // Match existing records by name and branch or by SKU, then update them.
+        const duplicateCheck = await checkProductDuplicate(
+          product.name,
+          branchId || null,
+          product.sku || null
+        );
+
+        const productFields = {
           name: product.name,
           unit_id: unitId,
+          sub_unit_id: subUnitId ?? null,
+          sub_unit_factor: stockFactor,
+          sub_unit_selling_price: subUnitId ? product.sub_unit_selling_price ?? 0 : null,
           item_type: product.item_type,
           category: product.category,
           product_category_id: productCategoryMap.get(productCategoryKey),
-          opening_stock: product.opening_stock,
-          current_stock: product.current_stock,
-          low_stock_threshold: product.low_stock_threshold,
-          out_of_stock_threshold: product.out_of_stock_threshold,
+          opening_stock: product.opening_stock * stockFactor,
+          current_stock: product.current_stock * stockFactor,
+          low_stock_threshold: product.low_stock_threshold * stockFactor,
+          out_of_stock_threshold: product.out_of_stock_threshold * stockFactor,
           cost_price: product.cost_price,
           selling_price: product.selling_price,
+          is_taxable: product.is_taxable,
+          expiration_date: product.expiration_date || null,
           sku: product.sku,
           description: product.description,
           branch_id: branchId,
           supplier_id: supplierId,
           brand_id: brandId,
-          organization_id: organization.id,
-        });
+        };
 
-        if (product.sku) createdParentIdBySku.set(product.sku.toLowerCase(), (created as any).id);
-        createdParentIdByName.set(product.name.toLowerCase(), (created as any).id);
+        let parentId: string;
+        if (duplicateCheck.existingProduct?.id) {
+          parentId = duplicateCheck.existingProduct.id;
+          const { data: updatedProduct, error: updateError } = await supabase
+            .from('products')
+            .update({
+              ...productFields,
+              branch_id: branchId ?? duplicateCheck.existingProduct.branch_id,
+              supplier_id: supplierId ?? null,
+              brand_id: brandId ?? null,
+              sku: product.sku || null,
+              description: product.description || null,
+            })
+            .eq('id', parentId)
+            .select('id')
+            .single();
+          if (updateError) throw updateError;
+          if (!updatedProduct) {
+            throw new Error(`Product "${product.name}" was not updated. Check that you have edit access.`);
+          }
+          const previousStock = Number(duplicateCheck.existingProduct.current_stock);
+          const newStock = productFields.current_stock;
+          if (
+            duplicateCheck.existingProduct.item_type === 'product' &&
+            product.item_type === 'product' &&
+            previousStock !== newStock
+          ) {
+            const { error: historyError } = await supabase.from('stock_history').insert({
+              product_id: parentId,
+              previous_stock: previousStock,
+              new_stock: newStock,
+              change_amount: newStock - previousStock,
+              change_type: 'adjustment',
+              notes: 'Stock adjusted during CSV import',
+              changed_by: user?.id ?? null,
+            });
+            if (historyError) throw historyError;
+          }
+          result.updated++;
+        } else {
+          const created = await createProduct.mutateAsync({
+            ...productFields,
+            sku: product.sku || undefined,
+            description: product.description || undefined,
+            organization_id: organization.id,
+          });
+          parentId = (created as { id: string }).id;
+          result.imported++;
+        }
 
-        result.imported++;
+        if (product.sku) createdParentIdBySku.set(product.sku.toLowerCase(), parentId);
+        createdParentIdByName.set(product.name.toLowerCase(), parentId);
         setImportProgress({ current: i + 1, total: parentRows.length + variationRows.length });
       }
 
@@ -319,6 +378,8 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
       }
 
       await refetchAttributes();
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+      await queryClient.invalidateQueries({ queryKey: ['stock-history'] });
 
       setImportResult(result);
       setStatus('complete');
@@ -326,12 +387,12 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
       if (result.skipped > 0) {
         toast({
           title: 'Import Complete with Duplicates',
-          description: `Imported ${result.imported} products, skipped ${result.skipped} duplicates`,
+          description: `Added ${result.imported}, updated ${result.updated}, skipped ${result.skipped}`,
         });
       } else {
         toast({
           title: 'Import Complete',
-          description: `Successfully imported ${result.imported} products`,
+          description: `Added ${result.imported}, updated ${result.updated} products`,
         });
       }
     } catch (err) {
@@ -459,7 +520,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
               <Alert>
                 <CheckCircle2 className="h-4 w-4 text-status-normal" />
                 <AlertDescription>
-                  Successfully imported {importResult.imported} products!
+                  Added {importResult.imported} new product(s) and updated {importResult.updated}.
                 </AlertDescription>
               </Alert>
               
@@ -467,7 +528,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
                 <Alert>
                   <AlertTriangle className="h-4 w-4 text-status-low" />
                   <AlertDescription>
-                    <p className="font-medium">Skipped {importResult.skipped} duplicate(s):</p>
+                    <p className="font-medium">Skipped {importResult.skipped} row(s):</p>
                     <ScrollArea className="h-[100px] mt-2">
                       <ul className="text-sm space-y-1">
                         {importResult.skippedProducts.map((name, index) => (

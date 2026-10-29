@@ -27,6 +27,11 @@ export interface ParsedCSVProduct {
   out_of_stock_threshold: number;
   cost_price: number;
   selling_price: number;
+  is_taxable: boolean;
+  expiration_date?: string;
+  sub_unit_name?: string;
+  sub_unit_factor: number;
+  sub_unit_selling_price?: number;
   sku?: string;
   description?: string;
   branch_name?: string;
@@ -44,6 +49,36 @@ export interface ParsedCSVProduct {
   variation_price?: number;
 }
 
+const PRODUCT_CSV_HEADERS = [
+  'Product Name',
+  'Type',
+  'Product Category',
+  'Unit',
+  'Opening Stock',
+  'Current Stock',
+  'Low Stock Threshold',
+  'Out of Stock Threshold',
+  'Cost Price',
+  'Selling Price',
+  'SKU',
+  'Description',
+  'Branch',
+  'Supplier',
+  'Brand',
+  'Is Taxable',
+  'Expiration Date',
+  'Sub Unit',
+  'Sub Unit Factor',
+  'Sub Unit Selling Price',
+  'Is Variation',
+  'Parent SKU',
+  'Variation Attributes',
+  'Variation SKU',
+  'Variation Stock',
+  'Variation Cost',
+  'Variation Price',
+];
+
 // Generic CSV row for simple imports
 export interface GenericCSVRow {
   [key: string]: string;
@@ -57,46 +92,21 @@ export function exportProductsToCSV(
   brands?: { id: string; name: string }[],
   variationsByProductId?: Map<string, ProductVariation[]>,
 ): string {
-  const headers = [
-    'Product Name',
-    'Type',
-    'Product Category',
-    'Unit',
-    'Opening Stock',
-    'Current Stock',
-    'Low Stock Threshold',
-    'Out of Stock Threshold',
-    'Cost Price',
-    'Selling Price',
-    'SKU',
-    'Description',
-    'Branch',
-    'Supplier',
-    'Brand',
-    'Last Updated',
-    'Is Variation',
-    'Parent SKU',
-    'Variation Attributes',
-    'Variation SKU',
-    'Variation Stock',
-    'Variation Cost',
-    'Variation Price',
-  ];
-
   const rows: string[][] = [];
   for (const product of products) {
     const branchName = branches?.find((b) => b.id === product.branch_id)?.name || '';
     const supplierName = suppliers?.find((s) => s.id === product.supplier_id)?.name || '';
     const brandName = brands?.find((b) => b.id === product.brand_id)?.name || '';
+    const subUnitFactor = product.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1;
     rows.push([
       escapeCSV(product.name),
       getProductType(product),
       escapeCSV(product.product_categories?.name || 'Uncategorized'),
       escapeCSV(product.units?.name || ''),
-      product.opening_stock.toString(),
-      product.current_stock.toString(),
-      product.low_stock_threshold.toString(),
-      product.out_of_stock_threshold.toString(),
+      (Number(product.opening_stock) / subUnitFactor).toString(),
+      (Number(product.current_stock) / subUnitFactor).toString(),
+      (Number(product.low_stock_threshold) / subUnitFactor).toString(),
+      (Number(product.out_of_stock_threshold) / subUnitFactor).toString(),
       (product.cost_price || 0).toString(),
       (product.selling_price || 0).toString(),
       escapeCSV(product.sku || ''),
@@ -104,7 +114,11 @@ export function exportProductsToCSV(
       escapeCSV(branchName),
       escapeCSV(supplierName),
       escapeCSV(brandName),
-      new Date(product.updated_at).toLocaleString(),
+      product.is_taxable ? 'true' : 'false',
+      escapeCSV(product.expiration_date || ''),
+      escapeCSV(product.sub_units?.name || ''),
+      product.sub_unit_id ? String(subUnitFactor) : '',
+      product.sub_unit_id ? String(Number(product.sub_unit_selling_price) || 0) : '',
       'no', '', '', '', '', '', '',
     ]);
     if (product.item_type === 'variable' && variationsByProductId) {
@@ -124,6 +138,10 @@ export function exportProductsToCSV(
           escapeCSV(branchName),
           escapeCSV(supplierName),
           escapeCSV(brandName),
+          'true',
+          '',
+          '',
+          '',
           '',
           'yes',
           escapeCSV(product.sku || ''),
@@ -137,7 +155,7 @@ export function exportProductsToCSV(
     }
   }
 
-  return [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+  return [PRODUCT_CSV_HEADERS.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
 }
 
 // Escape CSV special characters
@@ -150,12 +168,12 @@ function escapeCSV(value: string): string {
 
 // Parse CSV content
 export function parseCSV(content: string): ParsedCSVProduct[] {
-  const lines = content.trim().split('\n');
-  if (lines.length < 2) {
+  const records = parseCSVRecords(content);
+  if (records.length < 2) {
     throw new Error('CSV file must have at least a header row and one data row');
   }
 
-  const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
+  const headers = records[0].map((h) => h.replace(/^\uFEFF/, '').toLowerCase().trim());
   
   // Map headers to expected fields
   const headerMap = {
@@ -175,6 +193,11 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
     branch: findHeader(headers, ['branch', 'location', 'store']),
     supplier: findHeader(headers, ['supplier', 'vendor']),
     brand: findHeader(headers, ['brand', 'manufacturer']),
+    is_taxable: findHeader(headers, ['is taxable', 'taxable', 'is_taxable']),
+    expiration_date: findHeader(headers, ['expiration date', 'expiry date', 'expiration']),
+    sub_unit: findHeader(headers, ['sub unit', 'subunit', 'sub unit of measurement']),
+    sub_unit_factor: findHeader(headers, ['sub unit factor', 'subunit factor', 'conversion factor']),
+    sub_unit_selling_price: findHeader(headers, ['sub unit selling price', 'subunit selling price']),
     is_variation: findHeader(headers, ['is variation', 'is_variation', 'variation']),
     parent_sku: findHeader(headers, ['parent sku', 'parent']),
     variation_attributes: findHeader(headers, ['variation attributes', 'attributes']),
@@ -193,11 +216,9 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
 
   const products: ParsedCSVProduct[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const values = parseCSVLine(line);
+  for (let i = 1; i < records.length; i++) {
+    const values = records[i];
+    if (values.every((value) => !value.trim())) continue;
     
     const name = values[headerMap.name]?.trim();
     const unit_name = values[headerMap.unit]?.trim();
@@ -244,6 +265,10 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
       out_of_stock_threshold: parseNumber(values[headerMap.out_of_stock_threshold], 0),
       cost_price: parseNumber(values[headerMap.cost_price], 0),
       selling_price: parseNumber(values[headerMap.selling_price], 0),
+      is_taxable: headerMap.is_taxable === -1
+        ? true
+        : !['false', 'no', '0'].includes((values[headerMap.is_taxable] || '').trim().toLowerCase()),
+      sub_unit_factor: parseNumber(values[headerMap.sub_unit_factor], 1),
     };
 
     if (headerMap.sku !== -1 && values[headerMap.sku]) {
@@ -260,6 +285,19 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
     }
     if (headerMap.brand !== -1 && values[headerMap.brand]) {
       product.brand_name = values[headerMap.brand].trim();
+    }
+    if (headerMap.expiration_date !== -1 && values[headerMap.expiration_date]) {
+      product.expiration_date = values[headerMap.expiration_date].trim();
+    }
+    if (headerMap.sub_unit !== -1 && values[headerMap.sub_unit]) {
+      product.sub_unit_name = values[headerMap.sub_unit].trim();
+      product.sub_unit_selling_price = parseNumber(
+        values[headerMap.sub_unit_selling_price],
+        0,
+      );
+      if (product.sub_unit_factor < 2) {
+        throw new Error(`Row ${i + 1}: Sub Unit Factor must be at least 2 when a sub unit is provided`);
+      }
     }
     if (headerMap.product_category !== -1 && values[headerMap.product_category]) {
       product.product_category_name = values[headerMap.product_category].trim();
@@ -304,33 +342,39 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
   return products;
 }
 
-// Parse a single CSV line, handling quoted values
-function parseCSVLine(line: string): string[] {
-  const values: string[] = [];
-  let current = '';
+function parseCSVRecords(content: string): string[][] {
+  const records: string[][] = [];
+  let record: string[] = [];
+  let value = '';
   let inQuotes = false;
 
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    const nextChar = line[i + 1];
-
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
     if (char === '"') {
-      if (inQuotes && nextChar === '"') {
-        current += '"';
+      if (inQuotes && content[i + 1] === '"') {
+        value += '"';
         i++;
       } else {
         inQuotes = !inQuotes;
       }
-    } else if (char === ',' && !inQuotes) {
-      values.push(current);
-      current = '';
+    } else if (!inQuotes && char === ',') {
+      record.push(value);
+      value = '';
+    } else if (!inQuotes && (char === '\n' || char === '\r')) {
+      record.push(value);
+      if (record.some((field) => field.length > 0)) records.push(record);
+      record = [];
+      value = '';
+      if (char === '\r' && content[i + 1] === '\n') i++;
     } else {
-      current += char;
+      value += char;
     }
   }
-  values.push(current);
 
-  return values;
+  if (inQuotes) throw new Error('CSV contains an unterminated quoted field');
+  record.push(value);
+  if (record.some((field) => field.length > 0)) records.push(record);
+  return records;
 }
 
 // Find header index
@@ -368,36 +412,11 @@ export function downloadCSV(content: string, filename: string): void {
 
 // Generate sample CSV template
 export function generateCSVTemplate(): string {
-  const headers = [
-    'Product Name',
-    'Type',
-    'Product Category',
-    'Unit',
-    'Opening Stock',
-    'Current Stock',
-    'Low Stock Threshold',
-    'Out of Stock Threshold',
-    'Cost Price',
-    'Selling Price',
-    'SKU',
-    'Description',
-    'Branch',
-    'Supplier',
-    'Brand',
-    'Is Variation',
-    'Parent SKU',
-    'Variation Attributes',
-    'Variation SKU',
-    'Variation Stock',
-    'Variation Cost',
-    'Variation Price',
-  ];
-
   const sampleRow = [
     'Sample Product',
     'Sellable',
     'Uncategorized',
-    'Pieces',
+    'Packs',
     '100',
     '50',
     '10',
@@ -409,6 +428,11 @@ export function generateCSVTemplate(): string {
     'Main Store',
     'Sample Supplier',
     'Sample Brand',
+    'true',
+    '',
+    'Pieces',
+    '10',
+    '750',
     'no', '', '', '', '', '', '',
   ];
 
@@ -417,28 +441,31 @@ export function generateCSVTemplate(): string {
     '0', '0', '0', '0', '0', '0',
     'TSHIRT-001', 'Variable parent example',
     'Main Store', '', '',
+    'true', '', '', '', '',
     'no', '', '', '', '', '', '',
   ];
   const variationRow1 = [
     'Sample T-Shirt', 'Variable', 'Uncategorized', 'Pieces',
     '0', '0', '0', '0', '0', '0',
     'TSHIRT-001', '', 'Main Store', '', '',
+    'true', '', '', '', '',
     'yes', 'TSHIRT-001', 'Size:Small|Color:Red', 'TSHIRT-001-SR', '20', '3000', '5000',
   ];
   const variationRow2 = [
     'Sample T-Shirt', 'Variable', 'Uncategorized', 'Pieces',
     '0', '0', '0', '0', '0', '0',
     'TSHIRT-001', '', 'Main Store', '', '',
+    'true', '', '', '', '',
     'yes', 'TSHIRT-001', 'Size:Medium|Color:Red', 'TSHIRT-001-MR', '15', '3000', '5000',
   ];
 
   return [
-    headers.join(','),
-    sampleRow.join(','),
-    parentVariable.join(','),
-    variationRow1.join(','),
-    variationRow2.join(','),
-  ].join('\n');
+    PRODUCT_CSV_HEADERS.join(','),
+    sampleRow.map(escapeCSV).join(','),
+    parentVariable.map(escapeCSV).join(','),
+    variationRow1.map(escapeCSV).join(','),
+    variationRow2.map(escapeCSV).join(','),
+  ].join('\r\n');
 }
 
 // Generate CSV template for brands

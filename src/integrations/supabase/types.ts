@@ -1527,6 +1527,9 @@ export type Database = {
           out_of_stock_threshold: number
           selling_price: number
           sku: string | null
+          sub_unit_factor: number
+          sub_unit_id: string | null
+          sub_unit_selling_price: number | null
           supplier_id: string | null
           unit_id: string
           updated_at: string
@@ -1551,6 +1554,9 @@ export type Database = {
           out_of_stock_threshold?: number
           selling_price?: number
           sku?: string | null
+          sub_unit_factor?: number
+          sub_unit_id?: string | null
+          sub_unit_selling_price?: number | null
           supplier_id?: string | null
           unit_id: string
           updated_at?: string
@@ -1575,6 +1581,9 @@ export type Database = {
           out_of_stock_threshold?: number
           selling_price?: number
           sku?: string | null
+          sub_unit_factor?: number
+          sub_unit_id?: string | null
+          sub_unit_selling_price?: number | null
           supplier_id?: string | null
           unit_id?: string
           updated_at?: string
@@ -1613,6 +1622,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_sub_unit_id_fkey"
+            columns: ["sub_unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
             referencedColumns: ["id"]
           },
           {
@@ -1678,6 +1694,8 @@ export type Database = {
           selling_price: number
           total_cost: number
           unit_cost: number
+          unit_label: string | null
+          unit_multiplier: number
           variation_id: string | null
         }
         Insert: {
@@ -1689,6 +1707,8 @@ export type Database = {
           selling_price?: number
           total_cost: number
           unit_cost: number
+          unit_label?: string | null
+          unit_multiplier?: number
           variation_id?: string | null
         }
         Update: {
@@ -1700,6 +1720,8 @@ export type Database = {
           selling_price?: number
           total_cost?: number
           unit_cost?: number
+          unit_label?: string | null
+          unit_multiplier?: number
           variation_id?: string | null
         }
         Relationships: [
@@ -1735,6 +1757,8 @@ export type Database = {
           return_id: string
           total_cost: number
           unit_cost: number
+          unit_label: string | null
+          unit_multiplier: number
           variation_id: string | null
         }
         Insert: {
@@ -2216,6 +2240,8 @@ export type Database = {
           sale_id: string
           total_price: number
           unit_price: number
+          unit_label: string | null
+          unit_multiplier: number
           variation_id: string | null
         }
         Insert: {
@@ -2228,6 +2254,8 @@ export type Database = {
           sale_id: string
           total_price: number
           unit_price: number
+          unit_label?: string | null
+          unit_multiplier?: number
           variation_id?: string | null
         }
         Update: {
@@ -2240,6 +2268,8 @@ export type Database = {
           sale_id?: string
           total_price?: number
           unit_price?: number
+          unit_label?: string | null
+          unit_multiplier?: number
           variation_id?: string | null
         }
         Relationships: [
@@ -2275,6 +2305,8 @@ export type Database = {
           return_id: string
           total_price: number
           unit_price: number
+          unit_label: string | null
+          unit_multiplier: number
           variation_id: string | null
         }
         Insert: {
@@ -2285,6 +2317,8 @@ export type Database = {
           return_id: string
           total_price?: number
           unit_price?: number
+          unit_label?: string | null
+          unit_multiplier?: number
           variation_id?: string | null
         }
         Update: {
@@ -2295,6 +2329,8 @@ export type Database = {
           return_id?: string
           total_price?: number
           unit_price?: number
+          unit_label?: string | null
+          unit_multiplier?: number
           variation_id?: string | null
         }
         Relationships: [
@@ -3074,6 +3110,8 @@ export type Database = {
           raw_material_id: string
           total_cost: number
           unit_cost: number
+          unit_label?: string | null
+          unit_multiplier?: number
           work_order_id: string
         }
         Insert: {
@@ -3084,6 +3122,8 @@ export type Database = {
           raw_material_id: string
           total_cost?: number
           unit_cost?: number
+          unit_label?: string | null
+          unit_multiplier?: number
           work_order_id: string
         }
         Update: {
@@ -3243,6 +3283,10 @@ export type Database = {
         Returns: undefined
       }
       generate_work_order_number: { Args: { org_id: string }; Returns: string }
+      record_manual_production: {
+        Args: { _notes?: string | null; _product_id: string; _quantity: number }
+        Returns: undefined
+      }
       get_org_user_names: {
         Args: { _user_ids: string[] }
         Returns: {

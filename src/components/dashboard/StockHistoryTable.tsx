@@ -43,9 +43,26 @@ import {
   useStockHistory,
   type StockHistoryEntry,
 } from "@/hooks/useStockHistory";
+import { formatProductStockQuantity } from "@/lib/product-units";
 
 interface StockHistoryTableProps {
   productId?: string;
+}
+
+function formatStockLevel(entry: StockHistoryEntry, stock: number): string {
+  return entry.products
+    ? formatProductStockQuantity(entry.products, stock)
+    : stock.toLocaleString();
+}
+
+function formatStockChange(entry: StockHistoryEntry): string {
+  const change = Number(entry.change_amount);
+  if (change === 0) return "0";
+  const sign = change > 0 ? "+" : "-";
+  const amount = Math.abs(change);
+  return entry.products
+    ? `${sign}${formatProductStockQuantity(entry.products, amount)}`
+    : `${sign}${amount.toLocaleString()}`;
 }
 
 function getChangeIcon(changeType: string) {
@@ -311,7 +328,7 @@ export function StockHistoryTable({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {Number(entry.previous_stock).toLocaleString()}
+                      {formatStockLevel(entry, Number(entry.previous_stock))}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       <span
@@ -321,12 +338,11 @@ export function StockHistoryTable({
                             : "text-destructive"
                         }
                       >
-                        {Number(entry.change_amount) >= 0 ? "+" : ""}
-                        {Number(entry.change_amount).toLocaleString()}
+                        {formatStockChange(entry)}
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-medium">
-                      {Number(entry.new_stock).toLocaleString()}
+                      {formatStockLevel(entry, Number(entry.new_stock))}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
                       {entry.changed_by_user?.full_name ||

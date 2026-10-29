@@ -39,6 +39,7 @@ function toSupabaseRow(name: SyncTable, data: Record<string, unknown>) {
   const row = { ...data };
   if (name === "products") {
     delete row.units;
+    delete row.sub_units;
     delete row.branches;
     delete row.suppliers;
     delete row.brands;
@@ -57,7 +58,26 @@ function toSupabaseRow(name: SyncTable, data: Record<string, unknown>) {
 }
 
 async function syncTable(name: SyncTable, table: SyncableTable) {
-  const pending = (await table.toArray()).filter((row) => !row.isSynced && !row.syncBlocked);
+  const rows = await table.toArray();
+  const staleProductRelationErrors = name === "products"
+    ? rows.filter((row) =>
+        row.syncBlocked &&
+        row.syncError?.includes("Could not find the 'sub_units' column of 'products' in the schema cache"),
+      )
+    : [];
+  if (staleProductRelationErrors.length) {
+    await table.bulkPut(staleProductRelationErrors.map((row) => ({
+      ...row,
+      syncBlocked: false,
+      syncError: undefined,
+    })));
+  }
+  const staleProductIds = new Set(staleProductRelationErrors.map((row) => row.id));
+  const pending = rows
+    .filter((row) => !row.isSynced && (!row.syncBlocked || staleProductIds.has(row.id)))
+    .map((row) => staleProductIds.has(row.id)
+      ? { ...row, syncBlocked: false, syncError: undefined }
+      : row);
   if (!pending.length) return 0;
 
   const resolved: LocalRecord<Record<string, unknown>>[] = [];

@@ -14,6 +14,8 @@ export interface PurchaseItem {
   product_id: string;
   variation_id: string | null;
   quantity: number;
+  unit_multiplier: number;
+  unit_label: string | null;
   unit_cost: number;
   total_cost: number;
   created_at: string;
@@ -21,6 +23,8 @@ export interface PurchaseItem {
     id: string;
     name: string;
     category: string;
+    sub_unit_id?: string | null;
+    sub_unit_factor?: number | null;
     units?: {
       name: string;
       abbreviation: string | null;
@@ -63,6 +67,8 @@ export interface PurchaseItemInput {
   product_id: string;
   variation_id?: string | null;
   quantity: number;
+  unit_multiplier?: number;
+  unit_label?: string | null;
   unit_cost: number;
   selling_price: number;
 }
@@ -95,9 +101,11 @@ export function usePurchases(branchId?: string) {
             product_id,
             variation_id,
             quantity,
-            unit_cost,
+              unit_multiplier,
+              unit_label,
+              unit_cost,
             total_cost,
-            products (id, name, category, units (name, abbreviation)),
+            products (id, name, category, sub_unit_id, sub_unit_factor, units:units!products_unit_id_fkey (name, abbreviation)),
             product_variations (id, sku)
           )
         `)
@@ -164,6 +172,8 @@ export function useCreatePurchase() {
         product_id: item.product_id,
         variation_id: item.variation_id || null,
         quantity: item.quantity,
+        unit_multiplier: item.unit_multiplier || 1,
+        unit_label: item.unit_label || null,
         unit_cost: item.unit_cost,
         selling_price: item.selling_price || 0,
         total_cost: item.quantity * item.unit_cost,
@@ -187,7 +197,7 @@ export function useCreatePurchase() {
           if (variationError) throw variationError;
 
           const previousStock = Number((variation as any).current_stock);
-          const newStock = previousStock + item.quantity;
+          const newStock = previousStock + item.quantity * Number(item.unit_multiplier || 1);
           const variationUpdate: Record<string, number> = { current_stock: newStock };
           if (item.unit_cost > 0) variationUpdate.cost_price = item.unit_cost;
           if (item.selling_price > 0) variationUpdate.selling_price = item.selling_price;
@@ -205,7 +215,7 @@ export function useCreatePurchase() {
               variation_id: item.variation_id,
               previous_stock: previousStock,
               new_stock: newStock,
-              change_amount: item.quantity,
+              change_amount: item.quantity * Number(item.unit_multiplier || 1),
               change_type: 'purchase',
               notes: `Purchase ${purchaseNumber}`,
               changed_by: user?.id,
@@ -217,19 +227,29 @@ export function useCreatePurchase() {
         // Get current stock
         const { data: product, error: productError } = await supabase
           .from('products')
-          .select('current_stock')
+          .select('current_stock, sub_unit_id, sub_unit_factor')
           .eq('id', item.product_id)
           .single();
 
         if (productError) throw productError;
 
         const previousStock = Number(product.current_stock);
-        const newStock = previousStock + item.quantity;
+        const stockQuantity = item.quantity * Number(item.unit_multiplier || 1);
+        const newStock = previousStock + stockQuantity;
 
         // Update product stock and prices
         const updateData: any = { current_stock: newStock };
-        if (item.unit_cost > 0) updateData.cost_price = item.unit_cost;
-        if (item.selling_price > 0) updateData.selling_price = item.selling_price;
+        if (item.unit_cost > 0) {
+          updateData.cost_price = item.unit_cost *
+            (product.sub_unit_id ? Number(product.sub_unit_factor) / Number(item.unit_multiplier || 1) : 1);
+        }
+        if (item.selling_price > 0) {
+          if (product.sub_unit_id && Number(item.unit_multiplier) === 1) {
+            updateData.sub_unit_selling_price = item.selling_price;
+          } else {
+            updateData.selling_price = item.selling_price;
+          }
+        }
 
         const { error: updateError } = await supabase
           .from('products')
@@ -245,7 +265,7 @@ export function useCreatePurchase() {
             product_id: item.product_id,
             previous_stock: previousStock,
             new_stock: newStock,
-            change_amount: item.quantity,
+            change_amount: stockQuantity,
             change_type: 'purchase',
             notes: `Purchase ${purchaseNumber}`,
             changed_by: user?.id,
@@ -331,7 +351,8 @@ export function useUpdatePurchase() {
           if (variationError) throw variationError;
 
           const previousStock = Number((variation as any).current_stock);
-          const newStock = Math.max(0, previousStock - Number(item.quantity));
+          const stockQuantity = Number(item.quantity) * Number(item.unit_multiplier || 1);
+          const newStock = Math.max(0, previousStock - stockQuantity);
           const { error: updateError } = await supabase
             .from('product_variations' as any)
             .update({ current_stock: newStock })
@@ -345,7 +366,7 @@ export function useUpdatePurchase() {
               variation_id: item.variation_id,
               previous_stock: previousStock,
               new_stock: newStock,
-              change_amount: -Number(item.quantity),
+              change_amount: -stockQuantity,
               change_type: 'purchase_reversal',
               notes: 'Edit purchase - reversal',
               changed_by: user?.id,
@@ -356,14 +377,18 @@ export function useUpdatePurchase() {
 
         const { data: product, error: productError } = await supabase
           .from('products')
-          .select('current_stock')
+          .select('current_stock, sub_unit_id, sub_unit_factor')
           .eq('id', item.product_id)
           .single();
 
         if (productError) throw productError;
 
         const previousStock = Number(product.current_stock);
-        const newStock = Math.max(0, previousStock - item.quantity);
+        const multiplier = item.unit_label
+          ? Number(item.unit_multiplier) || 1
+          : product.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1;
+        const stockQuantity = item.quantity * multiplier;
+        const newStock = Math.max(0, previousStock - stockQuantity);
 
         const { error: updateError } = await supabase
           .from('products')
@@ -378,7 +403,7 @@ export function useUpdatePurchase() {
             product_id: item.product_id,
             previous_stock: previousStock,
             new_stock: newStock,
-            change_amount: -item.quantity,
+            change_amount: -stockQuantity,
             change_type: 'purchase_reversal',
             notes: `Edit purchase - reversal`,
             changed_by: user?.id,
@@ -430,6 +455,8 @@ export function useUpdatePurchase() {
         product_id: item.product_id,
         variation_id: item.variation_id || null,
         quantity: item.quantity,
+        unit_multiplier: item.unit_multiplier || 1,
+        unit_label: item.unit_label || null,
         unit_cost: item.unit_cost,
         selling_price: item.selling_price || 0,
         total_cost: item.quantity * item.unit_cost,
@@ -453,7 +480,7 @@ export function useUpdatePurchase() {
           if (variationError) throw variationError;
 
           const previousStock = Number((variation as any).current_stock);
-          const newStock = previousStock + item.quantity;
+          const newStock = previousStock + item.quantity * Number(item.unit_multiplier || 1);
           const variationUpdate: Record<string, number> = { current_stock: newStock };
           if (item.unit_cost > 0) variationUpdate.cost_price = item.unit_cost;
           if (item.selling_price > 0) variationUpdate.selling_price = item.selling_price;
@@ -470,7 +497,7 @@ export function useUpdatePurchase() {
               variation_id: item.variation_id,
               previous_stock: previousStock,
               new_stock: newStock,
-              change_amount: item.quantity,
+              change_amount: item.quantity * Number(item.unit_multiplier || 1),
               change_type: 'purchase',
               notes: `Edit purchase ${purchase.purchase_number}`,
               changed_by: user?.id,
@@ -481,18 +508,28 @@ export function useUpdatePurchase() {
 
         const { data: product, error: productError } = await supabase
           .from('products')
-          .select('current_stock')
+          .select('current_stock, sub_unit_id, sub_unit_factor')
           .eq('id', item.product_id)
           .single();
 
         if (productError) throw productError;
 
         const previousStock = Number(product.current_stock);
-        const newStock = previousStock + item.quantity;
+        const stockQuantity = item.quantity * Number(item.unit_multiplier || 1);
+        const newStock = previousStock + stockQuantity;
 
         const updateData: any = { current_stock: newStock };
-        if (item.unit_cost > 0) updateData.cost_price = item.unit_cost;
-        if (item.selling_price > 0) updateData.selling_price = item.selling_price;
+        if (item.unit_cost > 0) {
+          updateData.cost_price = item.unit_cost *
+            (product.sub_unit_id ? Number(product.sub_unit_factor) / Number(item.unit_multiplier || 1) : 1);
+        }
+        if (item.selling_price > 0) {
+          if (product.sub_unit_id && Number(item.unit_multiplier) === 1) {
+            updateData.sub_unit_selling_price = item.selling_price;
+          } else {
+            updateData.selling_price = item.selling_price;
+          }
+        }
 
         const { error: updateError } = await supabase
           .from('products')
@@ -507,7 +544,7 @@ export function useUpdatePurchase() {
             product_id: item.product_id,
             previous_stock: previousStock,
             new_stock: newStock,
-            change_amount: item.quantity,
+            change_amount: stockQuantity,
             change_type: 'purchase',
             notes: `Edit purchase ${purchase.purchase_number}`,
             changed_by: user?.id,
@@ -540,7 +577,7 @@ export function useDeletePurchase() {
     mutationFn: async (purchase: Purchase) => {
       const { data: purchaseReturns, error: returnsQueryError } = await supabase
         .from('purchase_returns')
-        .select('id, purchase_return_items(product_id, variation_id, quantity)')
+        .select('id, purchase_return_items(product_id, variation_id, quantity, unit_multiplier, unit_label, products(sub_unit_id, sub_unit_factor))')
         .eq('purchase_id', purchase.id);
 
       if (returnsQueryError) throw returnsQueryError;
@@ -548,10 +585,20 @@ export function useDeletePurchase() {
       const returnedQuantities = new Map<string, number>();
       for (const purchaseReturn of (purchaseReturns || []) as unknown as Array<{
         id: string;
-        purchase_return_items?: Array<{ product_id: string; variation_id: string | null; quantity: number }>;
+        purchase_return_items?: Array<{
+          product_id: string;
+          variation_id: string | null;
+          quantity: number;
+          unit_multiplier: number;
+          unit_label: string | null;
+          products: { sub_unit_id: string | null; sub_unit_factor: number | null } | null;
+        }>;
       }>) {
         for (const item of purchaseReturn.purchase_return_items || []) {
-          const key = getPurchaseItemKey(item.product_id, item.variation_id);
+          const multiplier = item.unit_label
+            ? Number(item.unit_multiplier) || 1
+            : item.products?.sub_unit_id ? Number(item.products.sub_unit_factor) || 1 : 1;
+          const key = getPurchaseItemKey(item.product_id, item.variation_id, multiplier);
           returnedQuantities.set(
             key,
             (returnedQuantities.get(key) || 0) + Number(item.quantity),
@@ -562,7 +609,10 @@ export function useDeletePurchase() {
       // First, reverse the stock changes
       if (purchase.purchase_items) {
         for (const item of purchase.purchase_items) {
-          const returnedKey = getPurchaseItemKey(item.product_id, item.variation_id);
+          const multiplier = item.unit_label
+            ? Number(item.unit_multiplier) || 1
+            : item.products?.sub_unit_id ? Number(item.products.sub_unit_factor) || 1 : 1;
+          const returnedKey = getPurchaseItemKey(item.product_id, item.variation_id, multiplier);
           const netQuantity = Math.max(
             0,
             Number(item.quantity) - (returnedQuantities.get(returnedKey) || 0),
@@ -590,7 +640,7 @@ export function useDeletePurchase() {
                 variation_id: item.variation_id,
                 previous_stock: previousStock,
                 new_stock: newStock,
-                change_amount: -netQuantity,
+                change_amount: -netQuantity * multiplier,
                 change_type: 'purchase_reversal',
                 notes: `Deleted purchase ${purchase.purchase_number}`,
                 changed_by: user?.id,
@@ -602,14 +652,15 @@ export function useDeletePurchase() {
           // Get current stock
           const { data: product, error: productError } = await supabase
             .from('products')
-            .select('current_stock')
+            .select('current_stock, sub_unit_id, sub_unit_factor')
             .eq('id', item.product_id)
             .single();
 
           if (productError) throw productError;
 
           const previousStock = Number(product.current_stock);
-          const newStock = previousStock - netQuantity;
+          const stockQuantity = netQuantity * multiplier;
+          const newStock = previousStock - stockQuantity;
 
           // Update product stock (allow negative for correction)
           const { error: updateError } = await supabase
@@ -626,7 +677,7 @@ export function useDeletePurchase() {
               product_id: item.product_id,
               previous_stock: previousStock,
               new_stock: Math.max(0, newStock),
-              change_amount: -netQuantity,
+              change_amount: -stockQuantity,
               change_type: 'purchase_reversal',
               notes: `Deleted purchase ${purchase.purchase_number}`,
               changed_by: user?.id,

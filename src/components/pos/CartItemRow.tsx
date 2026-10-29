@@ -9,6 +9,7 @@ interface CartItem {
   product_id: string;
   product_name: string;
   quantity: number;
+  unit_label?: string | null;
   unit_price: number;
   total_price: number;
   max_quantity?: number;
@@ -97,7 +98,7 @@ export function CartItemRow({
             onKeyDown={handleKeyDown}
             className="w-20 h-6 text-xs px-1 py-0 inline-flex"
           />
-          <span>× {item.quantity}</span>
+          <span>× {item.quantity} {item.unit_label || ""}</span>
         </div>
         {isOverStock && (
           <div className="flex items-center gap-1 text-destructive text-xs mt-1">

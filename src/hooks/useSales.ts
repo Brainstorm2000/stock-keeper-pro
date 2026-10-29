@@ -19,6 +19,8 @@ export interface SaleItem {
   variation_id?: string | null;
   product_name?: string;
   quantity: number;
+  unit_multiplier?: number;
+  unit_label?: string | null;
   unit_price: number;
   cost_price: number;
   discount_amount: number;
@@ -266,7 +268,8 @@ export function useCreateSale() {
           const product = await localDb.products.get(item.product_id);
           if (product?.data.item_type === 'product') {
             const previousStock = Number(product.data.current_stock);
-            const newStock = previousStock - item.quantity;
+            const stockQuantity = item.quantity * Number(item.unit_multiplier || 1);
+            const newStock = previousStock - stockQuantity;
             await saveLocal(localDb.products, {
               ...product.data,
               current_stock: newStock,
@@ -277,7 +280,7 @@ export function useCreateSale() {
                 product_id: item.product_id,
                 previous_stock: previousStock,
                 new_stock: newStock,
-                change_amount: -item.quantity,
+                change_amount: -stockQuantity,
                 change_type: 'sale',
                 notes: `Sale: ${sale.sale_number}`,
                 changed_by: user?.id ?? null,
@@ -348,7 +351,7 @@ export function useUpdateSale() {
 
       const { data: previousItems, error: previousItemsError } = await supabase
         .from('sale_items')
-        .select('product_id, variation_id, quantity')
+        .select('product_id, variation_id, quantity, unit_multiplier, unit_label, products(sub_unit_id, sub_unit_factor)')
         .eq('sale_id', saleId);
 
       if (previousItemsError) throw previousItemsError;
@@ -357,13 +360,56 @@ export function useUpdateSale() {
         product_id: item.product_id,
         variation_id: (item as any).variation_id || null,
         quantity: Number(item.quantity),
+        unit_multiplier: (item as any).unit_label
+          ? Number((item as any).unit_multiplier) || 1
+          : (item as any).products?.sub_unit_id ? Number((item as any).products.sub_unit_factor) || 1 : 1,
       }));
 
       const nextItemsList = (items || previousItemsList).map(item => ({
         product_id: item.product_id,
         variation_id: (item as any).variation_id || null,
         quantity: Number(item.quantity),
+        unit_multiplier: Number((item as any).unit_multiplier) || 1,
       }));
+
+      const adjustments = buildSaleStockAdjustments(previousItemsList, nextItemsList);
+      for (const adjustment of adjustments) {
+        if (adjustment.quantity <= 0) continue;
+
+        if (adjustment.variation_id) {
+          const { data: variation, error } = await supabase
+            .from('product_variations')
+            .select('current_stock')
+            .eq('id', adjustment.variation_id)
+            .single();
+
+          if (error) throw error;
+
+          const availableStock = Number(variation.current_stock);
+          if (adjustment.quantity > availableStock) {
+            throw new Error(
+              `Insufficient stock: ${availableStock} available, ${adjustment.quantity} additional required for this variation.`,
+            );
+          }
+          continue;
+        }
+
+        const { data: product, error } = await supabase
+          .from('products')
+          .select('name, current_stock, item_type')
+          .eq('id', adjustment.product_id)
+          .single();
+
+        if (error) throw error;
+        if (product.item_type !== 'product') continue;
+
+        const availableStock = Number(product.current_stock);
+        if (adjustment.quantity > availableStock) {
+          throw new Error(
+            `Insufficient stock: ${product.name} has ${availableStock} available, ${adjustment.quantity} additional required.`,
+          );
+        }
+      }
 
       const { sale_date: saleDate, ...saleUpdates } = updates;
 
@@ -404,6 +450,8 @@ export function useUpdateSale() {
           product_id: item.product_id,
           variation_id: item.variation_id || null,
           quantity: item.quantity,
+          unit_multiplier: item.unit_multiplier || 1,
+          unit_label: item.unit_label || null,
           unit_price: item.unit_price,
           cost_price: item.cost_price,
           discount_amount: item.discount_amount,
@@ -417,7 +465,6 @@ export function useUpdateSale() {
         if (insertError) throw insertError;
       }
 
-      const adjustments = buildSaleStockAdjustments(previousItemsList, nextItemsList);
       for (const adjustment of adjustments) {
         if (adjustment.variation_id) {
           const { data: variation } = await supabase
@@ -448,7 +495,7 @@ export function useUpdateSale() {
 
         const { data: product } = await supabase
           .from('products')
-          .select('current_stock, item_type')
+          .select('current_stock, item_type, sub_unit_id, sub_unit_factor')
           .eq('id', adjustment.product_id)
           .single();
 
@@ -600,7 +647,11 @@ export function useDeleteSale() {
             .single();
           if (variation) {
             const prev = Number((variation as any).current_stock);
-            const next = prev + Number(item.quantity);
+            const multiplier = item.unit_label
+              ? Number(item.unit_multiplier) || 1
+              : product.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1;
+            const restoredQuantity = Number(item.quantity) * multiplier;
+            const next = prev + restoredQuantity;
             await supabase
               .from('product_variations' as any)
               .update({ current_stock: next })
@@ -610,7 +661,7 @@ export function useDeleteSale() {
               variation_id: (item as any).variation_id,
               previous_stock: prev,
               new_stock: next,
-              change_amount: Number(item.quantity),
+              change_amount: restoredQuantity,
               change_type: 'increase',
               notes: `Sale deleted: ${sale.sale_number}`,
               changed_by: user?.id,
@@ -625,7 +676,8 @@ export function useDeleteSale() {
           .single();
 
         if (product && product.item_type === 'product') {
-          const restoredStock = Number(product.current_stock) + Number(item.quantity);
+          const restoredQuantity = Number(item.quantity) * Number(item.unit_multiplier || 1);
+          const restoredStock = Number(product.current_stock) + restoredQuantity;
           
           await supabase
             .from('products')
@@ -637,7 +689,7 @@ export function useDeleteSale() {
             product_id: item.product_id,
             previous_stock: product.current_stock,
             new_stock: restoredStock,
-            change_amount: Number(item.quantity),
+            change_amount: restoredQuantity,
             change_type: 'increase',
             notes: `Sale deleted: ${sale.sale_number}`,
             changed_by: user?.id,

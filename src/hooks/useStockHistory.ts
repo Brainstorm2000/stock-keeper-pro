@@ -16,9 +16,17 @@ export interface StockHistoryEntry {
   products?: {
     id: string;
     name: string;
+    category?: string;
+    sub_unit_id?: string | null;
+    sub_unit_factor?: number | null;
     units?: {
+      name?: string;
       abbreviation: string | null;
-    };
+    } | null;
+    sub_units?: {
+      name?: string;
+      abbreviation: string | null;
+    } | null;
   };
   changed_by_user?: {
     full_name: string | null;
@@ -52,7 +60,15 @@ export function useStockHistory(productId?: string, category?: 'sellable' | 'con
         .map((row) => ({
           ...(row.data as unknown as StockHistoryEntry),
           products: productsById.get(row.data.product_id as string)
-            ? { id: row.data.product_id as string, name: productsById.get(row.data.product_id as string)!.name }
+            ? {
+                id: row.data.product_id as string,
+                name: productsById.get(row.data.product_id as string)!.name,
+                category: productsById.get(row.data.product_id as string)!.category,
+                sub_unit_id: productsById.get(row.data.product_id as string)!.sub_unit_id,
+                sub_unit_factor: productsById.get(row.data.product_id as string)!.sub_unit_factor,
+                units: productsById.get(row.data.product_id as string)!.units,
+                sub_units: productsById.get(row.data.product_id as string)!.sub_units,
+              }
             : undefined,
         }));
 
@@ -64,7 +80,11 @@ export function useStockHistory(productId?: string, category?: 'sellable' | 'con
         .from('stock_history')
         .select(`
           *,
-          products (id, name, category, units (abbreviation))
+          products (
+            id, name, category, sub_unit_id, sub_unit_factor,
+            units:units!products_unit_id_fkey (name, abbreviation),
+            sub_units:units!products_sub_unit_id_fkey (name, abbreviation)
+          )
         `)
         .order('created_at', { ascending: false });
 
