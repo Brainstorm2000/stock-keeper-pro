@@ -1,46 +1,61 @@
-import { useState, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, AreaChart } from 'recharts';
+import { useState, useMemo, useEffect } from 'react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { TrendingDown, AlertTriangle, Calendar, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Check, ChevronsUpDown, TrendingDown, AlertTriangle, Calendar } from 'lucide-react';
 import { useStockForecast, useStockTrends } from '@/hooks/useStockHistory';
 import { useProducts } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export function StockForecastChart() {
+interface StockForecastChartProps {
+  branchId?: string;
+}
+
+export function StockForecastChart({ branchId }: StockForecastChartProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   
   const { data: products = [] } = useProducts();
   const { data: forecastData, isLoading: forecastLoading } = useStockForecast(selectedProductId, 30);
-  const { data: trends, isLoading: trendsLoading } = useStockTrends(30);
+  const { data: trends, isLoading: trendsLoading } = useStockTrends(30, branchId);
 
   // Filter products by category and only include 'product' item_type (not services)
   const categoryProducts = useMemo(() => {
-    let filtered = products.filter(p => p.item_type === 'product');
+    let filtered = products.filter(p =>
+      p.item_type === 'product' && (!branchId || p.branch_id === branchId),
+    );
     if (categoryFilter !== 'all') {
       filtered = filtered.filter(p => p.category === categoryFilter);
     }
     return filtered;
-  }, [products, categoryFilter]);
+  }, [products, categoryFilter, branchId]);
 
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return categoryProducts;
-    return categoryProducts.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [categoryProducts, searchQuery]);
+  useEffect(() => {
+    if (
+      selectedProductId &&
+      !categoryProducts.some((product) => product.id === selectedProductId)
+    ) {
+      setSelectedProductId('');
+    }
+  }, [categoryProducts, selectedProductId]);
 
   const selectedProduct = useMemo(() => {
     return products.find(p => p.id === selectedProductId);
@@ -117,7 +132,7 @@ export function StockForecastChart() {
               <CardDescription>Projected stock levels for next 30 days</CardDescription>
             </div>
             
-            {/* Category + Searchable Product Selector */}
+            {/* Category + searchable product selector */}
             <div className="w-[240px] space-y-2">
               <Select value={categoryFilter} onValueChange={(v) => {
                 setCategoryFilter(v);
@@ -132,33 +147,47 @@ export function StockForecastChart() {
                   <SelectItem value="consumable">Consumable</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-9"
-                />
-              </div>
-              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a product..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredProducts.length === 0 ? (
-                    <div className="py-2 px-2 text-sm text-muted-foreground text-center">
-                      No product found.
-                    </div>
-                  ) : (
-                    filteredProducts.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <Popover open={productPickerOpen} onOpenChange={setProductPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={productPickerOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedProduct?.name || "Search products..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[240px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search products..." />
+                    <CommandList>
+                      <CommandEmpty>No product found.</CommandEmpty>
+                      <CommandGroup>
+                        {categoryProducts.map((product) => (
+                          <CommandItem
+                            key={product.id}
+                            value={`${product.name} ${product.sku || ""}`}
+                            onSelect={() => {
+                              setSelectedProductId(product.id);
+                              setProductPickerOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedProductId === product.id ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                            {product.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardHeader>

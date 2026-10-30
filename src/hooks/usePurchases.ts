@@ -18,6 +18,7 @@ export interface PurchaseItem {
   unit_label: string | null;
   unit_cost: number;
   total_cost: number;
+  expiration_date: string | null;
   created_at: string;
   products?: {
     id: string;
@@ -71,6 +72,7 @@ export interface PurchaseItemInput {
   unit_label?: string | null;
   unit_cost: number;
   selling_price: number;
+  expiration_date?: string | null;
 }
 
 export interface PurchaseInput {
@@ -105,7 +107,8 @@ export function usePurchases(branchId?: string) {
               unit_label,
               unit_cost,
             total_cost,
-            products (id, name, category, sub_unit_id, sub_unit_factor, units:units!products_unit_id_fkey (name, abbreviation)),
+              expiration_date,
+              products (id, name, category, sub_unit_id, sub_unit_factor, units:units!products_unit_id_fkey (name, abbreviation)),
             product_variations (id, sku)
           )
         `)
@@ -177,6 +180,7 @@ export function useCreatePurchase() {
         unit_cost: item.unit_cost,
         selling_price: item.selling_price || 0,
         total_cost: item.quantity * item.unit_cost,
+        expiration_date: item.expiration_date || null,
       }));
 
       const { error: itemsError } = await supabase
@@ -187,6 +191,14 @@ export function useCreatePurchase() {
 
       // Update product stock levels and create stock history entries
       for (const item of input.items) {
+        if (item.expiration_date) {
+          const { error: expirationError } = await supabase
+            .from('products')
+            .update({ expiration_date: item.expiration_date })
+            .eq('id', item.product_id);
+          if (expirationError) throw expirationError;
+        }
+
         if (item.variation_id) {
           const { data: variation, error: variationError } = await supabase
             .from('product_variations' as any)
@@ -460,6 +472,7 @@ export function useUpdatePurchase() {
         unit_cost: item.unit_cost,
         selling_price: item.selling_price || 0,
         total_cost: item.quantity * item.unit_cost,
+        expiration_date: item.expiration_date || null,
       }));
 
       const { error: itemsError } = await supabase
@@ -470,6 +483,14 @@ export function useUpdatePurchase() {
 
       // Add new stock for new items
       for (const item of input.items) {
+        if (item.expiration_date) {
+          const { error: expirationError } = await supabase
+            .from('products')
+            .update({ expiration_date: item.expiration_date })
+            .eq('id', item.product_id);
+          if (expirationError) throw expirationError;
+        }
+
         if (item.variation_id) {
           const { data: variation, error: variationError } = await supabase
             .from('product_variations' as any)

@@ -585,12 +585,16 @@ function DashboardContent() {
           {/* Table content containers for other tabs */}
           <TabsContent value="history">
             <div className="overflow-x-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 md:p-6 shadow-sm">
-              <StockHistoryTable />
+              <StockHistoryTable
+                branchId={selectedBranchId === "all" ? undefined : selectedBranchId}
+              />
             </div>
           </TabsContent>
           <TabsContent value="forecast">
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 md:p-6 shadow-sm">
-              <StockForecastChart />
+              <StockForecastChart
+                branchId={selectedBranchId === "all" ? undefined : selectedBranchId}
+              />
             </div>
           </TabsContent>
         </Tabs>

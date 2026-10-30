@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
-import { buildSaleStockAdjustments } from '@/lib/sale-stock';
+import { applySaleStockAdjustments, buildSaleStockAdjustments } from '@/lib/sale-stock';
+import type { Product } from '@/hooks/useProducts';
 import { localDb } from '@/lib/offline/db';
 import { readLocalFirst, saveLocal } from '@/lib/offline/repository';
 import { syncQueue } from '@/lib/offline/sync';
@@ -295,9 +296,20 @@ export function useCreateSale() {
         return sale;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, input) => {
+      const stockAdjustments = buildSaleStockAdjustments([], input.items);
+      queryClient.setQueriesData<Product[]>(
+        { queryKey: ['products'] },
+        (products) =>
+          products
+            ? applySaleStockAdjustments(products, stockAdjustments)
+            : products,
+      );
+      queryClient.invalidateQueries({
+        queryKey: ['products'],
+        refetchType: 'none',
+      });
       queryClient.invalidateQueries({ queryKey: ['sales'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       toast({ title: 'Sale saved', description: 'Print customer receipt' });
     },

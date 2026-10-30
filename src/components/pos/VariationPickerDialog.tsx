@@ -21,6 +21,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onSelect: (variation: ProductVariation) => void;
+  availableStockByVariation?: ReadonlyMap<string, number>;
 }
 
 export function VariationPickerDialog({
@@ -29,8 +30,15 @@ export function VariationPickerDialog({
   open,
   onOpenChange,
   onSelect,
+  availableStockByVariation,
 }: Props) {
   const { data: variations = [], isLoading } = useProductVariations(productId);
+  const availableVariations = variations.filter((variation) =>
+    variation.is_active &&
+    (availableStockByVariation
+      ? (availableStockByVariation.get(variation.id) || 0) > 0
+      : Number(variation.current_stock) > 0),
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,15 +50,13 @@ export function VariationPickerDialog({
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : variations.length === 0 ? (
+        ) : availableVariations.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">
-            No variations defined.
+            No variations in stock.
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-2">
-            {variations
-              .filter((v) => v.is_active)
-              .map((v) => {
+            {availableVariations.map((v) => {
                 const outOfStock =
                   Number(v.current_stock) <= Number(v.out_of_stock_threshold);
                 return (

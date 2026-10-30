@@ -1687,6 +1687,7 @@ export type Database = {
       purchase_items: {
         Row: {
           created_at: string
+          expiration_date: string | null
           id: string
           product_id: string
           purchase_id: string
@@ -1700,6 +1701,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expiration_date?: string | null
           id?: string
           product_id: string
           purchase_id: string
@@ -1713,6 +1715,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expiration_date?: string | null
           id?: string
           product_id?: string
           purchase_id?: string

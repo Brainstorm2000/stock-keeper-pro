@@ -4,6 +4,46 @@ export interface SaleStockAdjustment {
   quantity: number;
 }
 
+interface StockProduct {
+  id: string;
+  current_stock: number;
+  item_type: string;
+  variations?: Array<{ id: string; current_stock: number }>;
+}
+
+export function applySaleStockAdjustments<T extends StockProduct>(
+  products: T[],
+  adjustments: SaleStockAdjustment[],
+) {
+  return products.map((product) => {
+    if (product.item_type === 'service') return product;
+
+    const productAdjustment = adjustments
+      .filter((adjustment) => adjustment.product_id === product.id)
+      .reduce((total, adjustment) => total + adjustment.quantity, 0);
+    if (productAdjustment === 0) return product;
+
+    return {
+      ...product,
+      current_stock: Number(product.current_stock) - productAdjustment,
+      variations: product.variations?.map((variation) => {
+        const variationAdjustment = adjustments
+          .filter((adjustment) =>
+            adjustment.product_id === product.id &&
+            adjustment.variation_id === variation.id,
+          )
+          .reduce((total, adjustment) => total + adjustment.quantity, 0);
+        return variationAdjustment === 0
+          ? variation
+          : {
+              ...variation,
+              current_stock: Number(variation.current_stock) - variationAdjustment,
+            };
+      }),
+    };
+  });
+}
+
 export function buildSaleStockAdjustments(
   previousItems: Array<{ product_id: string; variation_id?: string | null; quantity: number; unit_multiplier?: number | null }>,
   nextItems: Array<{ product_id: string; variation_id?: string | null; quantity: number; unit_multiplier?: number | null }>,

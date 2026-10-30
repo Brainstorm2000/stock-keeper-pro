@@ -125,12 +125,13 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
           : getUnitLabel(product, "main"),
         unit_cost: Number(variation?.cost_price ?? product.cost_price) || 0,
         selling_price: Number(variation?.selling_price ?? product.selling_price) || 0,
+        expiration_date: null,
       }];
     });
     setSearchQuery('');
   };
 
-  const updateCartItem = (key: string, field: 'quantity' | 'unit_cost' | 'markup_percent' | 'selling_price', value: number | string) => {
+  const updateCartItem = (key: string, field: 'quantity' | 'unit_cost' | 'markup_percent' | 'selling_price' | 'expiration_date', value: number | string) => {
     setCart(cart.map(item =>
       getCartKey(item) === key
         ? field === 'markup_percent'
@@ -350,7 +351,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
             <div className="space-y-2">
               <Label>Purchase Items ({cart.length})</Label>
               <div className="border rounded-md overflow-x-auto">
-                <Table className="min-w-[760px]">
+                <Table className="min-w-[900px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
@@ -358,6 +359,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                       <TableHead className="w-[120px]">Cost Price</TableHead>
                       <TableHead className="w-[120px]">Markup %</TableHead>
                       <TableHead className="w-[120px]">Sell Price</TableHead>
+                      <TableHead className="w-[150px]">Expiry Date</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
@@ -425,6 +427,15 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                             value={item.selling_price}
                             onChange={(e) => updateCartItem(key, 'selling_price', e.target.value === '' ? 0 : Number(e.target.value))}
                             className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="date"
+                            aria-label={`Expiry date for ${item.product.name}`}
+                            value={item.expiration_date || ''}
+                            onChange={(e) => updateCartItem(key, 'expiration_date', e.target.value)}
+                            className="w-36"
                           />
                         </TableCell>
                         <TableCell className="text-right font-medium">

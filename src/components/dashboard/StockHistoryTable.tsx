@@ -47,6 +47,7 @@ import { formatProductStockQuantity } from "@/lib/product-units";
 
 interface StockHistoryTableProps {
   productId?: string;
+  branchId?: string;
 }
 
 function formatStockLevel(entry: StockHistoryEntry, stock: number): string {
@@ -101,6 +102,7 @@ function getChangeBadgeVariant(changeType: string) {
 
 export function StockHistoryTable({
   productId,
+  branchId,
 }: StockHistoryTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -112,6 +114,7 @@ export function StockHistoryTable({
     categoryFilter !== "all"
       ? (categoryFilter as "sellable" | "consumable")
       : undefined,
+    branchId,
   );
 
   const filteredHistory = useMemo(() => {

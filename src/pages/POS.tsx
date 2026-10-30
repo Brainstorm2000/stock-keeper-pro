@@ -322,22 +322,6 @@ export default function POS() {
     }
   }, [user, authLoading, hasCompletedOnboarding, navigate]);
 
-  // Filter products for sale (only sellable items with selling price)
-  const availableProducts = useMemo(() => {
-    return products.filter((p) => {
-      const isSellable = p.category === "sellable";
-      const matchesSearch =
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.sku && p.sku.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesBranch =
-        !selectedBranchId || p.branch_id === selectedBranchId || !p.branch_id;
-      const matchesCategory =
-        productCategoryFilter === "all" || p.product_category_id === productCategoryFilter;
-      const hasStock = p.item_type === "service" || Number(p.current_stock) > 0;
-      return isSellable && matchesSearch && matchesBranch && matchesCategory && hasStock;
-    });
-  }, [products, searchQuery, selectedBranchId, productCategoryFilter]);
-
   const cartStockByProduct = useMemo(() => {
     const stockByProduct = new Map<string, number>();
     for (const item of cart) {
@@ -351,8 +335,90 @@ export default function POS() {
     return stockByProduct;
   }, [cart]);
 
-  const getRemainingStock = (product: Product) =>
-    Number(product.current_stock) - (cartStockByProduct.get(product.id) || 0);
+  const cartStockByVariation = useMemo(() => {
+    const stockByVariation = new Map<string, number>();
+    for (const item of cart) {
+      if (item.item_type !== "product" || !item.variation_id) continue;
+      stockByVariation.set(
+        item.variation_id,
+        (stockByVariation.get(item.variation_id) || 0) +
+          item.quantity * Number(item.unit_multiplier || 1),
+      );
+    }
+    return stockByVariation;
+  }, [cart]);
+
+  const previouslySoldStockByProduct = useMemo(() => {
+    const stockByProduct = new Map<string, number>();
+    for (const item of editSale?.sale_items || []) {
+      if (!item.variation_id) {
+        const product = products.find((entry) => entry.id === item.product_id);
+        const multiplier = item.unit_label
+          ? Number(item.unit_multiplier) || 1
+          : product?.sub_unit_id ? getProductStockFactor(product) : 1;
+        stockByProduct.set(
+          item.product_id,
+          (stockByProduct.get(item.product_id) || 0) + Number(item.quantity) * multiplier,
+        );
+      }
+    }
+    return stockByProduct;
+  }, [editSale, products]);
+
+  const getRemainingStock = useCallback(
+    (product: Product) =>
+      Number(product.current_stock) +
+      (previouslySoldStockByProduct.get(product.id) || 0) -
+      (cartStockByProduct.get(product.id) || 0),
+    [previouslySoldStockByProduct, cartStockByProduct],
+  );
+
+  const availableVariationStock = useMemo(() => {
+    const stockByVariation = new Map<string, number>();
+    for (const product of products) {
+      for (const variation of product.variations || []) {
+        const previouslySold = (editSale?.sale_items || [])
+          .filter((item) => item.variation_id === variation.id)
+          .reduce((sum, item) => sum + Number(item.quantity), 0);
+        stockByVariation.set(
+          variation.id,
+          Number(variation.current_stock) +
+            previouslySold -
+            (cartStockByVariation.get(variation.id) || 0),
+        );
+      }
+    }
+    return stockByVariation;
+  }, [products, editSale, cartStockByVariation]);
+
+  // Filter products for sale (only sellable items with remaining stock).
+  const availableProducts = useMemo(() => {
+    return products.filter((p) => {
+      const isSellable = p.category === "sellable";
+      const matchesSearch =
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.sku && p.sku.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesBranch =
+        !selectedBranchId || p.branch_id === selectedBranchId || !p.branch_id;
+      const matchesCategory =
+        productCategoryFilter === "all" || p.product_category_id === productCategoryFilter;
+      const hasStock =
+        p.item_type === "service" ||
+        (p.item_type === "variable"
+          ? (p.variations || []).some(
+              (variation) => (availableVariationStock.get(variation.id) || 0) > 0,
+            )
+          : getRemainingStock(p) > 0);
+      return isSellable && matchesSearch && matchesBranch && matchesCategory && hasStock;
+    });
+  }, [
+    products,
+    searchQuery,
+    selectedBranchId,
+    productCategoryFilter,
+    availableVariationStock,
+    getRemainingStock,
+  ]);
 
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.total_price, 0);
@@ -1632,6 +1698,7 @@ export default function POS() {
           open={!!variationPickerProduct}
           onOpenChange={(o) => !o && setVariationPickerProduct(null)}
           onSelect={addVariationToCart}
+          availableStockByVariation={availableVariationStock}
         />
         <Dialog
           open={!!unitPickerProduct}

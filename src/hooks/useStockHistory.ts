@@ -16,6 +16,7 @@ export interface StockHistoryEntry {
   products?: {
     id: string;
     name: string;
+    branch_id?: string | null;
     category?: string;
     sub_unit_id?: string | null;
     sub_unit_factor?: number | null;
@@ -40,11 +41,15 @@ export interface StockTrend {
   changes: number;
 }
 
-export function useStockHistory(productId?: string, category?: 'sellable' | 'consumable') {
+export function useStockHistory(
+  productId?: string,
+  category?: 'sellable' | 'consumable',
+  branchId?: string,
+) {
   const { user, organizationId } = useAuth();
 
   return useQuery({
-    queryKey: ['stock-history', productId, category, user?.id],
+    queryKey: ['stock-history', productId, category, branchId, user?.id],
     queryFn: async () => {
       const localRows = await localDb.stockHistory.toArray();
       const localProducts = await localDb.products.toArray();
@@ -55,6 +60,7 @@ export function useStockHistory(productId?: string, category?: 'sellable' | 'con
           return !row.deletedAt &&
             product?.organization_id === organizationId &&
             (!productId || row.data.product_id === productId) &&
+            (!branchId || product.branch_id === branchId) &&
             (!category || product.category === category);
         })
         .map((row) => ({
@@ -63,6 +69,7 @@ export function useStockHistory(productId?: string, category?: 'sellable' | 'con
             ? {
                 id: row.data.product_id as string,
                 name: productsById.get(row.data.product_id as string)!.name,
+                branch_id: productsById.get(row.data.product_id as string)!.branch_id,
                 category: productsById.get(row.data.product_id as string)!.category,
                 sub_unit_id: productsById.get(row.data.product_id as string)!.sub_unit_id,
                 sub_unit_factor: productsById.get(row.data.product_id as string)!.sub_unit_factor,
@@ -81,7 +88,7 @@ export function useStockHistory(productId?: string, category?: 'sellable' | 'con
         .select(`
           *,
           products (
-            id, name, category, sub_unit_id, sub_unit_factor,
+            id, name, branch_id, category, sub_unit_id, sub_unit_factor,
             units:units!products_unit_id_fkey (name, abbreviation),
             sub_units:units!products_sub_unit_id_fkey (name, abbreviation)
           )
@@ -115,9 +122,14 @@ export function useStockHistory(productId?: string, category?: 'sellable' | 'con
       }
       
       // Filter by category if specified
-      let filtered = data as (Omit<StockHistoryEntry, 'changed_by_user'> & { products?: { category?: string } })[];
+      let filtered = data as (Omit<StockHistoryEntry, 'changed_by_user'> & {
+        products?: { category?: string; branch_id?: string | null };
+      })[];
       if (category) {
         filtered = filtered.filter(entry => entry.products?.category === category);
+      }
+      if (branchId) {
+        filtered = filtered.filter(entry => entry.products?.branch_id === branchId);
       }
       
       // Add user profile info
@@ -136,19 +148,23 @@ export function useStockHistory(productId?: string, category?: 'sellable' | 'con
   });
 }
 
-export function useStockTrends(days = 30) {
+export function useStockTrends(days = 30, branchId?: string) {
   return useQuery({
-    queryKey: ['stock-trends', days],
+    queryKey: ['stock-trends', days, branchId],
     queryFn: async () => {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('stock_history')
-        .select('created_at, change_amount, new_stock')
+        .select('created_at, change_amount, new_stock, products!inner(branch_id)')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: true });
+      if (branchId) {
+        query = query.eq('products.branch_id', branchId);
+      }
 
+      const { data, error } = await query;
       if (error) throw error;
 
       // Group by date and calculate daily totals
