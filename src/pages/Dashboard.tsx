@@ -204,12 +204,23 @@ function DashboardContent() {
     [filteredBySearchAndStatus, productTypeFilter, productCategoryFilter],
   );
 
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
+  const activePage = Math.min(currentPage, totalPages);
+  const indexOfLastItem = activePage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const paginatedProducts = filteredProducts.slice(
     indexOfFirstItem,
     indexOfLastItem,
+  );
+  const firstVisibleItem = filteredProducts.length === 0 ? 0 : indexOfFirstItem + 1;
+  const lastVisibleItem = Math.min(indexOfLastItem, filteredProducts.length);
+  const pageWindowStart = Math.max(
+    1,
+    Math.min(activePage - 2, totalPages - 4),
+  );
+  const visiblePageNumbers = Array.from(
+    { length: Math.min(totalPages, 5) },
+    (_, index) => pageWindowStart + index,
   );
 
   const filteredSellableStockValue = useMemo(
@@ -251,6 +262,10 @@ function DashboardContent() {
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedBranchId, productSearchQuery, productStatusFilter, productTypeFilter, productCategoryFilter]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -495,32 +510,34 @@ function DashboardContent() {
               />
 
               {/* --- Responsive Pagination Controls --- */}
-              <div className="flex flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between md:justify-start md:gap-6 w-full md:w-auto">
-                  <div className="text-xs md:text-sm text-slate-500 font-medium">
-                    <span className="hidden md:inline">Showing </span>
-                    <span className="text-[#000B26] dark:text-white font-bold">
-                      {indexOfFirstItem + 1}-
-                      {Math.min(indexOfLastItem, filteredProducts.length)}
-                    </span>
-                    <span className="text-slate-400 mx-1">/</span>
-                    <span className="text-[#000B26] dark:text-white font-bold">
+              <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/50 sm:flex-row sm:items-center sm:justify-between sm:px-4 md:px-6">
+                <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 sm:w-auto sm:justify-start">
+                  <div className="whitespace-nowrap text-xs font-medium text-slate-500 md:text-sm">
+                    Showing{" "}
+                    <span className="font-bold text-[#000B26] dark:text-white">
+                      {firstVisibleItem}-{lastVisibleItem}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-bold text-[#000B26] dark:text-white">
                       {filteredProducts.length}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Rows:
-                    </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <label
+                      htmlFor="products-page-size"
+                      className="text-[10px] font-black uppercase tracking-widest text-slate-400"
+                    >
+                      Rows
+                    </label>
                     <Select
                       value={itemsPerPage.toString()}
-                      onValueChange={(v) => {
-                        setItemsPerPage(parseInt(v));
+                      onValueChange={(value) => {
+                        setItemsPerPage(Number(value));
                         setCurrentPage(1);
                       }}
                     >
-                      <SelectTrigger className="h-8 w-[65px] font-bold">
+                      <SelectTrigger id="products-page-size" className="h-8 w-[68px] font-bold">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -534,46 +551,44 @@ function DashboardContent() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center gap-1 w-full md:w-auto">
+                <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-9 w-9"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => setCurrentPage(Math.max(1, activePage - 1))}
+                    disabled={activePage <= 1 || filteredProducts.length === 0}
+                    aria-label="Previous products page"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
 
-                  {/* Show reduced page numbers on mobile */}
-                  <div className="flex items-center gap-1 mx-2">
-                    <span className="text-xs font-bold md:hidden">
-                      Page {currentPage} of {totalPages}
+                  <div className="flex min-w-0 items-center justify-center gap-1">
+                    <span className="whitespace-nowrap px-2 text-xs font-bold sm:hidden">
+                      Page {activePage} of {totalPages}
                     </span>
-                    <div className="hidden md:flex gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                        (num) => (
-                          <Button
-                            key={num}
-                            size="sm"
-                            className={`h-9 w-9 font-bold ${currentPage === num ? "bg-[#FF9E3D] text-[#000B26]" : "bg-transparent text-slate-600"}`}
-                            onClick={() => setCurrentPage(num)}
-                          >
-                            {num}
-                          </Button>
-                        ),
-                      )}
+                    <div className="hidden items-center gap-1 sm:flex">
+                      {visiblePageNumbers.map((num) => (
+                        <Button
+                          key={num}
+                          size="sm"
+                          aria-current={activePage === num ? "page" : undefined}
+                          className={`h-9 w-9 font-bold ${activePage === num ? "bg-[#FF9E3D] text-[#000B26] hover:bg-[#FF9E3D]/90" : "bg-transparent text-slate-600 dark:text-slate-400"}`}
+                          onClick={() => setCurrentPage(num)}
+                        >
+                          {num}
+                        </Button>
+                      ))}
                     </div>
                   </div>
 
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-9 w-9"
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
-                    }
-                    disabled={currentPage === totalPages || totalPages === 0}
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => setCurrentPage(Math.min(totalPages, activePage + 1))}
+                    disabled={activePage >= totalPages || filteredProducts.length === 0}
+                    aria-label="Next products page"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>

@@ -44,7 +44,13 @@ import {
 import { StatusBadge, getStockStatus } from "./StatusBadge";
 import { StockUpdateDialog } from "./StockUpdateDialog";
 import { BulkEditProductsDialog } from "./BulkEditProductsDialog";
-import { getProductType, useBulkDeleteProducts, useArchiveProduct, type Product, type ProductType } from "@/hooks/useProducts";
+import {
+  getProductType,
+  useBulkDeleteProducts,
+  useArchiveProduct,
+  type Product,
+  type ProductType,
+} from "@/hooks/useProducts";
 import { useBranches } from "@/hooks/useBranches";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useBrands } from "@/hooks/useBrands";
@@ -53,6 +59,7 @@ import { exportProductsToCSV, downloadCSV } from "@/lib/csv-utils";
 import { useAuth } from "@/lib/auth";
 import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
 import { formatProductStock, getProductStockFactor } from "@/lib/product-units";
+import { ProductDetailsDialog } from "./ProductDetailsDialog";
 
 interface ProductTableProps {
   products: Product[];
@@ -101,11 +108,15 @@ export function ProductTable({
   const [internalStatusFilter, setInternalStatusFilter] = useState<
     "all" | "normal" | "low" | "out"
   >("all");
-  const [internalTypeFilter, setInternalTypeFilter] = useState<"all" | ProductType>("all");
-  const [internalProductCategoryFilter, setInternalProductCategoryFilter] = useState("all");
+  const [internalTypeFilter, setInternalTypeFilter] = useState<
+    "all" | ProductType
+  >("all");
+  const [internalProductCategoryFilter, setInternalProductCategoryFilter] =
+    useState("all");
   const [stockUpdateProduct, setStockUpdateProduct] = useState<Product | null>(
     null,
   );
+  const [detailsProduct, setDetailsProduct] = useState<Product | null>(null);
   const [stockUpdateType, setStockUpdateType] = useState<
     "increase" | "decrease"
   >("increase");
@@ -124,10 +135,12 @@ export function ProductTable({
     searchQuery !== undefined ? searchQuery : internalSearchQuery;
   const effectiveStatusFilter =
     statusFilter !== undefined ? statusFilter : internalStatusFilter;
-  const effectiveTypeFilter = typeFilter !== undefined ? typeFilter : internalTypeFilter;
-  const effectiveProductCategoryFilter = productCategoryFilter !== undefined
-    ? productCategoryFilter
-    : internalProductCategoryFilter;
+  const effectiveTypeFilter =
+    typeFilter !== undefined ? typeFilter : internalTypeFilter;
+  const effectiveProductCategoryFilter =
+    productCategoryFilter !== undefined
+      ? productCategoryFilter
+      : internalProductCategoryFilter;
 
   const isControlled =
     onSearchQueryChange !== undefined ||
@@ -140,16 +153,24 @@ export function ProductTable({
 
     return products.filter((product) => {
       const matchesSearch =
-        product.name.toLowerCase().includes(effectiveSearchQuery.toLowerCase()) ||
+        product.name
+          .toLowerCase()
+          .includes(effectiveSearchQuery.toLowerCase()) ||
         product.sku?.toLowerCase().includes(effectiveSearchQuery.toLowerCase());
 
       if (!matchesSearch) return false;
 
       // Category filter
-      if (effectiveTypeFilter !== "all" && getProductType(product) !== effectiveTypeFilter)
+      if (
+        effectiveTypeFilter !== "all" &&
+        getProductType(product) !== effectiveTypeFilter
+      )
         return false;
 
-      if (effectiveProductCategoryFilter !== "all" && product.product_category_id !== effectiveProductCategoryFilter)
+      if (
+        effectiveProductCategoryFilter !== "all" &&
+        product.product_category_id !== effectiveProductCategoryFilter
+      )
         return false;
 
       if (effectiveStatusFilter === "all") return true;
@@ -163,7 +184,14 @@ export function ProductTable({
 
       return status === effectiveStatusFilter;
     });
-  }, [products, isControlled, effectiveSearchQuery, effectiveStatusFilter, effectiveTypeFilter, effectiveProductCategoryFilter]);
+  }, [
+    products,
+    isControlled,
+    effectiveSearchQuery,
+    effectiveStatusFilter,
+    effectiveTypeFilter,
+    effectiveProductCategoryFilter,
+  ]);
 
   const productsToRender = isControlled ? products : filteredProducts;
   const visibleSelectableIds = productsToRender.map((p) => p.id);
@@ -232,8 +260,10 @@ export function ProductTable({
       const stock = Number(product.current_stock);
       const fullMainUnits = Math.floor(stock / factor);
       const remainingSubUnits = stock - fullMainUnits * factor;
-      return fullMainUnits * Number(product.selling_price) +
-        remainingSubUnits * Number(product.sub_unit_selling_price || 0);
+      return (
+        fullMainUnits * Number(product.selling_price) +
+        remainingSubUnits * Number(product.sub_unit_selling_price || 0)
+      );
     }
     return Number(product.current_stock) * Number(product.selling_price);
   };
@@ -270,14 +300,13 @@ export function ProductTable({
       : sellableProducts.reduce((sum, p) => sum + calculateStockValue(p), 0);
 
   const renderProductRows = (productsToRender: Product[]) => {
-    const baseCols = (isAdmin ? (showBranch ? 10 : 9) : showBranch ? 9 : 8) + (isAdmin ? 1 : 0);
+    const baseCols =
+      (isAdmin ? (showBranch ? 10 : 9) : showBranch ? 9 : 8) +
+      (isAdmin ? 1 : 0);
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell
-            colSpan={baseCols}
-            className="text-center py-8"
-          >
+          <TableCell colSpan={baseCols} className="text-center py-8">
             <div className="animate-pulse-soft text-muted-foreground">
               Loading products...
             </div>
@@ -311,9 +340,28 @@ export function ProductTable({
       const stockValue = calculateStockValue(product);
 
       return (
-        <TableRow key={product.id} className="group">
+        <TableRow
+          key={product.id}
+          className="group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          tabIndex={0}
+          role="button"
+          aria-label={`View details for ${product.name}`}
+          onClick={() => setDetailsProduct(product)}
+          onKeyDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              (event.key === "Enter" || event.key === " ")
+            ) {
+              event.preventDefault();
+              setDetailsProduct(product);
+            }
+          }}
+        >
           {isAdmin && (
-            <TableCell className="w-[40px]">
+            <TableCell
+              className="w-[40px]"
+              onClick={(event) => event.stopPropagation()}
+            >
               <Checkbox
                 checked={selectedIds.has(product.id)}
                 onCheckedChange={(c) => toggleOne(product.id, !!c)}
@@ -338,13 +386,21 @@ export function ProductTable({
           </TableCell>
           <TableCell>
             <Badge
-              variant={getProductType(product) === "service" ? "outline" : getProductType(product) === "consumable" ? "secondary" : "default"}
+              variant={
+                getProductType(product) === "service"
+                  ? "outline"
+                  : getProductType(product) === "consumable"
+                    ? "secondary"
+                    : "default"
+              }
               className="text-xs capitalize"
             >
               {getProductType(product)}
             </Badge>
           </TableCell>
-          <TableCell>{product.product_categories?.name || "Uncategorized"}</TableCell>
+          <TableCell>
+            {product.product_categories?.name || "Uncategorized"}
+          </TableCell>
           <TableCell>
             {product.units?.name}
             {product.units?.abbreviation && (
@@ -392,6 +448,7 @@ export function ProductTable({
                     variant="ghost"
                     size="icon"
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(event) => event.stopPropagation()}
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
@@ -406,43 +463,43 @@ export function ProductTable({
                       Remove Stock
                     </DropdownMenuItem>
                   )}
-                   {canEditProduct && (
-                     <DropdownMenuItem onClick={() => onEdit(product)}>
-                       <Pencil className="mr-2 h-4 w-4" />
-                       Edit
-                     </DropdownMenuItem>
-                   )}
+                  {canEditProduct && (
+                    <DropdownMenuItem onClick={() => onEdit(product)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
 
-                   {canEditProduct && (
-                     <DropdownMenuItem
-                       onClick={() =>
-                         archiveMutation.mutate({
-                           id: product.id,
-                           archived: !product.is_archived,
-                         })
-                       }
-                     >
-                       {product.is_archived ? (
-                         <>
-                           <ArchiveRestore className="mr-2 h-4 w-4" /> Restore
-                         </>
-                       ) : (
-                         <>
-                           <Archive className="mr-2 h-4 w-4" /> Archive
-                         </>
-                       )}
-                     </DropdownMenuItem>
-                   )}
+                  {canEditProduct && (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        archiveMutation.mutate({
+                          id: product.id,
+                          archived: !product.is_archived,
+                        })
+                      }
+                    >
+                      {product.is_archived ? (
+                        <>
+                          <ArchiveRestore className="mr-2 h-4 w-4" /> Restore
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="mr-2 h-4 w-4" /> Archive
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  )}
 
-                   {canDeleteProduct && (
-                     <DropdownMenuItem
-                       onClick={() => onDelete(product.id)}
-                       className="text-destructive"
-                     >
-                       <Trash2 className="mr-2 h-4 w-4" />
-                       Delete
-                     </DropdownMenuItem>
-                   )}
+                  {canDeleteProduct && (
+                    <DropdownMenuItem
+                      onClick={() => onDelete(product.id)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>
@@ -504,7 +561,8 @@ export function ProductTable({
                 value={effectiveProductCategoryFilter}
                 onChange={(event) => {
                   const next = event.target.value;
-                  if (onProductCategoryFilterChange) onProductCategoryFilterChange(next);
+                  if (onProductCategoryFilterChange)
+                    onProductCategoryFilterChange(next);
                   else setInternalProductCategoryFilter(next);
                 }}
                 className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
@@ -512,7 +570,9 @@ export function ProductTable({
               >
                 <option value="all">All Product Categories</option>
                 {productCategories.map((category) => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -526,7 +586,11 @@ export function ProductTable({
               </div>
               <div className="flex flex-wrap gap-2">
                 {canEditProduct && (
-                  <Button size="sm" variant="outline" onClick={() => setBulkEditOpen(true)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setBulkEditOpen(true)}
+                  >
                     <Pencil className="mr-2 h-4 w-4" /> Bulk Edit
                   </Button>
                 )}
@@ -566,16 +630,32 @@ export function ProductTable({
                 All ({typeCounts?.all ?? products.length})
               </TabsTrigger>
               <TabsTrigger value="sellable">
-                Sellable ({typeCounts?.sellable ?? products.filter((p) => getProductType(p) === "sellable").length})
+                Sellable (
+                {typeCounts?.sellable ??
+                  products.filter((p) => getProductType(p) === "sellable")
+                    .length}
+                )
               </TabsTrigger>
               <TabsTrigger value="consumable">
-                Consumable ({typeCounts?.consumable ?? products.filter((p) => getProductType(p) === "consumable").length})
+                Consumable (
+                {typeCounts?.consumable ??
+                  products.filter((p) => getProductType(p) === "consumable")
+                    .length}
+                )
               </TabsTrigger>
               <TabsTrigger value="variable">
-                Variable ({typeCounts?.variable ?? products.filter((p) => getProductType(p) === "variable").length})
+                Variable (
+                {typeCounts?.variable ??
+                  products.filter((p) => getProductType(p) === "variable")
+                    .length}
+                )
               </TabsTrigger>
               <TabsTrigger value="service">
-                Service ({typeCounts?.service ?? products.filter((p) => getProductType(p) === "service").length})
+                Service (
+                {typeCounts?.service ??
+                  products.filter((p) => getProductType(p) === "service")
+                    .length}
+                )
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -591,8 +671,8 @@ export function ProductTable({
                           allVisibleSelected
                             ? true
                             : someVisibleSelected
-                            ? "indeterminate"
-                            : false
+                              ? "indeterminate"
+                              : false
                         }
                         onCheckedChange={(c) => toggleAllVisible(!!c)}
                         aria-label="Select all"
@@ -627,6 +707,13 @@ export function ProductTable({
           onOpenChange={(open) => !open && setStockUpdateProduct(null)}
         />
       )}
+      <ProductDetailsDialog
+        product={detailsProduct}
+        open={detailsProduct !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailsProduct(null);
+        }}
+      />
 
       <BulkEditProductsDialog
         open={bulkEditOpen}
@@ -638,7 +725,9 @@ export function ProductTable({
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedIds.size} products?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete {selectedIds.size} products?
+            </AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. Products linked to existing
               transactions may fail to delete.

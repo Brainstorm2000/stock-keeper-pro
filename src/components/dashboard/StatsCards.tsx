@@ -1,4 +1,4 @@
-import { Package, AlertTriangle, XCircle, TrendingUp, TrendingDown, DollarSign, Receipt, ShoppingCart, Layers } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle2, XCircle, TrendingUp, TrendingDown, DollarSign, Receipt, ShoppingCart, Layers } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Product } from '@/hooks/useProducts';
 import type { Sale } from '@/hooks/useSales';
@@ -159,7 +159,7 @@ export function StatsCards({ products, sales = [], expenses = [], outstandingSal
                   <p className="text-3xl font-bold text-foreground mt-1">{sellableNormal}</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-stock-normal/10 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-stock-normal" />
+                  <CheckCircle2 className="h-6 w-6 text-stock-normal" />
                 </div>
               </div>
             </CardContent>
@@ -210,7 +210,7 @@ export function StatsCards({ products, sales = [], expenses = [], outstandingSal
                   <p className="text-3xl font-bold text-foreground mt-1">{consumableNormal}</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-stock-normal/10 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-stock-normal" />
+                  <CheckCircle2 className="h-6 w-6 text-stock-normal" />
                 </div>
               </div>
             </CardContent>
