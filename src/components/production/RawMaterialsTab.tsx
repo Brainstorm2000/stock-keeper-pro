@@ -95,6 +95,8 @@ export function RawMaterialsTab() {
     "increase" | "decrease"
   >("increase");
   const [stockNotes, setStockNotes] = useState("");
+  const [stockBatchNumber, setStockBatchNumber] = useState("");
+  const [stockExpiryDate, setStockExpiryDate] = useState("");
 
   // Waste
   const [wasteQty, setWasteQty] = useState("");
@@ -164,13 +166,16 @@ export function RawMaterialsTab() {
       materialId: stockMaterial.id,
       currentStock: current,
       newStock,
-      changeType: stockChangeType === "increase" ? "purchase" : "adjustment",
       notes: stockNotes || undefined,
+      batchNumber: stockBatchNumber || undefined,
+      expirationDate: stockExpiryDate || null,
     });
     setStockDialogOpen(false);
     setStockMaterial(null);
     setStockChange("");
     setStockNotes("");
+    setStockBatchNumber("");
+    setStockExpiryDate("");
   };
 
   const handleRecordWaste = async () => {
@@ -529,6 +534,8 @@ export function RawMaterialsTab() {
             setStockMaterial(null);
             setStockChange("");
             setStockNotes("");
+            setStockBatchNumber("");
+            setStockExpiryDate("");
           }
         }}
       >
@@ -571,6 +578,26 @@ export function RawMaterialsTab() {
                 onChange={(e) => setStockChange(e.target.value)}
               />
             </div>
+            {stockChangeType === "increase" && (
+              <>
+                <div className="space-y-2">
+                  <Label>Batch number (optional)</Label>
+                  <Input
+                    value={stockBatchNumber}
+                    onChange={(e) => setStockBatchNumber(e.target.value)}
+                    placeholder="Generated if blank"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Expiry date (optional)</Label>
+                  <Input
+                    type="date"
+                    value={stockExpiryDate}
+                    onChange={(e) => setStockExpiryDate(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
             <div className="space-y-2">
               <Label>Notes</Label>
               <Input

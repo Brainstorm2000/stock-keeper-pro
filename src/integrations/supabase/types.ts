@@ -1516,6 +1516,7 @@ export type Database = {
           created_by: string | null
           current_stock: number
           description: string | null
+          expiration_date: string | null
           id: string
           is_archived: boolean
           item_type: Database["public"]["Enums"]["item_type"]
@@ -1543,6 +1544,7 @@ export type Database = {
           created_by?: string | null
           current_stock?: number
           description?: string | null
+          expiration_date?: string | null
           id?: string
           is_archived?: boolean
           item_type?: Database["public"]["Enums"]["item_type"]
@@ -1570,6 +1572,7 @@ export type Database = {
           created_by?: string | null
           current_stock?: number
           description?: string | null
+          expiration_date?: string | null
           id?: string
           is_archived?: boolean
           item_type?: Database["public"]["Enums"]["item_type"]
@@ -1640,6 +1643,137 @@ export type Database = {
           },
         ]
       }
+      inventory_batches: {
+        Row: {
+          batch_number: string
+          branch_id: string | null
+          created_at: string
+          expiration_date: string | null
+          id: string
+          initial_quantity: number
+          organization_id: string
+          product_id: string | null
+          purchase_item_id: string | null
+          raw_material_id: string | null
+          remaining_quantity: number
+          source_id: string | null
+          source_type: string
+          unit_cost: number
+          variation_id: string | null
+        }
+        Insert: {
+          batch_number: string
+          branch_id?: string | null
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          initial_quantity: number
+          organization_id: string
+          product_id?: string | null
+          purchase_item_id?: string | null
+          raw_material_id?: string | null
+          remaining_quantity: number
+          source_id?: string | null
+          source_type: string
+          unit_cost?: number
+          variation_id?: string | null
+        }
+        Update: {
+          batch_number?: string
+          branch_id?: string | null
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          initial_quantity?: number
+          organization_id?: string
+          product_id?: string | null
+          purchase_item_id?: string | null
+          raw_material_id?: string | null
+          remaining_quantity?: number
+          source_id?: string | null
+          source_type?: string
+          unit_cost?: number
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_batches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_batches_purchase_item_id_fkey"
+            columns: ["purchase_item_id"]
+            isOneToOne: true
+            referencedRelation: "purchase_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_batches_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "raw_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_batches_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_batch_movements: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          quantity: number
+          source_id: string | null
+          source_type: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          quantity: number
+          source_id?: string | null
+          source_type: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          quantity?: number
+          source_id?: string | null
+          source_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_batch_movements_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1686,6 +1820,7 @@ export type Database = {
       }
       purchase_items: {
         Row: {
+          batch_number: string | null
           created_at: string
           expiration_date: string | null
           id: string
@@ -1700,6 +1835,7 @@ export type Database = {
           variation_id: string | null
         }
         Insert: {
+          batch_number?: string | null
           created_at?: string
           expiration_date?: string | null
           id?: string
@@ -1714,6 +1850,7 @@ export type Database = {
           variation_id?: string | null
         }
         Update: {
+          batch_number?: string | null
           created_at?: string
           expiration_date?: string | null
           id?: string
@@ -3287,8 +3424,70 @@ export type Database = {
       }
       generate_work_order_number: { Args: { org_id: string }; Returns: string }
       record_manual_production: {
-        Args: { _notes?: string | null; _product_id: string; _quantity: number }
+        Args: {
+          _expiration_date?: string | null
+          _notes?: string | null
+          _product_id: string
+          _quantity: number
+        }
         Returns: undefined
+      }
+      consume_inventory_batches: {
+        Args: {
+          _branch_id: string | null
+          _product_id: string | null
+          _quantity: number
+          _raw_material_id: string | null
+          _source_id: string | null
+          _source_type: string
+          _variation_id: string | null
+        }
+        Returns: undefined
+      }
+      adjust_raw_material_batch_stock: {
+        Args: {
+          _batch_number?: string | null
+          _change_amount: number
+          _change_type?: string | null
+          _expiration_date?: string | null
+          _notes?: string | null
+          _raw_material_id: string
+        }
+        Returns: undefined
+      }
+      adjust_product_batch_stock: {
+        Args: {
+          _batch_number?: string | null
+          _change_amount: number
+          _expiration_date?: string | null
+          _notes?: string | null
+          _product_id: string
+          _change_type?: string | null
+          _variation_id?: string | null
+          _movement_source_type?: string | null
+          _movement_source_id?: string | null
+        }
+        Returns: undefined
+      }
+      undo_purchase_return_batch: {
+        Args: { _return_item_id: string }
+        Returns: undefined
+      }
+      restore_inventory_batches: {
+        Args: { _source_id: string; _source_type: string }
+        Returns: undefined
+      }
+      approve_work_order_with_batches: {
+        Args: { _work_order_id: string }
+        Returns: undefined
+      }
+      cancel_work_order_with_batches: {
+        Args: { _work_order_id: string }
+        Returns: undefined
+      }
+      complete_work_order_with_batch: {
+        Args: { _expiration_date?: string | null; _work_order_id: string }
+        Returns: string
       }
       get_org_user_names: {
         Args: { _user_ids: string[] }

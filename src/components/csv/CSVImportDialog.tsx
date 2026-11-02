@@ -19,7 +19,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCreateProductCategory, useProductCategories } from '@/hooks/useProductCategories';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/lib/auth';
  import { ArrowDown, FileText, AlertCircle, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,8 +45,6 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-
   const { data: units = [] } = useUnits();
   const { data: branches = [] } = useBranches();
   const { data: suppliers = [] } = useSuppliers();
@@ -232,16 +229,25 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
         let parentId: string;
         if (duplicateCheck.existingProduct?.id) {
           parentId = duplicateCheck.existingProduct.id;
+          const previousStock = Number(duplicateCheck.existingProduct.current_stock);
+          const newStock = productFields.current_stock;
+          const updatePayload = {
+            ...productFields,
+            branch_id: branchId ?? duplicateCheck.existingProduct.branch_id,
+            supplier_id: supplierId ?? null,
+            brand_id: brandId ?? null,
+            sku: product.sku || null,
+            description: product.description || null,
+          };
+          if (
+            duplicateCheck.existingProduct.item_type === 'product' &&
+            product.item_type === 'product'
+          ) {
+            delete updatePayload.current_stock;
+          }
           const { data: updatedProduct, error: updateError } = await supabase
             .from('products')
-            .update({
-              ...productFields,
-              branch_id: branchId ?? duplicateCheck.existingProduct.branch_id,
-              supplier_id: supplierId ?? null,
-              brand_id: brandId ?? null,
-              sku: product.sku || null,
-              description: product.description || null,
-            })
+            .update(updatePayload)
             .eq('id', parentId)
             .select('id')
             .single();
@@ -249,23 +255,17 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
           if (!updatedProduct) {
             throw new Error(`Product "${product.name}" was not updated. Check that you have edit access.`);
           }
-          const previousStock = Number(duplicateCheck.existingProduct.current_stock);
-          const newStock = productFields.current_stock;
           if (
             duplicateCheck.existingProduct.item_type === 'product' &&
             product.item_type === 'product' &&
             previousStock !== newStock
           ) {
-            const { error: historyError } = await supabase.from('stock_history').insert({
-              product_id: parentId,
-              previous_stock: previousStock,
-              new_stock: newStock,
-              change_amount: newStock - previousStock,
-              change_type: 'adjustment',
-              notes: 'Stock adjusted during CSV import',
-              changed_by: user?.id ?? null,
+            const { error: adjustmentError } = await supabase.rpc('adjust_product_batch_stock', {
+              _product_id: parentId,
+              _change_amount: newStock - previousStock,
+              _notes: 'Stock adjusted during CSV import',
             });
-            if (historyError) throw historyError;
+            if (adjustmentError) throw adjustmentError;
           }
           result.updated++;
         } else {
@@ -380,6 +380,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
       await refetchAttributes();
       await queryClient.invalidateQueries({ queryKey: ['products'] });
       await queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      await queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
 
       setImportResult(result);
       setStatus('complete');

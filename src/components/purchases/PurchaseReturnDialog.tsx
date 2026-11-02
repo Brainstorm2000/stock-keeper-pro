@@ -155,7 +155,7 @@ export function PurchaseReturnDialog({ purchase, open, onOpenChange }: PurchaseR
             </TableHeader>
             <TableBody>
               {items.map((item, idx) => (
-                <TableRow key={getPurchaseItemKey(item.product_id, item.variation_id, item.unit_multiplier)}>
+                <TableRow key={`${getPurchaseItemKey(item.product_id, item.variation_id, item.unit_multiplier)}-${idx}`}>
                   <TableCell>
                     <Checkbox
                       checked={item.selected}

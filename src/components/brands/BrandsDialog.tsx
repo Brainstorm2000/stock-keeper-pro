@@ -178,7 +178,7 @@ export function BrandsDialog({ open, onOpenChange }: BrandsDialogProps) {
           <DialogTitle>Manage Brands</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-2 mb-4">
+        <div className="mb-4 flex flex-col gap-2 xl:flex-row xl:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -188,29 +188,30 @@ export function BrandsDialog({ open, onOpenChange }: BrandsDialogProps) {
               className="pl-9"
             />
           </div>
-          <input
-            type="file"
-            accept=".csv"
-            ref={fileInputRef}
-            onChange={handleImport}
-            className="hidden"
-          />
-          <Button variant="outline" size="sm" onClick={() => { downloadCSV(generateBrandsCSVTemplate(), 'brands_template.csv'); toast({ title: 'Template downloaded' }); }}>
-            <FileDown className="h-4 w-4 mr-1" /> Template
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-            <ArrowDown className="h-4 w-4 mr-1" /> Import
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={brands.length === 0}>
-            <ArrowUp className="h-4 w-4 mr-1" /> Export
-          </Button>
-          <Dialog open={formOpen} onOpenChange={(o) => { setFormOpen(o); if (!o) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-1" /> Add Brand
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="file"
+              accept=".csv"
+              ref={fileInputRef}
+              onChange={handleImport}
+              className="hidden"
+            />
+            <Button variant="outline" size="sm" onClick={() => { downloadCSV(generateBrandsCSVTemplate(), 'brands_template.csv'); toast({ title: 'Template downloaded' }); }} className="flex-1 sm:flex-none">
+              <FileDown className="h-4 w-4 mr-1" /> Template
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="flex-1 sm:flex-none">
+              <ArrowDown className="h-4 w-4 mr-1" /> Import
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={brands.length === 0} className="flex-1 sm:flex-none">
+              <ArrowUp className="h-4 w-4 mr-1" /> Export
+            </Button>
+            <Dialog open={formOpen} onOpenChange={(o) => { setFormOpen(o); if (!o) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="flex-1 sm:flex-none">
+                  <Plus className="h-4 w-4 mr-1" /> Add Brand
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>{editingBrand ? 'Edit Brand' : 'Add Brand'}</DialogTitle>
               </DialogHeader>
@@ -243,6 +244,7 @@ export function BrandsDialog({ open, onOpenChange }: BrandsDialogProps) {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <BulkActionBar

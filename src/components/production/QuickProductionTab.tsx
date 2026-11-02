@@ -45,6 +45,7 @@ export function QuickProductionTab({
   const { canCreate } = useModuleAccess("production");
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [expirationDate, setExpirationDate] = useState("");
   const [notes, setNotes] = useState("");
 
   const accessibleBranchIds = useMemo(
@@ -81,9 +82,11 @@ export function QuickProductionTab({
       productId: selectedProduct.id,
       quantity: amount * getProductStockFactor(selectedProduct),
       notes,
+      expirationDate: expirationDate || null,
     });
     setProductId("");
     setQuantity("");
+    setExpirationDate("");
     setNotes("");
   };
 
@@ -130,6 +133,15 @@ export function QuickProductionTab({
                   required
                   value={quantity}
                   onChange={(event) => setQuantity(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quick-production-expiration">Expiry date (optional)</Label>
+                <Input
+                  id="quick-production-expiration"
+                  type="date"
+                  value={expirationDate}
+                  onChange={(event) => setExpirationDate(event.target.value)}
                 />
               </div>
               <div className="space-y-2 md:col-span-2">

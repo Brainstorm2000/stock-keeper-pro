@@ -78,8 +78,7 @@ export function PaymentMethodsDialog({ open, onOpenChange }: Props) {
             Payment Methods
           </DialogTitle>
           <DialogDescription>
-            Add, edit, or disable payment methods for your organization. Built-in
-            methods can be renamed and re-styled but not deleted.
+            Add, edit, or disable payment methods for your organization.
           </DialogDescription>
         </DialogHeader>
 

@@ -20,6 +20,7 @@ export interface WorkOrderMaterial {
     current_stock: number;
     cost_per_unit: number;
   };
+  consumed_batches?: { batch_number: string; quantity: number }[];
 }
 
 export interface WorkOrder {
@@ -59,12 +60,6 @@ export interface WorkOrderInput {
   branch_id?: string;
 }
 
-const assertNoError = (error: { message: string } | null, context: string) => {
-  if (error) {
-    throw new Error(`${context}: ${error.message}`);
-  }
-};
-
 const requireAuthenticatedUserId = (userId: string | undefined) => {
   if (!userId) throw new Error('You must be signed in to perform this action.');
   return userId;
@@ -91,6 +86,41 @@ export function useWorkOrders() {
         .order('created_at', { ascending: false });
       if (error) throw error;
 
+      const materialIds = [
+        ...new Set(
+          (data || []).flatMap((workOrder) =>
+            (workOrder.work_order_materials || []).map((material) => material.id),
+          ),
+        ),
+      ];
+      const batchesByMaterial = new Map<
+        string,
+        { batch_number: string; quantity: number }[]
+      >();
+      if (materialIds.length > 0) {
+        const { data: movements, error: movementsError } = await supabase
+          .from('inventory_batch_movements')
+          .select('source_id, quantity, inventory_batches(batch_number)')
+          .eq('source_type', 'work_order_material')
+          .eq('direction', 'out')
+          .in('source_id', materialIds);
+        if (movementsError) throw movementsError;
+
+        for (const movement of movements || []) {
+          if (!movement.source_id) continue;
+          const batch = Array.isArray(movement.inventory_batches)
+            ? movement.inventory_batches[0]
+            : movement.inventory_batches;
+          if (!batch) continue;
+          const allocations = batchesByMaterial.get(movement.source_id) || [];
+          allocations.push({
+            batch_number: batch.batch_number,
+            quantity: Number(movement.quantity),
+          });
+          batchesByMaterial.set(movement.source_id, allocations);
+        }
+      }
+
       // Fetch created_by user profiles
       const userIds = [...new Set(data?.map(d => d.created_by).filter(Boolean))];
       let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
@@ -107,6 +137,10 @@ export function useWorkOrders() {
 
       return data.map(wo => ({
         ...wo,
+        work_order_materials: (wo.work_order_materials || []).map((material) => ({
+          ...material,
+          consumed_batches: batchesByMaterial.get(material.id) || [],
+        })),
         created_by_user: wo.created_by
           ? profilesMap[wo.created_by] || (wo.created_by === user?.id
             ? {
@@ -283,53 +317,19 @@ export function useUpdateWorkOrder() {
 
 export function useApproveWorkOrder() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (workOrder: WorkOrder) => {
-      const actorId = requireAuthenticatedUserId(user?.id);
-      const materials = workOrder.work_order_materials || [];
-      for (const mat of materials) {
-        const currentStock = mat.raw_materials?.current_stock || 0;
-        if (currentStock < mat.quantity_required) {
-          throw new Error(`Insufficient stock for ${mat.raw_materials?.name}. Need ${mat.quantity_required}, have ${currentStock}`);
-        }
-      }
-
-      for (const mat of materials) {
-        const currentStock = Number(mat.raw_materials?.current_stock || 0);
-        const newStock = currentStock - Number(mat.quantity_required);
-
-        const { error: updateMaterialError } = await supabase
-          .from('raw_materials')
-          .update({ current_stock: newStock })
-          .eq('id', mat.raw_material_id);
-        assertNoError(updateMaterialError, 'Failed to update raw material stock');
-
-        const { error: insertHistoryError } = await supabase.from('raw_material_stock_history').insert({
-          raw_material_id: mat.raw_material_id,
-          previous_stock: currentStock,
-          new_stock: newStock,
-          change_amount: -Number(mat.quantity_required),
-          change_type: 'production_deduction',
-          reference_type: 'work_order',
-          reference_id: workOrder.id,
-          notes: `Deducted for ${workOrder.work_order_number}`,
-          changed_by: actorId,
-        });
-        assertNoError(insertHistoryError, 'Failed to write raw material stock history');
-      }
-
-      const { error } = await supabase
-        .from('work_orders')
-        .update({ status: 'approved', approved_at: new Date().toISOString() })
-        .eq('id', workOrder.id);
-      assertNoError(error, 'Failed to approve work order');
+      const { error } = await supabase.rpc('approve_work_order_with_batches', {
+        _work_order_id: workOrder.id,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Work order approved, raw materials deducted' });
     },
     onError: (error: Error) => {
@@ -340,52 +340,28 @@ export function useApproveWorkOrder() {
 
 export function useCompleteWorkOrder() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (workOrder: WorkOrder) => {
-      const actorId = requireAuthenticatedUserId(user?.id);
-      const { data: product } = await supabase
-        .from('products')
-        .select('current_stock, sub_unit_id, sub_unit_factor')
-        .eq('id', workOrder.product_id)
-        .single();
-
-      if (product) {
-        const currentStock = Number(product.current_stock);
-        const stockQuantity = Number(workOrder.quantity) *
-          (product.sub_unit_id ? Number(product.sub_unit_factor) || 1 : 1);
-        const newStock = currentStock + stockQuantity;
-
-        const { error: updateProductError } = await supabase
-          .from('products')
-          .update({ current_stock: newStock })
-          .eq('id', workOrder.product_id);
-        assertNoError(updateProductError, 'Failed to update finished goods stock');
-
-        const { error: insertHistoryError } = await supabase.from('stock_history').insert({
-          product_id: workOrder.product_id,
-          previous_stock: currentStock,
-          new_stock: newStock,
-          change_amount: stockQuantity,
-          change_type: 'production',
-          notes: `Produced via ${workOrder.work_order_number}`,
-          changed_by: actorId,
-        });
-        assertNoError(insertHistoryError, 'Failed to write stock history for production');
-      }
-
-      const { error } = await supabase
-        .from('work_orders')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
-        .eq('id', workOrder.id);
-      assertNoError(error, 'Failed to complete work order');
+    mutationFn: async ({
+      workOrder,
+      expirationDate,
+    }: {
+      workOrder: WorkOrder;
+      expirationDate?: string | null;
+    }) => {
+      const { data, error } = await supabase.rpc('complete_work_order_with_batch', {
+        _work_order_id: workOrder.id,
+        _expiration_date: expirationDate || null,
+      });
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Work order completed, finished goods added to stock' });
     },
     onError: (error: Error) => {
@@ -400,14 +376,15 @@ export function useCancelWorkOrder() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('work_orders')
-        .update({ status: 'cancelled' })
-        .eq('id', id);
+      const { error } = await supabase.rpc('cancel_work_order_with_batches', {
+        _work_order_id: id,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Work order cancelled' });
     },
     onError: (error: Error) => {
@@ -418,41 +395,23 @@ export function useCancelWorkOrder() {
 
 export function useRecordDamage() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ productId, quantity, notes }: { productId: string; quantity: number; notes?: string }) => {
-      const actorId = requireAuthenticatedUserId(user?.id);
-      const { data: product } = await supabase
-        .from('products')
-        .select('current_stock')
-        .eq('id', productId)
-        .single();
-      if (!product) throw new Error('Product not found');
-
-      const currentStock = Number(product.current_stock);
-      if (quantity > currentStock) throw new Error('Damage quantity exceeds current stock');
-      const newStock = currentStock - quantity;
-
-      const { error: updateProductError } = await supabase.from('products').update({ current_stock: newStock }).eq('id', productId);
-      assertNoError(updateProductError, 'Failed to update product stock for damage');
-
-      const { error: insertDamageHistoryError } = await supabase.from('stock_history').insert({
-        product_id: productId,
-        previous_stock: currentStock,
-        new_stock: newStock,
-        change_amount: -quantity,
-        change_type: 'damage',
-        notes: notes || 'Finished goods damage recorded',
-        changed_by: actorId,
+      const { error } = await supabase.rpc('adjust_product_batch_stock', {
+        _product_id: productId,
+        _change_amount: -quantity,
+        _notes: notes || 'Finished goods damage recorded',
+        _change_type: 'damage',
       });
-      assertNoError(insertDamageHistoryError, 'Failed to write damage stock history');
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       queryClient.invalidateQueries({ queryKey: ['damage-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Damage recorded successfully' });
     },
     onError: (error: Error) => {
@@ -463,40 +422,22 @@ export function useRecordDamage() {
 
 export function useRecordWaste() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ materialId, quantity, notes }: { materialId: string; quantity: number; notes?: string }) => {
-      const actorId = requireAuthenticatedUserId(user?.id);
-      const { data: material } = await supabase
-        .from('raw_materials')
-        .select('current_stock')
-        .eq('id', materialId)
-        .single();
-      if (!material) throw new Error('Raw material not found');
-
-      const currentStock = Number(material.current_stock);
-      if (quantity > currentStock) throw new Error('Waste quantity exceeds current stock');
-      const newStock = currentStock - quantity;
-
-      const { error: updateMaterialError } = await supabase.from('raw_materials').update({ current_stock: newStock }).eq('id', materialId);
-      assertNoError(updateMaterialError, 'Failed to update raw material stock for waste');
-
-      const { error: insertWasteHistoryError } = await supabase.from('raw_material_stock_history').insert({
-        raw_material_id: materialId,
-        previous_stock: currentStock,
-        new_stock: newStock,
-        change_amount: -quantity,
-        change_type: 'waste',
-        notes: notes || 'Raw material waste recorded',
-        changed_by: actorId,
+      const { error } = await supabase.rpc('adjust_raw_material_batch_stock', {
+        _raw_material_id: materialId,
+        _change_amount: -quantity,
+        _notes: notes || 'Raw material waste recorded',
+        _change_type: 'waste',
       });
-      assertNoError(insertWasteHistoryError, 'Failed to write raw material waste history');
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
       queryClient.invalidateQueries({ queryKey: ['waste-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Waste recorded successfully' });
     },
     onError: (error: Error) => {

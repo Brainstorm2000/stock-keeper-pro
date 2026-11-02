@@ -37,6 +37,8 @@ export function StockUpdateDialog({
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [unit, setUnit] = useState<"main" | "sub">("main");
+  const [batchNumber, setBatchNumber] = useState("");
+  const [expirationDate, setExpirationDate] = useState("");
   const updateStock = useUpdateStock();
 
   const currentStock = Number(product.current_stock);
@@ -54,14 +56,17 @@ export function StockUpdateDialog({
       productId: product.id,
       currentStock,
       newStock,
-      changeType: type,
       notes: notes || undefined,
+      batchNumber: batchNumber || undefined,
+      expirationDate: expirationDate || null,
     });
 
     onOpenChange(false);
     setAmount("");
     setNotes("");
     setUnit("main");
+    setBatchNumber("");
+    setExpirationDate("");
   };
 
   return (
@@ -118,6 +123,29 @@ export function StockUpdateDialog({
               placeholder={`Enter quantity in ${getUnitLabel(product, unit)}`}
             />
           </div>
+
+          {type === "increase" && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="stock-batch-number">Batch number (optional)</Label>
+                <Input
+                  id="stock-batch-number"
+                  value={batchNumber}
+                  onChange={(e) => setBatchNumber(e.target.value)}
+                  placeholder="Generated if blank"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="stock-expiration-date">Expiry date (optional)</Label>
+                <Input
+                  id="stock-expiration-date"
+                  type="date"
+                  value={expirationDate}
+                  onChange={(e) => setExpirationDate(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes (optional)</Label>

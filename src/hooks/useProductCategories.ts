@@ -63,3 +63,57 @@ export function useCreateProductCategory() {
     },
   });
 }
+
+export function useUpdateProductCategory() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const trimmedName = name.trim();
+      if (!trimmedName) throw new Error('Category name is required.');
+
+      const { data, error } = await supabase
+        .from('product_categories' as any)
+        .update({ name: trimmedName, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as ProductCategoryOption;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-categories'] });
+      toast({ title: 'Product category updated' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'update product category');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteProductCategory() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('product_categories' as any)
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-categories'] });
+      toast({ title: 'Product category deleted' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'delete product category');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}

@@ -18,6 +18,7 @@ export interface PurchaseItem {
   unit_label: string | null;
   unit_cost: number;
   total_cost: number;
+  batch_number: string | null;
   expiration_date: string | null;
   created_at: string;
   products?: {
@@ -72,6 +73,7 @@ export interface PurchaseItemInput {
   unit_label?: string | null;
   unit_cost: number;
   selling_price: number;
+  batch_number?: string | null;
   expiration_date?: string | null;
 }
 
@@ -107,6 +109,7 @@ export function usePurchases(branchId?: string) {
               unit_label,
               unit_cost,
             total_cost,
+              batch_number,
               expiration_date,
               products (id, name, category, sub_unit_id, sub_unit_factor, units:units!products_unit_id_fkey (name, abbreviation)),
             product_variations (id, sku)
@@ -180,6 +183,7 @@ export function useCreatePurchase() {
         unit_cost: item.unit_cost,
         selling_price: item.selling_price || 0,
         total_cost: item.quantity * item.unit_cost,
+        batch_number: item.batch_number?.trim() || null,
         expiration_date: item.expiration_date || null,
       }));
 
@@ -191,14 +195,6 @@ export function useCreatePurchase() {
 
       // Update product stock levels and create stock history entries
       for (const item of input.items) {
-        if (item.expiration_date) {
-          const { error: expirationError } = await supabase
-            .from('products')
-            .update({ expiration_date: item.expiration_date })
-            .eq('id', item.product_id);
-          if (expirationError) throw expirationError;
-        }
-
         if (item.variation_id) {
           const { data: variation, error: variationError } = await supabase
             .from('product_variations' as any)
@@ -291,6 +287,7 @@ export function useCreatePurchase() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       toast({ title: 'Purchase recorded successfully' });
     },
@@ -351,6 +348,28 @@ export function useUpdatePurchase() {
       originalItems: PurchaseItem[];
       input: PurchaseInput & { organization_id: string };
     }) => {
+      const originalItemIds = originalItems.map((item) => item.id);
+      if (originalItemIds.length > 0) {
+        const { data: existingBatches, error: batchesError } = await supabase
+          .from('inventory_batches')
+          .select('id, purchase_item_id')
+          .in('purchase_item_id', originalItemIds);
+        if (batchesError) throw batchesError;
+
+        const batchIds = (existingBatches || []).map((batch) => batch.id);
+        if (batchIds.length > 0) {
+          const { data: movements, error: movementsError } = await supabase
+            .from('inventory_batch_movements')
+            .select('id')
+            .in('batch_id', batchIds)
+            .limit(1);
+          if (movementsError) throw movementsError;
+          if (movements?.length) {
+            throw new Error('This purchase has batches with inventory activity and cannot be edited.');
+          }
+        }
+      }
+
       // First, reverse stock for all original items
       for (const item of originalItems) {
         if (item.variation_id) {
@@ -472,6 +491,7 @@ export function useUpdatePurchase() {
         unit_cost: item.unit_cost,
         selling_price: item.selling_price || 0,
         total_cost: item.quantity * item.unit_cost,
+        batch_number: item.batch_number?.trim() || null,
         expiration_date: item.expiration_date || null,
       }));
 
@@ -483,14 +503,6 @@ export function useUpdatePurchase() {
 
       // Add new stock for new items
       for (const item of input.items) {
-        if (item.expiration_date) {
-          const { error: expirationError } = await supabase
-            .from('products')
-            .update({ expiration_date: item.expiration_date })
-            .eq('id', item.product_id);
-          if (expirationError) throw expirationError;
-        }
-
         if (item.variation_id) {
           const { data: variation, error: variationError } = await supabase
             .from('product_variations' as any)
@@ -579,6 +591,7 @@ export function useUpdatePurchase() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       toast({ title: 'Purchase updated successfully' });
     },

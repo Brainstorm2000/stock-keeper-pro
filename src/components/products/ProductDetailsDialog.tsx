@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import type { Product } from "@/hooks/useProducts";
 import { useProductVariations } from "@/hooks/useProductVariations";
+import { useInventoryBatches } from "@/hooks/useInventoryBatches";
 import { formatProductStockQuantity } from "@/lib/product-units";
 import { formatCurrency } from "@/lib/currency";
 import {
@@ -46,6 +47,10 @@ export function ProductDetailsDialog({
 }: ProductDetailsDialogProps) {
   const { data: variations = [] } = useProductVariations(
     product?.item_type === "variable" ? product.id : null,
+  );
+  const { data: inventoryBatches = [] } = useInventoryBatches(
+    product?.id,
+    open && !!product?.id,
   );
 
   if (!product) return null;
@@ -154,11 +159,51 @@ export function ProductDetailsDialog({
                 label="Selling price"
                 value={formatCurrency(Number(product.selling_price))}
               />
-              <Detail
-                label="Expiration date"
-                value={product.expiration_date || "-"}
-              />
             </dl>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="font-semibold">Inventory batches</h3>
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Batch</TableHead>
+                    <TableHead>Variation</TableHead>
+                    <TableHead className="text-right">Received</TableHead>
+                    <TableHead className="text-right">Remaining</TableHead>
+                    <TableHead>Expiry</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {inventoryBatches.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+                        No batch records found.
+                      </TableCell>
+                    </TableRow>
+                  ) : inventoryBatches.map((batch) => (
+                    <TableRow key={batch.id}>
+                      <TableCell>{batch.batch_number}</TableCell>
+                      <TableCell>
+                        {variations.find((variation) => variation.id === batch.variation_id)?.sku || "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {Number(batch.initial_quantity).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {Number(batch.remaining_quantity).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        {batch.expiration_date
+                          ? format(new Date(`${batch.expiration_date}T00:00:00`), "MMM d, yyyy")
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </section>
 
           {product.item_type === "variable" && (

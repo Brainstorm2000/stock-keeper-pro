@@ -100,20 +100,23 @@ export function useEditDamage() {
       // oldChangeAmount is negative (e.g. -5), newQuantity is positive (e.g. 3)
       const diff = Math.abs(oldChangeAmount) - newQuantity; // positive = less damage now, negative = more damage
 
-      // Get current product stock
-      const { data: product } = await supabase.from('products').select('current_stock').eq('id', productId).single();
-      if (!product) throw new Error('Product not found');
+      if (diff !== 0) {
+        const { error: adjustmentError } = await supabase.rpc('adjust_product_batch_stock', {
+          _product_id: productId,
+          _change_amount: diff,
+          _notes: notes || 'Damage record adjusted',
+          _change_type: 'damage_adjustment',
+        });
+        if (adjustmentError) throw adjustmentError;
+      }
 
-      const currentStock = Number(product.current_stock);
-      const newStock = currentStock + diff;
-      if (newStock < 0) throw new Error('Insufficient stock to increase damage quantity');
-
-      // Update product stock
-      await supabase.from('products').update({ current_stock: newStock }).eq('id', productId);
-
-      // Update the history record
-      const { data: record } = await supabase.from('stock_history').select('previous_stock').eq('id', recordId).single();
-      const prevStock = Number(record?.previous_stock || 0);
+      const { data: record, error: recordError } = await supabase
+        .from('stock_history')
+        .select('previous_stock')
+        .eq('id', recordId)
+        .single();
+      if (recordError) throw recordError;
+      const prevStock = Number(record.previous_stock);
 
       const { error } = await supabase.from('stock_history').update({
         change_amount: -newQuantity,
@@ -126,6 +129,7 @@ export function useEditDamage() {
       queryClient.invalidateQueries({ queryKey: ['damage-history'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Damage record updated' });
     },
     onError: (error: Error) => {
@@ -142,12 +146,13 @@ export function useDeleteDamage() {
     mutationFn: async ({ recordId, productId, changeAmount }: {
       recordId: string; productId: string; changeAmount: number;
     }) => {
-      // Reverse the stock change (changeAmount is negative, so we add it back)
-      const { data: product } = await supabase.from('products').select('current_stock').eq('id', productId).single();
-      if (!product) throw new Error('Product not found');
-
-      const newStock = Number(product.current_stock) + Math.abs(changeAmount);
-      await supabase.from('products').update({ current_stock: newStock }).eq('id', productId);
+      const { error: adjustmentError } = await supabase.rpc('adjust_product_batch_stock', {
+        _product_id: productId,
+        _change_amount: Math.abs(changeAmount),
+        _notes: 'Damage record reversed',
+        _change_type: 'damage_reversal',
+      });
+      if (adjustmentError) throw adjustmentError;
 
       const { error } = await supabase.from('stock_history').delete().eq('id', recordId);
       if (error) throw error;
@@ -156,6 +161,7 @@ export function useDeleteDamage() {
       queryClient.invalidateQueries({ queryKey: ['damage-history'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Damage record deleted, stock restored' });
     },
     onError: (error: Error) => {
@@ -174,17 +180,23 @@ export function useEditWaste() {
     }) => {
       const diff = Math.abs(oldChangeAmount) - newQuantity;
 
-      const { data: material } = await supabase.from('raw_materials').select('current_stock').eq('id', materialId).single();
-      if (!material) throw new Error('Material not found');
+      if (diff !== 0) {
+        const { error: adjustmentError } = await supabase.rpc('adjust_raw_material_batch_stock', {
+          _raw_material_id: materialId,
+          _change_amount: diff,
+          _notes: notes || 'Waste record adjusted',
+          _change_type: 'waste_adjustment',
+        });
+        if (adjustmentError) throw adjustmentError;
+      }
 
-      const currentStock = Number(material.current_stock);
-      const newStock = currentStock + diff;
-      if (newStock < 0) throw new Error('Insufficient stock to increase waste quantity');
-
-      await supabase.from('raw_materials').update({ current_stock: newStock }).eq('id', materialId);
-
-      const { data: record } = await supabase.from('raw_material_stock_history').select('previous_stock').eq('id', recordId).single();
-      const prevStock = Number(record?.previous_stock || 0);
+      const { data: record, error: recordError } = await supabase
+        .from('raw_material_stock_history')
+        .select('previous_stock')
+        .eq('id', recordId)
+        .single();
+      if (recordError) throw recordError;
+      const prevStock = Number(record.previous_stock);
 
       const { error } = await supabase.from('raw_material_stock_history').update({
         change_amount: -newQuantity,
@@ -196,6 +208,7 @@ export function useEditWaste() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['waste-history'] });
       queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Waste record updated' });
     },
     onError: (error: Error) => {
@@ -212,11 +225,13 @@ export function useDeleteWaste() {
     mutationFn: async ({ recordId, materialId, changeAmount }: {
       recordId: string; materialId: string; changeAmount: number;
     }) => {
-      const { data: material } = await supabase.from('raw_materials').select('current_stock').eq('id', materialId).single();
-      if (!material) throw new Error('Material not found');
-
-      const newStock = Number(material.current_stock) + Math.abs(changeAmount);
-      await supabase.from('raw_materials').update({ current_stock: newStock }).eq('id', materialId);
+      const { error: adjustmentError } = await supabase.rpc('adjust_raw_material_batch_stock', {
+        _raw_material_id: materialId,
+        _change_amount: Math.abs(changeAmount),
+        _notes: 'Waste record reversed',
+        _change_type: 'waste_reversal',
+      });
+      if (adjustmentError) throw adjustmentError;
 
       const { error } = await supabase.from('raw_material_stock_history').delete().eq('id', recordId);
       if (error) throw error;
@@ -224,6 +239,7 @@ export function useDeleteWaste() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['waste-history'] });
       queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Waste record deleted, stock restored' });
     },
     onError: (error: Error) => {

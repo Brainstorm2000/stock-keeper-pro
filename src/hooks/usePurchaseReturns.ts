@@ -81,67 +81,16 @@ export function useAlreadyReturnedPurchaseQuantities(purchaseId: string | undefi
 
 export function useUndoPurchaseReturn() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (ret: PurchaseReturn) => {
       // Reverse stock: re-add items that were deducted
       for (const item of (ret.purchase_return_items || [])) {
-        const multiplier = item.unit_label
-          ? Number(item.unit_multiplier) || 1
-          : item.products?.sub_unit_id ? Number(item.products.sub_unit_factor) || 1 : 1;
-        if (item.variation_id) {
-          const { data: variation, error: variationError } = await supabase
-            .from('product_variations' as any)
-            .select('current_stock')
-            .eq('id', item.variation_id)
-            .eq('product_id', item.product_id)
-            .single();
-          if (variationError) throw variationError;
-          const previousStock = Number((variation as any).current_stock);
-          const restoredQuantity = Number(item.quantity) * multiplier;
-          const newStock = previousStock + restoredQuantity;
-          const { error: updateError } = await supabase
-            .from('product_variations' as any)
-            .update({ current_stock: newStock })
-            .eq('id', item.variation_id);
-          if (updateError) throw updateError;
-          const { error: historyError } = await supabase.from('stock_history').insert({
-            product_id: item.product_id,
-            variation_id: item.variation_id,
-            previous_stock: previousStock,
-            new_stock: newStock,
-            change_amount: restoredQuantity,
-            change_type: 'purchase_return',
-            notes: `Undo purchase return ${ret.return_number}`,
-            changed_by: user?.id,
-          } as any);
-          if (historyError) throw historyError;
-          continue;
-        }
-
-        const { data: product } = await supabase
-          .from('products')
-          .select('current_stock')
-          .eq('id', item.product_id)
-          .single();
-
-        if (product) {
-          const prev = Number(product.current_stock);
-          const restoredQuantity = Number(item.quantity) * multiplier;
-          const newStock = prev + restoredQuantity;
-          await supabase.from('products').update({ current_stock: newStock }).eq('id', item.product_id);
-          await supabase.from('stock_history').insert({
-            product_id: item.product_id,
-            previous_stock: prev,
-            new_stock: newStock,
-            change_amount: restoredQuantity,
-            change_type: 'purchase_return',
-            notes: `Undo purchase return ${ret.return_number}`,
-            changed_by: user?.id,
-          });
-        }
+        const { error } = await supabase.rpc('undo_purchase_return_batch', {
+          _return_item_id: item.id,
+        });
+        if (error) throw error;
       }
       // Reverse balance adjustment on purchases
       const { data: purchase } = await supabase
@@ -170,6 +119,7 @@ export function useUndoPurchaseReturn() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-returned-quantities'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Purchase return undone successfully' });
     },
     onError: (error: Error) => {
@@ -296,63 +246,24 @@ export function useCreatePurchaseReturn() {
         total_cost: i.quantity * i.unit_cost,
       }));
 
-      const { error: itemsErr } = await supabase.from('purchase_return_items').insert(items);
+      const { data: createdReturnItems, error: itemsErr } = await supabase
+        .from('purchase_return_items')
+        .insert(items)
+        .select('id, product_id, variation_id, quantity, unit_multiplier');
       if (itemsErr) throw itemsErr;
 
       // Reverse stock for returned items
-      for (const item of input.items) {
-        if (item.variation_id) {
-          const { data: variation, error: variationError } = await supabase
-            .from('product_variations' as any)
-            .select('current_stock')
-            .eq('id', item.variation_id)
-            .eq('product_id', item.product_id)
-            .single();
-          if (variationError) throw variationError;
-          const previousStock = Number((variation as any).current_stock);
-          const stockQuantity = item.quantity * Number(item.unit_multiplier || 1);
-          const newStock = Math.max(0, previousStock - stockQuantity);
-          const { error: updateError } = await supabase
-            .from('product_variations' as any)
-            .update({ current_stock: newStock })
-            .eq('id', item.variation_id);
-          if (updateError) throw updateError;
-          const { error: historyError } = await supabase.from('stock_history').insert({
-            product_id: item.product_id,
-            variation_id: item.variation_id,
-            previous_stock: previousStock,
-            new_stock: newStock,
-            change_amount: -stockQuantity,
-            change_type: 'purchase_return',
-            notes: `Purchase return ${returnNumber}`,
-            changed_by: user?.id,
-          } as any);
-          if (historyError) throw historyError;
-          continue;
-        }
-
-        const { data: product } = await supabase
-          .from('products')
-          .select('current_stock')
-          .eq('id', item.product_id)
-          .single();
-
-        if (product) {
-          const prev = Number(product.current_stock);
-          const stockQuantity = item.quantity * Number(item.unit_multiplier || 1);
-          const newStock = Math.max(0, prev - stockQuantity);
-
-          await supabase.from('products').update({ current_stock: newStock }).eq('id', item.product_id);
-          await supabase.from('stock_history').insert({
-            product_id: item.product_id,
-            previous_stock: prev,
-            new_stock: newStock,
-            change_amount: -stockQuantity,
-            change_type: 'purchase_return',
-            notes: `Purchase return ${returnNumber}`,
-            changed_by: user?.id,
-          });
-        }
+      for (const item of createdReturnItems || []) {
+        const { error } = await supabase.rpc('adjust_product_batch_stock', {
+          _product_id: item.product_id,
+          _variation_id: item.variation_id || null,
+          _change_amount: -item.quantity * Number(item.unit_multiplier || 1),
+          _notes: `Purchase return ${returnNumber}`,
+          _change_type: 'purchase_return',
+          _movement_source_type: 'purchase_return',
+          _movement_source_id: item.id,
+        });
+        if (error) throw error;
       }
 
       // Adjust purchase balance: reduce total_amount by return amount
@@ -380,6 +291,7 @@ export function useCreatePurchaseReturn() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-returned-quantities'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Purchase return recorded' });
     },
     onError: (error: Error) => {

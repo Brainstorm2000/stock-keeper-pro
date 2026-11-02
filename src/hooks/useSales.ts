@@ -26,6 +26,7 @@ export interface SaleItem {
   cost_price: number;
   discount_amount: number;
   total_price: number;
+  batch_allocations?: { batch_number: string; quantity: number }[];
 }
 
 export interface PaymentDetail {
@@ -195,12 +196,39 @@ export function useSaleWithItems(saleId: string | null) {
 
         if (itemsError) throw itemsError;
 
+        const saleItemIds = items.map((item) => item.id);
+        const { data: batchMovements, error: batchError } = saleItemIds.length
+          ? await supabase
+              .from('inventory_batch_movements')
+              .select('source_id, quantity, inventory_batches(batch_number)')
+              .eq('source_type', 'sale_item')
+              .eq('direction', 'out')
+              .in('source_id', saleItemIds)
+          : { data: [], error: null };
+        if (batchError) throw batchError;
+
+        const allocationsByItem = new Map<string, { batch_number: string; quantity: number }[]>();
+        for (const movement of batchMovements || []) {
+          if (!movement.source_id) continue;
+          const batch = Array.isArray(movement.inventory_batches)
+            ? movement.inventory_batches[0]
+            : movement.inventory_batches;
+          if (!batch) continue;
+          const allocations = allocationsByItem.get(movement.source_id) || [];
+          allocations.push({
+            batch_number: batch.batch_number,
+            quantity: Number(movement.quantity),
+          });
+          allocationsByItem.set(movement.source_id, allocations);
+        }
+
         return {
           ...sale,
           payment_details: (sale.payment_details as unknown) as PaymentDetail[] | undefined,
           sale_items: items.map((item: any) => ({
             ...item,
             product_name: item.products?.name,
+            batch_allocations: allocationsByItem.get(item.id) || [],
           })),
         } as Sale;
       } catch (error) {
@@ -311,6 +339,7 @@ export function useCreateSale() {
       });
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Sale saved', description: 'Print customer receipt' });
     },
     onError: (error: Error) => {
@@ -536,6 +565,7 @@ export function useUpdateSale() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['sale'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Sale updated successfully' });
     },
     onError: (error: Error) => {
@@ -731,6 +761,7 @@ export function useDeleteSale() {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: `Sale ${data.saleNumber} deleted`, description: 'Stock has been restored.' });
     },
     onError: (error: Error) => {

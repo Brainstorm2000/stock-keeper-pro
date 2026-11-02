@@ -106,6 +106,7 @@ export function WorkOrdersTab({
     type: "approve" | "complete" | "cancel";
     wo: WorkOrder;
   } | null>(null);
+  const [completionExpiryDate, setCompletionExpiryDate] = useState("");
 
   // Form
   const [bomId, setBomId] = useState("");
@@ -207,10 +208,14 @@ export function WorkOrdersTab({
     if (confirmAction.type === "approve")
       await approveWO.mutateAsync(confirmAction.wo);
     else if (confirmAction.type === "complete")
-      await completeWO.mutateAsync(confirmAction.wo);
+      await completeWO.mutateAsync({
+        workOrder: confirmAction.wo,
+        expirationDate: completionExpiryDate || null,
+      });
     else if (confirmAction.type === "cancel")
       await cancelWO.mutateAsync(confirmAction.wo.id);
     setConfirmAction(null);
+    setCompletionExpiryDate("");
   };
 
   // Stats
@@ -309,6 +314,7 @@ export function WorkOrdersTab({
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Qty</TableHead>
               <TableHead className="text-right">Material</TableHead>
+              <TableHead>Consumed raw-material batches</TableHead>
               <TableHead className="text-right">Labor</TableHead>
               <TableHead className="text-right">Total Cost</TableHead>
               <TableHead className="text-right">Cost/Unit</TableHead>
@@ -322,7 +328,7 @@ export function WorkOrdersTab({
             {isLoading ? (
               <TableRow>
                 <TableCell
-                  colSpan={12}
+                  colSpan={13}
                   className="text-center py-8 text-muted-foreground"
                 >
                   Loading...
@@ -331,7 +337,7 @@ export function WorkOrdersTab({
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={12}
+                  colSpan={13}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No work orders found
@@ -355,6 +361,31 @@ export function WorkOrdersTab({
                     </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(wo.material_cost)}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {wo.work_order_materials?.some(
+                        (material) => material.consumed_batches?.length,
+                      ) ? (
+                        <div className="max-w-[240px] space-y-1">
+                          {wo.work_order_materials.map((material) =>
+                            material.consumed_batches?.length ? (
+                              <div key={material.id}>
+                                <span className="font-medium">
+                                  {material.raw_materials?.name}:
+                                </span>{" "}
+                                {material.consumed_batches
+                                  .map(
+                                    (batch) =>
+                                      `${batch.batch_number} (${batch.quantity})`,
+                                  )
+                                  .join(", ")}
+                              </div>
+                            ) : null,
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(wo.labor_cost + wo.overhead_cost)}
@@ -421,9 +452,10 @@ export function WorkOrdersTab({
                         {wo.status === "approved" && (
                           <Button
                             size="sm"
-                            onClick={() =>
-                              setConfirmAction({ type: "complete", wo })
-                            }
+                            onClick={() => {
+                              setCompletionExpiryDate("");
+                              setConfirmAction({ type: "complete", wo });
+                            }}
                           >
                             Complete
                           </Button>
@@ -621,6 +653,20 @@ export function WorkOrdersTab({
                 "This work order will be marked as cancelled."}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {confirmAction?.type === "complete" && (
+            <div className="space-y-2">
+              <Label htmlFor="work-order-expiration-date">Expiry date (optional)</Label>
+              <Input
+                id="work-order-expiration-date"
+                type="date"
+                value={completionExpiryDate}
+                onChange={(event) => setCompletionExpiryDate(event.target.value)}
+              />
+              <p className="text-sm text-muted-foreground">
+                Finished goods will be added to batch WO-{confirmAction.wo.work_order_number}.
+              </p>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction

@@ -149,6 +149,7 @@ export function PurchaseDetailsDialog({
                   <TableHead>Product</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead>Batch Number</TableHead>
                   <TableHead>Expiry Date</TableHead>
                   <TableHead className="text-right">Unit Cost</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -180,6 +181,7 @@ export function PurchaseDetailsDialog({
                       {Number(item.quantity).toLocaleString()}{" "}
                       {item.products?.units?.abbreviation}
                     </TableCell>
+                    <TableCell>{item.batch_number || "—"}</TableCell>
                     <TableCell>
                       {item.expiration_date
                         ? format(new Date(`${item.expiration_date}T00:00:00`), "MMMM d, yyyy")

@@ -441,7 +441,7 @@ export function ProductTable({
             {format(new Date(product.updated_at), "MMM d, yyyy HH:mm")}
           </TableCell>
           {isAdmin && (
-            <TableCell>
+            <TableCell onClick={(event) => event.stopPropagation()}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button

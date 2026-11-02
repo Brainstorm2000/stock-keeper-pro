@@ -22,6 +22,7 @@ import { PurchaseVariationPicker } from './PurchaseVariationPicker';
 import { fetchVariationsForProduct, formatVariationLabel, type ProductVariation } from '@/hooks/useProductVariations';
 import { getPurchaseItemKey } from '@/lib/purchase-item-key';
 import { getProductStockFactor, getUnitLabel, getUnitMultiplier, formatProductStock } from '@/lib/product-units';
+import { createId } from '@/lib/utils';
 
 interface EditPurchaseDialogProps {
   purchase: Purchase;
@@ -30,6 +31,7 @@ interface EditPurchaseDialogProps {
 }
 
 interface CartItem extends PurchaseItemInput {
+  cartLineId: string;
   product: Product;
   variation?: ProductVariation;
 }
@@ -85,6 +87,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
           return {
             product_id: item.product_id,
             variation_id: item.variation_id,
+            cartLineId: item.id,
             product: purchasedProduct,
             variation,
             quantity: Number(item.quantity),
@@ -95,6 +98,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
               (purchasedProduct.units?.abbreviation || purchasedProduct.units?.name || null),
             unit_cost: Number(item.unit_cost),
             selling_price: Number((item as any).selling_price) || 0,
+            batch_number: item.batch_number || null,
             expiration_date: item.expiration_date || null,
           };
         }));
@@ -135,8 +139,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
     }).format(value);
   };
 
-  const getCartKey = (item: CartItem) =>
-    getPurchaseItemKey(item.product_id, item.variation_id, Number(item.unit_multiplier) || 1);
+  const getCartKey = (item: CartItem) => item.cartLineId;
 
   const addToCart = (product: Product, variation?: ProductVariation) => {
     const variationId = variation?.id || null;
@@ -146,10 +149,14 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
       variation ? 1 : getProductStockFactor(product),
     );
     setCart((currentCart) => {
-      const existing = currentCart.find(item => getCartKey(item) === cartKey);
-      if (existing) {
+      const reusableLine = currentCart.find(item =>
+        getPurchaseItemKey(item.product_id, item.variation_id, Number(item.unit_multiplier) || 1) === cartKey &&
+        !item.batch_number &&
+        !item.expiration_date
+      );
+      if (reusableLine) {
         return currentCart.map(item =>
-          getCartKey(item) === cartKey
+          getCartKey(item) === getCartKey(reusableLine)
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
@@ -157,6 +164,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
       return [...currentCart, {
         product_id: product.id,
         variation_id: variationId,
+        cartLineId: createId(),
         product,
         variation,
         quantity: 1,
@@ -164,13 +172,24 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
         unit_label: variation ? formatVariationLabel(variation) : getUnitLabel(product, "main"),
         unit_cost: Number(variation?.cost_price ?? product.cost_price) || 0,
         selling_price: Number(variation?.selling_price ?? product.selling_price) || 0,
+        batch_number: null,
         expiration_date: null,
       }];
     });
     setSearchQuery('');
   };
 
-  const updateCartItem = (key: string, field: 'quantity' | 'unit_cost' | 'markup_percent' | 'selling_price' | 'expiration_date', value: number | string) => {
+  const addBatch = (item: CartItem) => {
+    setCart(currentCart => [...currentCart, {
+      ...item,
+      cartLineId: createId(),
+      quantity: 1,
+      batch_number: null,
+      expiration_date: null,
+    }]);
+  };
+
+  const updateCartItem = (key: string, field: 'quantity' | 'unit_cost' | 'markup_percent' | 'selling_price' | 'batch_number' | 'expiration_date', value: number | string) => {
     setCart(cart.map(item =>
       getCartKey(item) === key
         ? field === 'markup_percent'
@@ -235,7 +254,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
         amount_paid: Number(amountPaid) || 0,
         notes: notes || undefined,
         receipt_url: finalReceiptUrl,
-        items: cart.map(({ product, ...item }) => item),
+        items: cart.map(({ product, cartLineId, ...item }) => item),
       },
     });
 
@@ -384,7 +403,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
             <div className="space-y-2">
               <Label>Purchase Items ({cart.length})</Label>
               <div className="border rounded-md overflow-x-auto">
-                <Table className="min-w-[900px]">
+                <Table className="min-w-[1100px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
@@ -392,6 +411,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
                       <TableHead className="w-[120px]">Cost Price</TableHead>
                       <TableHead className="w-[120px]">Markup %</TableHead>
                       <TableHead className="w-[120px]">Sell Price</TableHead>
+                      <TableHead className="w-[150px]">Batch Number</TableHead>
                       <TableHead className="w-[150px]">Expiry Date</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
@@ -403,7 +423,7 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
                       return (
                       <TableRow key={key}>
                         <TableCell>
-                          <div>
+                          <div className="space-y-1">
                             <p className="font-medium">{item.product.name}</p>
                             <p className="text-sm text-muted-foreground">
                               {item.variation
@@ -421,6 +441,16 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
                                     </Select>
                                   : item.product.units?.abbreviation || item.product.units?.name}
                             </p>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => addBatch(item)}
+                            >
+                              <Plus className="mr-1 h-3 w-3" />
+                              Add batch
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -460,6 +490,15 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
                             value={item.selling_price}
                             onChange={(e) => updateCartItem(key, 'selling_price', e.target.value === '' ? 0 : Number(e.target.value))}
                             className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="text"
+                            aria-label={`Batch number for ${item.product.name}`}
+                            value={item.batch_number || ''}
+                            onChange={(e) => updateCartItem(key, 'batch_number', e.target.value)}
+                            className="w-36"
                           />
                         </TableCell>
                         <TableCell>

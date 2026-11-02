@@ -317,29 +317,14 @@ export function useUpdateProduct() {
         if (!existing) throw new Error('Product is not available in the offline cache.');
         const previousStock = Number(existing.data.current_stock);
         const nextStock = Number(product.current_stock ?? previousStock);
-        const now = new Date().toISOString();
-        const updated = await saveLocal(productsTable, { ...existing.data, ...product, id } as Product);
         if (
-          existing.data.item_type === 'product' &&
-          (product.item_type ?? existing.data.item_type) === 'product' &&
-          previousStock !== nextStock
+          previousStock !== nextStock &&
+          existing.data.item_type !== 'service' &&
+          (product.item_type ?? existing.data.item_type) !== 'service'
         ) {
-          await localDb.stockHistory.put({
-            id: createId(),
-            data: {
-              product_id: id,
-              previous_stock: previousStock,
-              new_stock: nextStock,
-              change_amount: nextStock - previousStock,
-              change_type: 'adjustment',
-              notes: 'Stock adjusted while editing product',
-              changed_by: user?.id ?? null,
-              created_at: now,
-            },
-            isSynced: false,
-            updatedAt: now,
-          });
+          throw new Error('Reconnect to change stock so the adjustment can be recorded against inventory batches.');
         }
+        const updated = await saveLocal(productsTable, { ...existing.data, ...product, id } as Product);
         return updated;
       }
 
@@ -351,32 +336,31 @@ export function useUpdateProduct() {
 
       if (previousProductError) throw previousProductError;
 
+      const previousStock = Number(previousProduct.current_stock);
+      const nextStock = Number(product.current_stock ?? previousStock);
+      const productType = product.item_type ?? previousProduct.item_type;
+      const productFields = { ...product };
+      delete productFields.current_stock;
       const { data, error } = await supabase
         .from('products')
-        .update(product)
+        .update(
+          previousProduct.item_type === 'product' && productType === 'product'
+            ? productFields
+            : product,
+        )
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
 
-      const previousStock = Number(previousProduct.current_stock);
-      const nextStock = Number(product.current_stock ?? previousStock);
-      if (
-        previousProduct.item_type === 'product' &&
-        (product.item_type ?? previousProduct.item_type) === 'product' &&
-        previousStock !== nextStock
-      ) {
-        const { error: historyError } = await supabase.from('stock_history').insert({
-          product_id: id,
-          previous_stock: previousStock,
-          new_stock: nextStock,
-          change_amount: nextStock - previousStock,
-          change_type: 'adjustment',
-          notes: 'Stock adjusted while editing product',
-          changed_by: user?.id ?? null,
+      if (previousProduct.item_type === 'product' && productType === 'product' && previousStock !== nextStock) {
+        const { error: adjustmentError } = await supabase.rpc('adjust_product_batch_stock', {
+          _product_id: id,
+          _change_amount: nextStock - previousStock,
+          _notes: 'Stock adjusted while editing product',
         });
-        if (historyError) throw historyError;
+        if (adjustmentError) throw adjustmentError;
       }
 
       return data;
@@ -384,6 +368,7 @@ export function useUpdateProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Product updated successfully' });
     },
     onError: (error: Error) => {
@@ -454,8 +439,40 @@ export function useBulkUpdateProducts() {
   return useMutation({
     mutationFn: async ({ ids, patch }: { ids: string[]; patch: Record<string, unknown> }) => {
       if (!ids.length) return;
-      const { error } = await supabase.from('products').update(patch).in('id', ids);
-      if (error) throw error;
+      if (!Object.prototype.hasOwnProperty.call(patch, 'current_stock')) {
+        const { error } = await supabase.from('products').update(patch).in('id', ids);
+        if (error) throw error;
+        return;
+      }
+
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id, current_stock, item_type')
+        .in('id', ids);
+      if (productsError) throw productsError;
+      const requestedStock = Number(patch.current_stock);
+      if (!Number.isFinite(requestedStock) || requestedStock < 0) {
+        throw new Error('Stock must be a non-negative number.');
+      }
+
+      const metadataPatch = { ...patch };
+      delete metadataPatch.current_stock;
+      if (Object.keys(metadataPatch).length > 0) {
+        const { error } = await supabase.from('products').update(metadataPatch).in('id', ids);
+        if (error) throw error;
+      }
+
+      for (const product of products || []) {
+        if (product.item_type !== 'product') continue;
+        const changeAmount = requestedStock - Number(product.current_stock);
+        if (changeAmount === 0) continue;
+        const { error } = await supabase.rpc('adjust_product_batch_stock', {
+          _product_id: product.id,
+          _change_amount: changeAmount,
+          _notes: 'Stock adjusted during bulk product edit',
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: (_, { ids }) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -506,42 +523,31 @@ export function useUpdateStock() {
       productId,
       currentStock,
       newStock,
-      changeType,
       notes,
+      batchNumber,
+      expirationDate,
     }: {
       productId: string;
       currentStock: number;
       newStock: number;
-      changeType: 'increase' | 'decrease' | 'adjustment';
       notes?: string;
+      batchNumber?: string;
+      expirationDate?: string | null;
     }) => {
       if (!user?.id) throw new Error('You must be signed in to update stock.');
-      const actorId = user.id;
-
-      // Update product stock
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ current_stock: newStock })
-        .eq('id', productId);
-
-      if (updateError) throw updateError;
-
-      // Record in stock history
-      const { error: historyError } = await supabase.from('stock_history').insert({
-        product_id: productId,
-        previous_stock: currentStock,
-        new_stock: newStock,
-        change_amount: newStock - currentStock,
-        change_type: changeType,
-        notes,
-        changed_by: actorId,
+      const { error } = await supabase.rpc('adjust_product_batch_stock', {
+        _product_id: productId,
+        _change_amount: newStock - currentStock,
+        _batch_number: batchNumber?.trim() || null,
+        _expiration_date: expirationDate || null,
+        _notes: notes || null,
       });
-
-      if (historyError) throw historyError;
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Stock updated successfully' });
     },
     onError: (error: Error) => {

@@ -58,10 +58,12 @@ export function useRecordManualProduction() {
       productId,
       quantity,
       notes,
+      expirationDate,
     }: {
       productId: string;
       quantity: number;
       notes?: string;
+      expirationDate?: string | null;
     }) => {
       if (!user?.id) throw new Error("You must be signed in to record production.");
       if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -72,6 +74,7 @@ export function useRecordManualProduction() {
         _product_id: productId,
         _quantity: quantity,
         _notes: notes?.trim() || null,
+        _expiration_date: expirationDate || null,
       });
 
       if (error) throw error;
@@ -80,6 +83,7 @@ export function useRecordManualProduction() {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["stock-history"] });
       queryClient.invalidateQueries({ queryKey: ["manual-production-history"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-batches"] });
       toast({ title: "Production recorded and stock updated" });
     },
     onError: (error: Error) => {

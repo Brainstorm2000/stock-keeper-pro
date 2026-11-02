@@ -60,22 +60,22 @@ export function UnitsDialog({ open, onOpenChange }: UnitsDialogProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleAddUnit} className="flex gap-2 p-1">
-          <div className="flex-1">
+        <form onSubmit={handleAddUnit} className="flex flex-col gap-2 p-1 sm:flex-row">
+          <div className="flex-1 min-w-0">
             <Input
               placeholder="Unit name (e.g., Kilogram)"
               value={newUnitName}
               onChange={(e) => setNewUnitName(e.target.value)}
             />
           </div>
-          <div className="w-24">
+          <div className="w-full sm:w-24">
             <Input
               placeholder="Abbr (kg)"
               value={newUnitAbbr}
               onChange={(e) => setNewUnitAbbr(e.target.value)}
             />
           </div>
-          <Button type="submit" disabled={createUnit.isPending}>
+          <Button type="submit" disabled={createUnit.isPending} className="w-full sm:w-auto">
             {createUnit.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

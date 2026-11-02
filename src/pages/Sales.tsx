@@ -704,7 +704,16 @@ export default function Sales() {
                     <TableBody>
                       {selectedSale.sale_items?.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell>{item.product_name}</TableCell>
+                          <TableCell>
+                            {item.product_name}
+                            {!!item.batch_allocations?.length && (
+                              <span className="block text-xs text-muted-foreground">
+                                Batch: {item.batch_allocations
+                                  .map((allocation) => `${allocation.batch_number} (${allocation.quantity})`)
+                                  .join(", ")}
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-center">
                             {item.quantity}
                           </TableCell>

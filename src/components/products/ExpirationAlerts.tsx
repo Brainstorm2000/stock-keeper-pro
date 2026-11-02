@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { AlertTriangle, Clock } from 'lucide-react';
 import type { Product } from '@/hooks/useProducts';
 import { getExpirationStatus, type ExpirationStatus } from '@/lib/expiration-status';
-import { formatProductStock } from '@/lib/product-units';
 import { usePagination } from '@/hooks/usePagination';
+import { useInventoryBatches } from '@/hooks/useInventoryBatches';
 import { TablePagination } from '@/components/ui/table-pagination';
 import {
   Dialog,
@@ -26,18 +26,18 @@ const WARNING_WINDOW_DAYS = 30;
 export function ExpirationAlerts({ products }: { products: Product[] }) {
   const today = new Date();
   const [selectedStatus, setSelectedStatus] = useState<ExpirationStatus | null>(null);
+  const { data: batches = [] } = useInventoryBatches();
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  const trackedBatches = batches.filter((batch) => {
+    const product = batch.product_id ? productsById.get(batch.product_id) : null;
+    return product && product.item_type !== 'service' && batch.remaining_quantity > 0;
+  });
 
-  const expiredProducts = products
-    .filter((product) =>
-      product.item_type !== 'service' &&
-      getExpirationStatus(product.expiration_date, today) === 'expired',
-    )
+  const expiredProducts = trackedBatches
+    .filter((batch) => getExpirationStatus(batch.expiration_date, today) === 'expired')
     .sort((a, b) => (a.expiration_date || '').localeCompare(b.expiration_date || ''));
-  const almostExpiredProducts = products
-    .filter((product) =>
-      product.item_type !== 'service' &&
-      getExpirationStatus(product.expiration_date, today) === 'almost_expired',
-    )
+  const almostExpiredProducts = trackedBatches
+    .filter((batch) => getExpirationStatus(batch.expiration_date, today) === 'almost_expired')
     .sort((a, b) => (a.expiration_date || '').localeCompare(b.expiration_date || ''));
   const selectedProducts = selectedStatus === 'expired'
     ? expiredProducts
@@ -66,10 +66,10 @@ export function ExpirationAlerts({ products }: { products: Product[] }) {
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
               <p className="font-semibold">
-                {expiredProducts.length} expired product{expiredProducts.length === 1 ? '' : 's'}
+                {expiredProducts.length} expired batch{expiredProducts.length === 1 ? '' : 'es'}
               </p>
               <p className="mt-1 text-sm">
-                {expiredProducts.slice(0, 3).map((product) => product.name).join(', ')}
+                {expiredProducts.slice(0, 3).map((batch) => productsById.get(batch.product_id!)?.name).join(', ')}
                 {expiredProducts.length > 3 ? ', and more' : ''}
               </p>
             </div>
@@ -88,11 +88,11 @@ export function ExpirationAlerts({ products }: { products: Product[] }) {
             <Clock className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
               <p className="font-semibold">
-                {almostExpiredProducts.length} product{almostExpiredProducts.length === 1 ? '' : 's'} expiring soon
+                {almostExpiredProducts.length} batch{almostExpiredProducts.length === 1 ? '' : 'es'} expiring soon
               </p>
               <p className="mt-1 text-sm">
                 Within the next {WARNING_WINDOW_DAYS} days:{' '}
-                {almostExpiredProducts.slice(0, 3).map((product) => product.name).join(', ')}
+                {almostExpiredProducts.slice(0, 3).map((batch) => productsById.get(batch.product_id!)?.name).join(', ')}
                 {almostExpiredProducts.length > 3 ? ', and more' : ''}
               </p>
             </div>
@@ -120,32 +120,38 @@ export function ExpirationAlerts({ products }: { products: Product[] }) {
                 <TableRow>
                   <TableHead>Product</TableHead>
                   <TableHead>SKU</TableHead>
+                  <TableHead>Batch</TableHead>
                   <TableHead>Branch</TableHead>
-                  <TableHead>Current Stock</TableHead>
+                  <TableHead>Batch Stock</TableHead>
                   <TableHead>Expiration Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pagination.paginatedItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                       No products in this category.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pagination.paginatedItems.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="min-w-[180px] font-medium">{product.name}</TableCell>
-                      <TableCell className="whitespace-nowrap">{product.sku || '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{product.branches?.name || '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{formatProductStock(product)}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {product.expiration_date
-                          ? dateFormatter.format(new Date(`${product.expiration_date}T00:00:00`))
-                          : '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  pagination.paginatedItems.map((batch) => {
+                    const product = productsById.get(batch.product_id!);
+                    if (!product) return null;
+                    return (
+                      <TableRow key={batch.id}>
+                        <TableCell className="min-w-[180px] font-medium">{product.name}</TableCell>
+                        <TableCell className="whitespace-nowrap">{product.sku || '-'}</TableCell>
+                        <TableCell className="whitespace-nowrap">{batch.batch_number}</TableCell>
+                        <TableCell className="whitespace-nowrap">{product.branches?.name || '-'}</TableCell>
+                        <TableCell className="whitespace-nowrap">{batch.remaining_quantity.toLocaleString()}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {batch.expiration_date
+                            ? dateFormatter.format(new Date(`${batch.expiration_date}T00:00:00`))
+                            : '-'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

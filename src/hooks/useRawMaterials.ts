@@ -94,17 +94,37 @@ export function useUpdateRawMaterial() {
 
   return useMutation({
     mutationFn: async ({ id, ...input }: RawMaterialInput & { id: string }) => {
+      const { data: existing, error: existingError } = await supabase
+        .from('raw_materials')
+        .select('current_stock')
+        .eq('id', id)
+        .single();
+      if (existingError) throw existingError;
+
+      const metadata = { ...input };
+      delete metadata.current_stock;
       const { data, error } = await supabase
         .from('raw_materials')
-        .update(input)
+        .update(metadata)
         .eq('id', id)
         .select()
         .single();
       if (error) throw error;
+
+      const stockChange = Number(input.current_stock) - Number(existing.current_stock);
+      if (stockChange !== 0) {
+        const { error: adjustmentError } = await supabase.rpc('adjust_raw_material_batch_stock', {
+          _raw_material_id: id,
+          _change_amount: stockChange,
+          _notes: 'Stock adjusted while editing raw material',
+        });
+        if (adjustmentError) throw adjustmentError;
+      }
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Raw material updated' });
     },
     onError: (error: Error) => {
@@ -136,7 +156,6 @@ export function useDeleteRawMaterial() {
 
 export function useUpdateRawMaterialStock() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
@@ -144,41 +163,30 @@ export function useUpdateRawMaterialStock() {
       materialId,
       currentStock,
       newStock,
-      changeType,
-      referenceType,
-      referenceId,
       notes,
+      batchNumber,
+      expirationDate,
     }: {
       materialId: string;
       currentStock: number;
       newStock: number;
-      changeType: string;
-      referenceType?: string;
-      referenceId?: string;
       notes?: string;
+      batchNumber?: string;
+      expirationDate?: string | null;
     }) => {
-      const { error: updateError } = await supabase
-        .from('raw_materials')
-        .update({ current_stock: newStock })
-        .eq('id', materialId);
-      if (updateError) throw updateError;
-
-      const { error: historyError } = await supabase.from('raw_material_stock_history').insert({
-        raw_material_id: materialId,
-        previous_stock: currentStock,
-        new_stock: newStock,
-        change_amount: newStock - currentStock,
-        change_type: changeType,
-        reference_type: referenceType,
-        reference_id: referenceId,
-        notes,
-        changed_by: user?.id,
+      const { error } = await supabase.rpc('adjust_raw_material_batch_stock', {
+        _raw_material_id: materialId,
+        _change_amount: newStock - currentStock,
+        _batch_number: batchNumber?.trim() || null,
+        _expiration_date: expirationDate || null,
+        _notes: notes || null,
       });
-      if (historyError) throw historyError;
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
       queryClient.invalidateQueries({ queryKey: ['raw-material-stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Stock updated' });
     },
     onError: (error: Error) => {

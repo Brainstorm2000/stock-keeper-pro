@@ -280,11 +280,25 @@ export async function saveProductVariations(
     };
     let variationId = draft.id;
     if (variationId) {
+      const previous = existing.find((variation) => variation.id === variationId);
+      if (!previous) throw new Error('Product variation is no longer available.');
+      const metadataPayload = { ...payload };
+      delete metadataPayload.current_stock;
       const { error } = await supabase
         .from('product_variations' as any)
-        .update(payload)
+        .update(metadataPayload)
         .eq('id', variationId);
       if (error) throw error;
+      const stockChange = Number(payload.current_stock) - Number(previous.current_stock);
+      if (stockChange !== 0) {
+        const { error: adjustmentError } = await supabase.rpc('adjust_product_batch_stock', {
+          _product_id: productId,
+          _variation_id: variationId,
+          _change_amount: stockChange,
+          _notes: 'Stock adjusted while editing product variation',
+        });
+        if (adjustmentError) throw adjustmentError;
+      }
       // Replace attribute links
       await supabase
         .from('product_variation_attributes' as any)
