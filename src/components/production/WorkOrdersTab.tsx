@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Plus,
   Search,
@@ -8,7 +8,9 @@ import {
   PlayCircle,
   AlertTriangle,
   Pencil,
+  Trash2,
   User,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -58,6 +60,7 @@ import {
   useApproveWorkOrder,
   useCompleteWorkOrder,
   useCancelWorkOrder,
+  useDeleteWorkOrder,
   type WorkOrder,
 } from "@/hooks/useWorkOrders";
 import { useBOMs } from "@/hooks/useBOM";
@@ -96,14 +99,16 @@ export function WorkOrdersTab({
   const approveWO = useApproveWorkOrder();
   const completeWO = useCompleteWorkOrder();
   const cancelWO = useCancelWorkOrder();
+  const deleteWO = useDeleteWorkOrder();
   const { canCreate, canEdit } = useModuleAccess("production");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWO, setEditingWO] = useState<WorkOrder | null>(null);
+  const saveInProgress = useRef(false);
   const [confirmAction, setConfirmAction] = useState<{
-    type: "approve" | "complete" | "cancel";
+    type: "approve" | "complete" | "cancel" | "delete";
     wo: WorkOrder;
   } | null>(null);
   const [completionExpiryDate, setCompletionExpiryDate] = useState("");
@@ -184,7 +189,9 @@ export function WorkOrdersTab({
   };
 
   const handleSubmit = async () => {
+    if (saveInProgress.current || createWO.isPending || updateWO.isPending) return;
     if (!bomId || !quantity || !selectedBom || !branchId) return;
+    saveInProgress.current = true;
     const input = {
       product_id: selectedBom.product_id,
       bom_id: bomId,
@@ -194,13 +201,17 @@ export function WorkOrdersTab({
       notes: notes || undefined,
       branch_id: branchId,
     };
-    if (editingWO) {
-      await updateWO.mutateAsync({ id: editingWO.id, input });
-    } else {
-      await createWO.mutateAsync(input);
+    try {
+      if (editingWO) {
+        await updateWO.mutateAsync({ id: editingWO.id, input });
+      } else {
+        await createWO.mutateAsync(input);
+      }
+      setDialogOpen(false);
+      resetForm();
+    } finally {
+      saveInProgress.current = false;
     }
-    setDialogOpen(false);
-    resetForm();
   };
 
   const handleConfirmAction = async () => {
@@ -214,6 +225,8 @@ export function WorkOrdersTab({
       });
     else if (confirmAction.type === "cancel")
       await cancelWO.mutateAsync(confirmAction.wo.id);
+    else if (confirmAction.type === "delete")
+      await deleteWO.mutateAsync(confirmAction.wo.id);
     setConfirmAction(null);
     setCompletionExpiryDate("");
   };
@@ -313,8 +326,8 @@ export function WorkOrdersTab({
               <TableHead>Branch</TableHead>
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Qty</TableHead>
-              <TableHead className="text-right">Material</TableHead>
-              <TableHead>Consumed raw-material batches</TableHead>
+              <TableHead className="text-right">Cost of Materials</TableHead>
+              <TableHead>Materials Used</TableHead>
               <TableHead className="text-right">Labor</TableHead>
               <TableHead className="text-right">Total Cost</TableHead>
               <TableHead className="text-right">Cost/Unit</TableHead>
@@ -371,14 +384,8 @@ export function WorkOrdersTab({
                             material.consumed_batches?.length ? (
                               <div key={material.id}>
                                 <span className="font-medium">
-                                  {material.raw_materials?.name}:
-                                </span>{" "}
-                                {material.consumed_batches
-                                  .map(
-                                    (batch) =>
-                                      `${batch.batch_number} (${batch.quantity})`,
-                                  )
-                                  .join(", ")}
+                                  {material.raw_materials?.name}
+                                </span>
                               </div>
                             ) : null,
                           )}
@@ -415,8 +422,8 @@ export function WorkOrdersTab({
                       {format(new Date(wo.created_at), "MMM d, yyyy")}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        {wo.status === "draft" && canEdit && (
+                      <div className="flex flex-wrap gap-1">
+                        {["draft", "approved", "in_progress", "completed"].includes(wo.status) && canEdit && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -460,6 +467,17 @@ export function WorkOrdersTab({
                             Complete
                           </Button>
                         )}
+                        {canEdit && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive"
+                            aria-label={`Delete work order ${wo.work_order_number}`}
+                            onClick={() => setConfirmAction({ type: "delete", wo })}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -482,6 +500,7 @@ export function WorkOrdersTab({
       <Dialog
         open={dialogOpen}
         onOpenChange={(open) => {
+          if (!open && (createWO.isPending || updateWO.isPending || saveInProgress.current)) return;
           setDialogOpen(open);
           if (!open) resetForm();
         }}
@@ -553,9 +572,23 @@ export function WorkOrdersTab({
                 {selectedBom.bom_items?.map((item) => {
                   const needed =
                     Number(item.quantity_required) * Number(quantity);
-                  const available = Number(
-                    item.raw_materials?.current_stock || 0,
-                  );
+                  const restoredForEdit =
+                    editingWO?.status === "approved" ||
+                    editingWO?.status === "in_progress"
+                      ? (editingWO.work_order_materials || [])
+                          .filter(
+                            (material) =>
+                              material.raw_material_id === item.raw_material_id,
+                          )
+                          .reduce(
+                            (sum, material) =>
+                              sum + Number(material.quantity_required),
+                            0,
+                          )
+                      : 0;
+                  const available =
+                    Number(item.raw_materials?.current_stock || 0) +
+                    restoredForEdit;
                   const insufficient = available < needed;
                   return (
                     <div key={item.id} className="flex justify-between">
@@ -612,6 +645,7 @@ export function WorkOrdersTab({
           <DialogFooter className="pt-4 border-t">
             <Button
               variant="outline"
+              disabled={createWO.isPending || updateWO.isPending}
               onClick={() => {
                 setDialogOpen(false);
                 resetForm();
@@ -623,10 +657,24 @@ export function WorkOrdersTab({
               onClick={handleSubmit}
               className="bg-[#FF9E3D] hover:bg-[#e88d30] text-[#000B26] font-bold"
               disabled={
-                !bomId || !branchId || !quantity || Number(quantity) <= 0
+                !bomId ||
+                !branchId ||
+                !quantity ||
+                Number(quantity) <= 0 ||
+                createWO.isPending ||
+                updateWO.isPending
               }
             >
-              {editingWO ? "Update" : "Create"}
+              {(createWO.isPending || updateWO.isPending) && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {createWO.isPending
+                ? "Creating..."
+                : updateWO.isPending
+                  ? "Updating..."
+                  : editingWO
+                    ? "Update"
+                    : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -651,6 +699,8 @@ export function WorkOrdersTab({
                 `This will add ${confirmAction?.wo.quantity} finished goods to product stock.`}
               {confirmAction?.type === "cancel" &&
                 "This work order will be marked as cancelled."}
+              {confirmAction?.type === "delete" &&
+                "The work order will be permanently deleted. Raw materials will be restored where applicable. A completed order can only be deleted if its finished goods are still available; stock will never be allowed to go negative."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {confirmAction?.type === "complete" && (
@@ -680,6 +730,7 @@ export function WorkOrdersTab({
               {confirmAction?.type === "approve" && "Approve"}
               {confirmAction?.type === "complete" && "Complete"}
               {confirmAction?.type === "cancel" && "Cancel Order"}
+              {confirmAction?.type === "delete" && "Delete Work Order"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

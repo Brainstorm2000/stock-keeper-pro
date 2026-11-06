@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   LogOut,
@@ -105,6 +106,8 @@ const navItems: NavItem[] = [
   { href: "/reports", label: "Reports", icon: BarChart3, module: "reports" },
 ];
 
+let mainMenuScrollTop = 0;
+
 interface AppSidebarProps {
   onOpenProfile: () => void;
   onOpenOrgSettings: () => void;
@@ -123,6 +126,14 @@ export function AppSidebar({
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const sidebarContentRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (accessLoading) return;
+    if (sidebarContentRef.current) {
+      sidebarContentRef.current.scrollTop = mainMenuScrollTop;
+    }
+  }, [accessLoading]);
 
   const visibleLinks = navItems.filter((link) => {
     if (!link.module) return true;
@@ -172,7 +183,10 @@ export function AppSidebar({
 </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-[#000B26] dark:bg-[#020817] px-3 pt-4">
+      <SidebarContent
+        ref={sidebarContentRef}
+        className="bg-[#000B26] dark:bg-[#020817] px-3 pt-4"
+      >
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 px-2">
             Main Menu
@@ -200,7 +214,15 @@ export function AppSidebar({
                         )}
                       >
                         {/* preventScrollReset added to maintain scroll position */}
-                        <NavLink to={item.href} end preventScrollReset={true}>
+                        <NavLink
+                          to={item.href}
+                          end
+                          preventScrollReset={true}
+                          onClick={(event) => {
+                            mainMenuScrollTop =
+                              sidebarContentRef.current?.scrollTop ?? 0;
+                          }}
+                        >
                           <item.icon
                             className={cn(
                               "h-5 w-5 shrink-0 transition-colors",

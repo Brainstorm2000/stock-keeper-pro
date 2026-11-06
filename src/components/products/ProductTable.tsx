@@ -60,6 +60,10 @@ import { useAuth } from "@/lib/auth";
 import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
 import { formatProductStock, getProductStockFactor } from "@/lib/product-units";
 import { ProductDetailsDialog } from "./ProductDetailsDialog";
+import {
+  matchesExpirationFilter,
+  type ExpirationFilter,
+} from "@/lib/expiration-status";
 
 interface ProductTableProps {
   products: Product[];
@@ -75,6 +79,8 @@ interface ProductTableProps {
   onTypeFilterChange?: (value: "all" | ProductType) => void;
   productCategoryFilter?: string;
   onProductCategoryFilterChange?: (value: string) => void;
+  expirationFilter?: ExpirationFilter;
+  onExpirationFilterChange?: (value: ExpirationFilter) => void;
   typeCounts?: {
     all: number;
     sellable: number;
@@ -99,6 +105,8 @@ export function ProductTable({
   onTypeFilterChange,
   productCategoryFilter,
   onProductCategoryFilterChange,
+  expirationFilter,
+  onExpirationFilterChange,
   typeCounts,
   totalSellableStockValue,
 }: ProductTableProps) {
@@ -113,6 +121,8 @@ export function ProductTable({
   >("all");
   const [internalProductCategoryFilter, setInternalProductCategoryFilter] =
     useState("all");
+  const [internalExpirationFilter, setInternalExpirationFilter] =
+    useState<ExpirationFilter>("all");
   const [stockUpdateProduct, setStockUpdateProduct] = useState<Product | null>(
     null,
   );
@@ -141,12 +151,15 @@ export function ProductTable({
     productCategoryFilter !== undefined
       ? productCategoryFilter
       : internalProductCategoryFilter;
+  const effectiveExpirationFilter =
+    expirationFilter !== undefined ? expirationFilter : internalExpirationFilter;
 
   const isControlled =
     onSearchQueryChange !== undefined ||
     onStatusFilterChange !== undefined ||
     onTypeFilterChange !== undefined ||
-    onProductCategoryFilterChange !== undefined;
+    onProductCategoryFilterChange !== undefined ||
+    onExpirationFilterChange !== undefined;
 
   const filteredProducts = useMemo(() => {
     if (isControlled) return products;
@@ -156,9 +169,16 @@ export function ProductTable({
         product.name
           .toLowerCase()
           .includes(effectiveSearchQuery.toLowerCase()) ||
-        product.sku?.toLowerCase().includes(effectiveSearchQuery.toLowerCase());
+        product.sku?.toLowerCase().includes(effectiveSearchQuery.toLowerCase()) ||
+        product.generic_name?.toLowerCase().includes(effectiveSearchQuery.toLowerCase());
 
       if (!matchesSearch) return false;
+
+      if (!matchesExpirationFilter(
+        effectiveExpirationFilter,
+        [],
+        product.expiration_date,
+      )) return false;
 
       // Category filter
       if (
@@ -191,6 +211,7 @@ export function ProductTable({
     effectiveStatusFilter,
     effectiveTypeFilter,
     effectiveProductCategoryFilter,
+    effectiveExpirationFilter,
   ]);
 
   const productsToRender = isControlled ? products : filteredProducts;
@@ -382,6 +403,16 @@ export function ProductTable({
                   SKU: {product.sku}
                 </span>
               )}
+              {product.generic_name && (
+                <span className="block text-xs text-muted-foreground">
+                  Generic: {product.generic_name}
+                </span>
+              )}
+              {product.brands?.name && (
+                <span className="block text-xs text-muted-foreground">
+                  Brand: {product.brands.name}
+                </span>
+              )}
             </div>
           </TableCell>
           <TableCell>
@@ -530,7 +561,7 @@ export function ProductTable({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search products..."
+                  placeholder="Search name, generic name, SKU, or batch..."
                   value={effectiveSearchQuery}
                   onChange={(e) =>
                     onSearchQueryChange
@@ -574,6 +605,20 @@ export function ProductTable({
                     {category.name}
                   </option>
                 ))}
+              </select>
+              <select
+                value={effectiveExpirationFilter}
+                onChange={(event) => {
+                  const next = event.target.value as ExpirationFilter;
+                  if (onExpirationFilterChange) onExpirationFilterChange(next);
+                  else setInternalExpirationFilter(next);
+                }}
+                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Filter by expiration"
+              >
+                <option value="all">All Expiration Dates</option>
+                <option value="expired">Expired</option>
+                <option value="not_expired">Not Expired</option>
               </select>
             </div>
           </div>

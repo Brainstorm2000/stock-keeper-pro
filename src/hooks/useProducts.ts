@@ -16,6 +16,9 @@ export type ProductCategory = 'sellable' | 'consumable';
 export interface Product {
   id: string;
   name: string;
+  generic_name: string | null;
+  manufacturing_date: string | null;
+  nafdac_number: string | null;
   unit_id: string;
   sub_unit_id: string | null;
   sub_unit_factor: number;
@@ -75,6 +78,9 @@ export interface Product {
 
 export interface ProductInput {
   name: string;
+  generic_name?: string | null;
+  manufacturing_date?: string | null;
+  nafdac_number?: string | null;
   unit_id: string;
   sub_unit_id?: string | null;
   sub_unit_factor?: number;

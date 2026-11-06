@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -72,12 +72,17 @@ import {
   type Product,
   type ProductType,
 } from "@/hooks/useProducts";
+import { useInventoryBatches } from "@/hooks/useInventoryBatches";
 import { useBranches, useMyBranchAssignments } from "@/hooks/useBranches";
 import { useSales } from "@/hooks/useSales";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useOutstandingSales } from "@/hooks/useDebts";
 import { useAuth } from "@/lib/auth";
 import { useModuleAccess } from "@/components/access/ModuleAccessGuard";
+import {
+  matchesExpirationFilter,
+  type ExpirationFilter,
+} from "@/lib/expiration-status";
 
 function DashboardContent() {
   const navigate = useNavigate();
@@ -114,14 +119,18 @@ function DashboardContent() {
   >("all");
   const [productTypeFilter, setProductTypeFilter] = useState<"all" | ProductType>("all");
   const [productCategoryFilter, setProductCategoryFilter] = useState("all");
+  const [productExpirationFilter, setProductExpirationFilter] =
+    useState<ExpirationFilter>("all");
   const [showArchived, setShowArchived] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const productTableRef = useRef<HTMLDivElement>(null);
 
   const { data: products = [], isLoading: productsLoading } = useProducts({
     includeArchived: true,
   });
+  const { data: inventoryBatches = [] } = useInventoryBatches();
   const { data: branches = [] } = useBranches();
   const { data: myBranchAssignments = [] } = useMyBranchAssignments();
   const { data: sales = [] } = useSales();
@@ -159,14 +168,50 @@ function DashboardContent() {
     [branchFilteredProducts, showArchived],
   );
 
+  const batchesByProductId = useMemo(() => {
+    const variationProductIds = new Map<string, string>();
+    archiveFilteredProducts.forEach((product) => {
+      product.variations?.forEach((variation) => {
+        variationProductIds.set(variation.id, product.id);
+      });
+    });
+
+    const batchesByProduct = new Map<string, typeof inventoryBatches>();
+    inventoryBatches.forEach((batch) => {
+      const productId =
+        batch.product_id ??
+        (batch.variation_id
+          ? variationProductIds.get(batch.variation_id)
+          : undefined);
+      if (!productId) return;
+
+      const belongsToBranch =
+        selectedBranchId === "all" ||
+        batch.branch_id === null ||
+        batch.branch_id === selectedBranchId;
+      if (!belongsToBranch) return;
+
+      const productBatches = batchesByProduct.get(productId) ?? [];
+      productBatches.push(batch);
+      batchesByProduct.set(productId, productBatches);
+    });
+
+    return batchesByProduct;
+  }, [archiveFilteredProducts, inventoryBatches, selectedBranchId]);
+
   const filteredBySearchAndStatus = useMemo(() => {
     const query = productSearchQuery.trim().toLowerCase();
 
     return archiveFilteredProducts.filter((product) => {
+      const productBatches = batchesByProductId.get(product.id) ?? [];
       const matchesSearch =
         !query ||
         product.name.toLowerCase().includes(query) ||
-        product.sku?.toLowerCase().includes(query);
+        product.sku?.toLowerCase().includes(query) ||
+        product.generic_name?.toLowerCase().includes(query) ||
+        productBatches.some((batch) =>
+          batch.batch_number.toLowerCase().includes(query),
+        );
 
       if (!matchesSearch) return false;
 
@@ -182,20 +227,54 @@ function DashboardContent() {
 
       return true;
     });
-  }, [archiveFilteredProducts, productSearchQuery, productStatusFilter]);
+  }, [
+    archiveFilteredProducts,
+    batchesByProductId,
+    productSearchQuery,
+    productStatusFilter,
+  ]);
+
+  const filteredByExpiration = useMemo(() => {
+    const today = new Date();
+    return filteredBySearchAndStatus.filter((product) => {
+      const onHandBatchDates = (batchesByProductId.get(product.id) ?? [])
+        .filter((batch) => Number(batch.remaining_quantity) > 0)
+        .map((batch) => batch.expiration_date);
+
+      return matchesExpirationFilter(
+        productExpirationFilter,
+        onHandBatchDates,
+        product.expiration_date,
+        today,
+      );
+    });
+  }, [
+    filteredBySearchAndStatus,
+    batchesByProductId,
+    productExpirationFilter,
+  ]);
 
   const typeCounts = useMemo(
     () => ({
-      all: filteredBySearchAndStatus.length,
-      sellable: filteredBySearchAndStatus.filter((product) => getProductType(product) === "sellable").length,
-      consumable: filteredBySearchAndStatus.filter((product) => getProductType(product) === "consumable").length,
-      variable: filteredBySearchAndStatus.filter((product) => getProductType(product) === "variable").length,
-      service: filteredBySearchAndStatus.filter((product) => getProductType(product) === "service").length,
+      all: filteredByExpiration.length,
+      sellable: filteredByExpiration.filter((product) => getProductType(product) === "sellable").length,
+      consumable: filteredByExpiration.filter((product) => getProductType(product) === "consumable").length,
+      variable: filteredByExpiration.filter((product) => getProductType(product) === "variable").length,
+      service: filteredByExpiration.filter((product) => getProductType(product) === "service").length,
     }),
-    [filteredBySearchAndStatus],
+    [filteredByExpiration],
   );
 
   const filteredProducts = useMemo(
+    () => filteredByExpiration.filter((product) => {
+      const matchesType = productTypeFilter === "all" || getProductType(product) === productTypeFilter;
+      const matchesCategory = productCategoryFilter === "all" || product.product_category_id === productCategoryFilter;
+      return matchesType && matchesCategory;
+    }),
+    [filteredByExpiration, productTypeFilter, productCategoryFilter],
+  );
+
+  const filteredProductsForAlerts = useMemo(
     () => filteredBySearchAndStatus.filter((product) => {
       const matchesType = productTypeFilter === "all" || getProductType(product) === productTypeFilter;
       const matchesCategory = productCategoryFilter === "all" || product.product_category_id === productCategoryFilter;
@@ -261,11 +340,29 @@ function DashboardContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedBranchId, productSearchQuery, productStatusFilter, productTypeFilter, productCategoryFilter]);
+  }, [
+    selectedBranchId,
+    productSearchQuery,
+    productStatusFilter,
+    productTypeFilter,
+    productCategoryFilter,
+    productExpirationFilter,
+  ]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
   }, [totalPages]);
+
+  const changeProductsPage = (page: number) => {
+    if (page === activePage) return;
+    setCurrentPage(page);
+    requestAnimationFrame(() => {
+      productTableRef.current?.querySelector("table")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
 
   useEffect(() => {
     if (!authLoading) {
@@ -461,7 +558,7 @@ function DashboardContent() {
 )}
         </div>
 
-        <ExpirationAlerts products={filteredProducts} />
+        <ExpirationAlerts products={filteredProductsForAlerts} />
 
         {/* --- Tabs with Horizontal Scroll for Mobile --- */}
         <Tabs defaultValue="overview" className="space-y-6">
@@ -489,7 +586,10 @@ function DashboardContent() {
           </div>
 
           <TabsContent value="overview" className="mt-0 outline-none">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+            <div
+              ref={productTableRef}
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm"
+            >
               {/* Product Table typically needs its own internal overflow-x-auto */}
               <ProductTable
                 products={paginatedProducts}
@@ -505,6 +605,8 @@ function DashboardContent() {
                 onTypeFilterChange={setProductTypeFilter}
                 productCategoryFilter={productCategoryFilter}
                 onProductCategoryFilterChange={setProductCategoryFilter}
+                expirationFilter={productExpirationFilter}
+                onExpirationFilterChange={setProductExpirationFilter}
                 typeCounts={typeCounts}
                 totalSellableStockValue={filteredSellableStockValue}
               />
@@ -534,7 +636,7 @@ function DashboardContent() {
                       value={itemsPerPage.toString()}
                       onValueChange={(value) => {
                         setItemsPerPage(Number(value));
-                        setCurrentPage(1);
+                        changeProductsPage(1);
                       }}
                     >
                       <SelectTrigger id="products-page-size" className="h-8 w-[68px] font-bold">
@@ -556,7 +658,7 @@ function DashboardContent() {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => setCurrentPage(Math.max(1, activePage - 1))}
+                    onClick={() => changeProductsPage(Math.max(1, activePage - 1))}
                     disabled={activePage <= 1 || filteredProducts.length === 0}
                     aria-label="Previous products page"
                   >
@@ -574,7 +676,7 @@ function DashboardContent() {
                           size="sm"
                           aria-current={activePage === num ? "page" : undefined}
                           className={`h-9 w-9 font-bold ${activePage === num ? "bg-[#FF9E3D] text-[#000B26] hover:bg-[#FF9E3D]/90" : "bg-transparent text-slate-600 dark:text-slate-400"}`}
-                          onClick={() => setCurrentPage(num)}
+                          onClick={() => changeProductsPage(num)}
                         >
                           {num}
                         </Button>
@@ -586,7 +688,7 @@ function DashboardContent() {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => setCurrentPage(Math.min(totalPages, activePage + 1))}
+                    onClick={() => changeProductsPage(Math.min(totalPages, activePage + 1))}
                     disabled={activePage >= totalPages || filteredProducts.length === 0}
                     aria-label="Next products page"
                   >

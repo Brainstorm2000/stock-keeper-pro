@@ -7,6 +7,9 @@ describe('product CSV import and export', () => {
     const product: Product = {
       id: 'product-1',
       name: 'Tea, "Special"',
+      generic_name: 'Tea blend',
+      manufacturing_date: '2026-01-15',
+      nafdac_number: 'A1-1234',
       unit_id: 'unit-pack',
       sub_unit_id: 'unit-piece',
       sub_unit_factor: 10,
@@ -55,6 +58,9 @@ describe('product CSV import and export', () => {
       sub_unit_selling_price: 2.5,
       description: product.description,
       branch_name: 'Main Store',
+      generic_name: product.generic_name,
+      manufacturing_date: product.manufacturing_date,
+      nafdac_number: product.nafdac_number,
     });
   });
 
@@ -68,6 +74,9 @@ describe('product CSV import and export', () => {
       is_taxable: true,
       sub_unit_name: 'Pieces',
       sub_unit_factor: 10,
+      generic_name: 'Sample Generic Name',
+      manufacturing_date: '2026-01-01',
+      nafdac_number: 'NAFDAC-001',
     });
     expect(products[2]).toMatchObject({
       is_variation: true,

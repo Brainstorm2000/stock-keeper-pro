@@ -224,6 +224,9 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
           branch_id: branchId,
           supplier_id: supplierId,
           brand_id: brandId,
+          generic_name: product.generic_name || null,
+          manufacturing_date: product.manufacturing_date || null,
+          nafdac_number: product.nafdac_number || null,
         };
 
         let parentId: string;

@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Loader2,
   FileSpreadsheet,
+  Search,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -29,8 +30,10 @@ import { usePagination } from "@/hooks/usePagination";
 import { TablePagination } from "@/components/ui/table-pagination";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 import {
   Table,
@@ -41,8 +44,6 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table";
-
-import { Badge } from "@/components/ui/badge";
 
 import {
   Select,
@@ -95,6 +96,7 @@ export default function Purchases() {
   const [selectedBranch, setSelectedBranch] = useState<string>("");
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [batchSearch, setBatchSearch] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -142,14 +144,24 @@ export default function Purchases() {
    * FILTERED PURCHASES
    */
   const filteredPurchases = useMemo(() => {
+    const query = batchSearch.trim().toLowerCase();
     return purchases.filter((p) => {
       if (statusFilter !== "all" && p.payment_status !== statusFilter) {
         return false;
       }
 
+      if (
+        query &&
+        !p.purchase_items?.some((item) =>
+          item.batch_number?.toLowerCase().includes(query),
+        )
+      ) {
+        return false;
+      }
+
       return true;
     });
-  }, [purchases, statusFilter]);
+  }, [purchases, statusFilter, batchSearch]);
 
   /**
    * PAGINATION
@@ -177,7 +189,7 @@ export default function Purchases() {
    */
   useEffect(() => {
     goToPage(1);
-  }, [statusFilter, selectedBranch]);
+  }, [statusFilter, selectedBranch, batchSearch]);
 
   /**
    * SUMMARY STATS
@@ -199,9 +211,6 @@ export default function Purchases() {
     0,
   );
 
-  /**
-   * PAYMENT BADGES
-   */
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case "paid":
@@ -211,7 +220,6 @@ export default function Purchases() {
             Paid
           </Badge>
         );
-
       case "partial":
         return (
           <Badge className="border-yellow-500/20 bg-yellow-500/10 text-yellow-600">
@@ -219,7 +227,6 @@ export default function Purchases() {
             Partial
           </Badge>
         );
-
       default:
         return (
           <Badge className="border-red-500/20 bg-red-500/10 text-red-600">
@@ -351,7 +358,17 @@ export default function Purchases() {
           {/* FILTERS */}
           <Card>
             <CardContent className="pt-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={batchSearch}
+                    onChange={(event) => setBatchSearch(event.target.value)}
+                    placeholder="Search batch number..."
+                    aria-label="Search purchases by batch number"
+                    className="pl-9"
+                  />
+                </div>
                 <Select
                   value={selectedBranch || "all"}
                   onValueChange={(value) =>
@@ -447,7 +464,6 @@ export default function Purchases() {
                         </p>
                         </div>
                       </div>
-
                       {getPaymentStatusBadge(purchase.payment_status)}
                     </div>
 
@@ -582,7 +598,7 @@ export default function Purchases() {
 
                       <TableHead className="text-right">Total</TableHead>
 
-                      <TableHead>Payment</TableHead>
+                      <TableHead>Status</TableHead>
 
                       {isAdmin && (
                         <TableHead className="w-[140px]">Actions</TableHead>
@@ -717,9 +733,7 @@ export default function Purchases() {
           {formatCurrency(Number(purchase.total_amount))}
         </TableCell>
 
-        <TableCell>
-          {getPaymentStatusBadge(purchase.payment_status)}
-        </TableCell>
+        <TableCell>{getPaymentStatusBadge(purchase.payment_status)}</TableCell>
 
         {isAdmin && (
           <TableCell>

@@ -37,6 +37,9 @@ export interface ParsedCSVProduct {
   branch_name?: string;
   supplier_name?: string;
   brand_name?: string;
+  generic_name?: string;
+  manufacturing_date?: string;
+  nafdac_number?: string;
   product_category_name?: string;
   // Variation row fields
   is_variation?: boolean;
@@ -65,6 +68,9 @@ const PRODUCT_CSV_HEADERS = [
   'Branch',
   'Supplier',
   'Brand',
+  'Generic Name',
+  'Manufacturing Date',
+  'NAFDAC Number',
   'Is Taxable',
   'Expiration Date',
   'Sub Unit',
@@ -114,6 +120,9 @@ export function exportProductsToCSV(
       escapeCSV(branchName),
       escapeCSV(supplierName),
       escapeCSV(brandName),
+      escapeCSV(product.generic_name || ''),
+      escapeCSV(product.manufacturing_date || ''),
+      escapeCSV(product.nafdac_number || ''),
       product.is_taxable ? 'true' : 'false',
       escapeCSV(product.expiration_date || ''),
       escapeCSV(product.sub_units?.name || ''),
@@ -138,6 +147,9 @@ export function exportProductsToCSV(
           escapeCSV(branchName),
           escapeCSV(supplierName),
           escapeCSV(brandName),
+          escapeCSV(product.generic_name || ''),
+          escapeCSV(product.manufacturing_date || ''),
+          escapeCSV(product.nafdac_number || ''),
           'true',
           '',
           '',
@@ -193,6 +205,9 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
     branch: findHeader(headers, ['branch', 'location', 'store']),
     supplier: findHeader(headers, ['supplier', 'vendor']),
     brand: findHeader(headers, ['brand', 'manufacturer']),
+    generic_name: findHeader(headers, ['generic name', 'generic']),
+    manufacturing_date: findHeader(headers, ['manufacturing date', 'manufacture date', 'mfg date']),
+    nafdac_number: findHeader(headers, ['nafdac number', 'nafdac']),
     is_taxable: findHeader(headers, ['is taxable', 'taxable', 'is_taxable']),
     expiration_date: findHeader(headers, ['expiration date', 'expiry date', 'expiration']),
     sub_unit: findHeader(headers, ['sub unit', 'subunit', 'sub unit of measurement']),
@@ -285,6 +300,15 @@ export function parseCSV(content: string): ParsedCSVProduct[] {
     }
     if (headerMap.brand !== -1 && values[headerMap.brand]) {
       product.brand_name = values[headerMap.brand].trim();
+    }
+    if (headerMap.generic_name !== -1 && values[headerMap.generic_name]) {
+      product.generic_name = values[headerMap.generic_name].trim();
+    }
+    if (headerMap.manufacturing_date !== -1 && values[headerMap.manufacturing_date]) {
+      product.manufacturing_date = values[headerMap.manufacturing_date].trim();
+    }
+    if (headerMap.nafdac_number !== -1 && values[headerMap.nafdac_number]) {
+      product.nafdac_number = values[headerMap.nafdac_number].trim();
     }
     if (headerMap.expiration_date !== -1 && values[headerMap.expiration_date]) {
       product.expiration_date = values[headerMap.expiration_date].trim();
@@ -428,6 +452,9 @@ export function generateCSVTemplate(): string {
     'Main Store',
     'Sample Supplier',
     'Sample Brand',
+    'Sample Generic Name',
+    '2026-01-01',
+    'NAFDAC-001',
     'true',
     '',
     'Pieces',
@@ -441,6 +468,7 @@ export function generateCSVTemplate(): string {
     '0', '0', '0', '0', '0', '0',
     'TSHIRT-001', 'Variable parent example',
     'Main Store', '', '',
+    '', '', '',
     'true', '', '', '', '',
     'no', '', '', '', '', '', '',
   ];
@@ -448,6 +476,7 @@ export function generateCSVTemplate(): string {
     'Sample T-Shirt', 'Variable', 'Uncategorized', 'Pieces',
     '0', '0', '0', '0', '0', '0',
     'TSHIRT-001', '', 'Main Store', '', '',
+    '', '', '',
     'true', '', '', '', '',
     'yes', 'TSHIRT-001', 'Size:Small|Color:Red', 'TSHIRT-001-SR', '20', '3000', '5000',
   ];
@@ -455,6 +484,7 @@ export function generateCSVTemplate(): string {
     'Sample T-Shirt', 'Variable', 'Uncategorized', 'Pieces',
     '0', '0', '0', '0', '0', '0',
     'TSHIRT-001', '', 'Main Store', '', '',
+    '', '', '',
     'true', '', '', '', '',
     'yes', 'TSHIRT-001', 'Size:Medium|Color:Red', 'TSHIRT-001-MR', '15', '3000', '5000',
   ];

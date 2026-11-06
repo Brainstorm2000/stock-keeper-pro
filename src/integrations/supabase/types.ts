@@ -1517,10 +1517,13 @@ export type Database = {
           current_stock: number
           description: string | null
           expiration_date: string | null
+          generic_name: string | null
           id: string
           is_archived: boolean
           item_type: Database["public"]["Enums"]["item_type"]
           low_stock_threshold: number
+          manufacturing_date: string | null
+          nafdac_number: string | null
           name: string
           opening_stock: number
           organization_id: string
@@ -1545,10 +1548,13 @@ export type Database = {
           current_stock?: number
           description?: string | null
           expiration_date?: string | null
+          generic_name?: string | null
           id?: string
           is_archived?: boolean
           item_type?: Database["public"]["Enums"]["item_type"]
           low_stock_threshold?: number
+          manufacturing_date?: string | null
+          nafdac_number?: string | null
           name: string
           opening_stock?: number
           organization_id: string
@@ -1573,10 +1579,13 @@ export type Database = {
           current_stock?: number
           description?: string | null
           expiration_date?: string | null
+          generic_name?: string | null
           id?: string
           is_archived?: boolean
           item_type?: Database["public"]["Enums"]["item_type"]
           low_stock_threshold?: number
+          manufacturing_date?: string | null
+          nafdac_number?: string | null
           name?: string
           opening_stock?: number
           organization_id?: string
@@ -2021,6 +2030,7 @@ export type Database = {
           id: string
           notes: string | null
           organization_id: string
+          payment_date: string | null
           payment_status: Database["public"]["Enums"]["purchase_payment_status"]
           purchase_date: string
           purchase_number: string
@@ -2042,6 +2052,7 @@ export type Database = {
           id?: string
           notes?: string | null
           organization_id: string
+          payment_date?: string | null
           payment_status?: Database["public"]["Enums"]["purchase_payment_status"]
           purchase_date?: string
           purchase_number: string
@@ -2063,6 +2074,7 @@ export type Database = {
           id?: string
           notes?: string | null
           organization_id?: string
+          payment_date?: string | null
           payment_status?: Database["public"]["Enums"]["purchase_payment_status"]
           purchase_date?: string
           purchase_number?: string
@@ -2096,6 +2108,41 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          payment_date: string | null
+          purchase_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          payment_date?: string | null
+          purchase_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          payment_date?: string | null
+          purchase_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_payments_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
             referencedColumns: ["id"]
           },
         ]
@@ -2375,6 +2422,7 @@ export type Database = {
           created_at: string
           discount_amount: number
           id: string
+          inventory_batch_id: string | null
           product_id: string
           quantity: number
           sale_id: string
@@ -2389,6 +2437,7 @@ export type Database = {
           created_at?: string
           discount_amount?: number
           id?: string
+          inventory_batch_id?: string | null
           product_id: string
           quantity: number
           sale_id: string
@@ -2403,6 +2452,7 @@ export type Database = {
           created_at?: string
           discount_amount?: number
           id?: string
+          inventory_batch_id?: string | null
           product_id?: string
           quantity?: number
           sale_id?: string
@@ -2425,6 +2475,13 @@ export type Database = {
             columns: ["sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_inventory_batch_id_fkey"
+            columns: ["inventory_batch_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_batches"
             referencedColumns: ["id"]
           },
           {
@@ -3432,6 +3489,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_manual_production: {
+        Args: {
+          _expiration_date?: string | null
+          _history_id: string
+          _notes?: string | null
+          _quantity: number
+        }
+        Returns: undefined
+      }
+      delete_manual_production: {
+        Args: { _history_id: string }
+        Returns: undefined
+      }
       consume_inventory_batches: {
         Args: {
           _branch_id: string | null
@@ -3488,6 +3558,27 @@ export type Database = {
       complete_work_order_with_batch: {
         Args: { _expiration_date?: string | null; _work_order_id: string }
         Returns: string
+      }
+      delete_work_order_with_batches: {
+        Args: { _work_order_id: string }
+        Returns: undefined
+      }
+      update_work_order_with_batches: {
+        Args: {
+          _bom_id: string
+          _branch_id: string | null
+          _cost_per_unit: number
+          _labor_cost: number
+          _materials: Json
+          _material_cost: number
+          _notes: string | null
+          _overhead_cost: number
+          _product_id: string
+          _quantity: number
+          _total_cost: number
+          _work_order_id: string
+        }
+        Returns: undefined
       }
       get_org_user_names: {
         Args: { _user_ids: string[] }

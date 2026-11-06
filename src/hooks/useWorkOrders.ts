@@ -278,34 +278,28 @@ export function useUpdateWorkOrder() {
       const totalCost = materialCost + laborCost + overheadCost;
       const costPerUnit = input.quantity > 0 ? totalCost / input.quantity : 0;
 
-      const { error } = await supabase
-        .from('work_orders')
-        .update({
-          product_id: input.product_id,
-          bom_id: input.bom_id,
-          branch_id: input.branch_id || null,
-          quantity: input.quantity,
-          labor_cost: laborCost,
-          overhead_cost: overheadCost,
-          material_cost: materialCost,
-          total_cost: totalCost,
-          cost_per_unit: costPerUnit,
-          notes: input.notes,
-        })
-        .eq('id', id);
+      const { error } = await supabase.rpc('update_work_order_with_batches', {
+        _work_order_id: id,
+        _product_id: input.product_id,
+        _bom_id: input.bom_id,
+        _branch_id: input.branch_id || null,
+        _quantity: input.quantity,
+        _labor_cost: laborCost,
+        _overhead_cost: overheadCost,
+        _material_cost: materialCost,
+        _total_cost: totalCost,
+        _cost_per_unit: costPerUnit,
+        _notes: input.notes || null,
+        _materials: materials,
+      });
       if (error) throw error;
-
-      // Replace work order materials
-      await supabase.from('work_order_materials').delete().eq('work_order_id', id);
-      if (materials.length > 0) {
-        const { error: matError } = await supabase
-          .from('work_order_materials')
-          .insert(materials.map((m) => ({ work_order_id: id, ...m })));
-        if (matError) throw matError;
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['raw-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['raw-material-stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-batches'] });
       toast({ title: 'Work order updated' });
     },
     onError: (error: Error) => {
@@ -389,6 +383,33 @@ export function useCancelWorkOrder() {
     },
     onError: (error: Error) => {
       toast({ title: 'Cancel failed', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteWorkOrder() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc("delete_work_order_with_batches", {
+        _work_order_id: id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["raw-materials"] });
+      queryClient.invalidateQueries({ queryKey: ["raw-material-stock-history"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-history"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-batches"] });
+      toast({ title: "Work order deleted and stock adjusted" });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, "delete work order");
+      toast({ title, description, variant: "destructive" });
     },
   });
 }

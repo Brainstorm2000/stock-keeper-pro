@@ -1,4 +1,5 @@
 export type ExpirationStatus = 'normal' | 'almost_expired' | 'expired';
+export type ExpirationFilter = 'all' | 'expired' | 'not_expired';
 
 const WARNING_WINDOW_DAYS = 30;
 
@@ -20,4 +21,32 @@ export function getExpirationStatus(expirationDate: string | null | undefined, t
   if (expirationDate < todayKey) return 'expired';
   if (expirationDate <= warningDateKey) return 'almost_expired';
   return 'normal';
+}
+
+export function matchesExpirationFilter(
+  filter: ExpirationFilter,
+  batchExpirationDates: Array<string | null | undefined>,
+  productExpirationDate: string | null | undefined,
+  today: Date = new Date(),
+): boolean {
+  if (filter === 'all') return true;
+
+  const datedBatches = batchExpirationDates.filter(
+    (expirationDate): expirationDate is string => !!expirationDate,
+  );
+  const expirationDates = datedBatches.length > 0
+    ? datedBatches
+    : productExpirationDate
+      ? [productExpirationDate]
+      : [];
+
+  if (filter === 'expired') {
+    return expirationDates.some(
+      (expirationDate) => getExpirationStatus(expirationDate, today) === 'expired',
+    );
+  }
+
+  return expirationDates.length > 0 && expirationDates.every(
+    (expirationDate) => getExpirationStatus(expirationDate, today) !== 'expired',
+  );
 }

@@ -49,6 +49,7 @@ export interface Purchase {
   total_amount: number;
   payment_status: PurchasePaymentStatus;
   amount_paid: number;
+  payment_date: string | null;
   notes: string | null;
   receipt_url: string | null;
   created_by: string | null;
@@ -63,6 +64,15 @@ export interface Purchase {
     name: string;
   };
   purchase_items?: PurchaseItem[];
+}
+
+export interface PurchasePayment {
+  id: string;
+  purchase_id: string;
+  amount: number;
+  payment_date: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface PurchaseItemInput {
@@ -83,11 +93,31 @@ export interface PurchaseInput {
   purchase_date?: string;
   reference_number?: string;
   tax_rate?: number;
-  payment_status?: PurchasePaymentStatus;
-  amount_paid?: number;
+  initial_payment?: {
+    amount: number;
+    payment_date: string;
+  } | null;
   notes?: string;
   receipt_url?: string | null;
   items: PurchaseItemInput[];
+}
+
+export function usePurchasePayments(purchaseId: string) {
+  return useQuery({
+    queryKey: ['purchase-payments', purchaseId],
+    enabled: !!purchaseId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('purchase_payments')
+        .select('*')
+        .eq('purchase_id', purchaseId)
+        .order('payment_date', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as PurchasePayment[];
+    },
+  });
 }
 
 export function usePurchases(branchId?: string) {
@@ -146,6 +176,15 @@ export function useCreatePurchase() {
       const taxRate = input.tax_rate || 0;
       const taxAmount = (subtotal * taxRate) / 100;
       const totalAmount = subtotal + taxAmount;
+      if (input.initial_payment) {
+        const { amount, payment_date } = input.initial_payment;
+        if (!Number.isFinite(amount) || amount <= 0 || amount > totalAmount) {
+          throw new Error('Initial payment must be greater than zero and no more than the purchase total.');
+        }
+        if (!payment_date) {
+          throw new Error('A payment date is required for the initial payment.');
+        }
+      }
 
       // Create purchase record
       const { data: purchase, error: purchaseError } = await supabase
@@ -161,8 +200,9 @@ export function useCreatePurchase() {
           tax_rate: taxRate,
           tax_amount: taxAmount,
           total_amount: totalAmount,
-          payment_status: input.payment_status || 'pending',
-          amount_paid: input.amount_paid || 0,
+          payment_status: 'pending',
+          amount_paid: 0,
+          payment_date: null,
           notes: input.notes,
           receipt_url: input.receipt_url ?? null,
           created_by: user?.id,
@@ -171,6 +211,18 @@ export function useCreatePurchase() {
         .single();
 
       if (purchaseError) throw purchaseError;
+
+      if (input.initial_payment && input.initial_payment.amount > 0) {
+        const { error: paymentError } = await supabase
+          .from('purchase_payments')
+          .insert({
+            purchase_id: purchase.id,
+            amount: input.initial_payment.amount,
+            payment_date: input.initial_payment.payment_date,
+            created_by: user?.id,
+          });
+        if (paymentError) throw paymentError;
+      }
 
       // Create purchase items
       const purchaseItems = input.items.map(item => ({
@@ -298,6 +350,43 @@ export function useCreatePurchase() {
   });
 }
 
+export function useRecordPurchasePayment() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      purchase_id,
+      amount,
+      payment_date,
+    }: {
+      purchase_id: string;
+      amount: number;
+      payment_date: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('purchase_payments')
+        .insert({ purchase_id, amount, payment_date, created_by: user?.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (payment) => {
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({
+        queryKey: ['purchase-payments', payment.purchase_id],
+      });
+      toast({ title: 'Payment recorded' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'record payment');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
 export function useUpdatePurchasePayment() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -305,29 +394,66 @@ export function useUpdatePurchasePayment() {
   return useMutation({
     mutationFn: async ({
       id,
-      payment_status,
-      amount_paid,
+      purchase_id,
+      amount,
+      payment_date,
     }: {
       id: string;
-      payment_status: PurchasePaymentStatus;
-      amount_paid: number;
+      purchase_id: string;
+      amount: number;
+      payment_date: string;
     }) => {
       const { data, error } = await supabase
-        .from('purchases')
-        .update({ payment_status, amount_paid })
+        .from('purchase_payments')
+        .update({ amount, payment_date })
         .eq('id', id)
         .select()
         .single();
-
       if (error) throw error;
-      return data;
+      return { ...data, purchase_id };
     },
-    onSuccess: () => {
+    onSuccess: (payment) => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
-      toast({ title: 'Payment status updated' });
+      queryClient.invalidateQueries({
+        queryKey: ['purchase-payments', payment.purchase_id],
+      });
+      toast({ title: 'Payment updated' });
     },
     onError: (error: Error) => {
       const { title, description } = parseDbError(error, 'update payment');
+      toast({ title, description, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeletePurchasePayment() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      purchaseId,
+    }: {
+      id: string;
+      purchaseId: string;
+    }) => {
+      const { error } = await supabase
+        .from('purchase_payments')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return purchaseId;
+    },
+    onSuccess: (purchaseId) => {
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({
+        queryKey: ['purchase-payments', purchaseId],
+      });
+      toast({ title: 'Payment deleted' });
+    },
+    onError: (error: Error) => {
+      const { title, description } = parseDbError(error, 'delete payment');
       toast({ title, description, variant: 'destructive' });
     },
   });
@@ -461,8 +587,6 @@ export function useUpdatePurchase() {
           tax_rate: taxRate,
           tax_amount: taxAmount,
           total_amount: totalAmount,
-          payment_status: input.payment_status || 'pending',
-          amount_paid: input.amount_paid || 0,
           notes: input.notes,
           receipt_url: input.receipt_url ?? null,
         })

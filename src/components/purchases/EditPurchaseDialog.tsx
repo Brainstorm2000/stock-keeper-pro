@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useUpdatePurchase, uploadPurchaseReceipt, getPurchaseReceiptUrl, type Purchase, type PurchaseItemInput, type PurchasePaymentStatus } from '@/hooks/usePurchases';
+import { useUpdatePurchase, uploadPurchaseReceipt, getPurchaseReceiptUrl, type Purchase, type PurchaseItemInput } from '@/hooks/usePurchases';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useBranches } from '@/hooks/useBranches';
 import { useSuppliers } from '@/hooks/useSuppliers';
@@ -23,6 +23,7 @@ import { fetchVariationsForProduct, formatVariationLabel, type ProductVariation 
 import { getPurchaseItemKey } from '@/lib/purchase-item-key';
 import { getProductStockFactor, getUnitLabel, getUnitMultiplier, formatProductStock } from '@/lib/product-units';
 import { createId } from '@/lib/utils';
+import { PurchasePaymentRecorder } from './PurchasePaymentRecorder';
 
 interface EditPurchaseDialogProps {
   purchase: Purchase;
@@ -49,7 +50,6 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
   const [purchaseDate, setPurchaseDate] = useState(purchase.purchase_date);
   const [referenceNumber, setReferenceNumber] = useState(purchase.reference_number || '');
   const [taxRate, setTaxRate] = useState(String(purchase.tax_rate || 0));
-  const [amountPaid, setAmountPaid] = useState(String(purchase.amount_paid));
   const [notes, setNotes] = useState(purchase.notes || '');
   const [receiptUrl, setReceiptUrl] = useState<string | null>(purchase.receipt_url || null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -124,12 +124,6 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
   const numericTaxRate = Number(taxRate) || 0;
   const taxAmount = (subtotalAmount * numericTaxRate) / 100;
   const totalAmount = subtotalAmount + taxAmount;
-
-  // Auto-calculate payment status based on amount paid
-  const numericAmountPaid = Number(amountPaid) || 0;
-  const paymentStatus: PurchasePaymentStatus = 
-    numericAmountPaid <= 0 ? 'pending' :
-    numericAmountPaid >= totalAmount ? 'paid' : 'partial';
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-NG', {
@@ -250,8 +244,6 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
         purchase_date: purchaseDate,
         reference_number: referenceNumber || undefined,
         tax_rate: numericTaxRate,
-        payment_status: paymentStatus,
-        amount_paid: Number(amountPaid) || 0,
         notes: notes || undefined,
         receipt_url: finalReceiptUrl,
         items: cart.map(({ product, cartLineId, ...item }) => item),
@@ -330,27 +322,6 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Payment Status</Label>
-              <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-muted-foreground capitalize">
-                {paymentStatus}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Amount Paid {totalAmount > 0 && `(max: ${formatCurrency(totalAmount)})`}</Label>
-              <Input
-                type="number"
-                min="0"
-                max={totalAmount}
-                placeholder="0"
-                value={amountPaid}
-                onChange={(e) => {
-                  const value = e.target.value === '' ? '' : Math.min(Number(e.target.value), totalAmount).toString();
-                  setAmountPaid(value);
-                }}
-              />
-            </div>
           </div>
 
           {/* Product Search */}
@@ -530,6 +501,12 @@ export function EditPurchaseDialog({ purchase, open, onOpenChange }: EditPurchas
               </div>
             </div>
           )}
+
+          {/* Notes */}
+          <PurchasePaymentRecorder
+            purchaseId={purchase.id}
+            totalAmount={Number(purchase.total_amount)}
+          />
 
           {/* Notes */}
           <div className="space-y-2">

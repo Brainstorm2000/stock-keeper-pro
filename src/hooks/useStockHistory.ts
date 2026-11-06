@@ -33,6 +33,10 @@ export interface StockHistoryEntry {
     full_name: string | null;
     email: string | null;
   } | null;
+  raw_materials?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface StockTrend {
@@ -131,9 +135,50 @@ export function useStockHistory(
       if (branchId) {
         filtered = filtered.filter(entry => entry.products?.branch_id === branchId);
       }
+
+      let rawMaterialHistory: StockHistoryEntry[] = [];
+      if (!productId && (!category || category === 'consumable')) {
+        const { data: rawMaterialRows, error: rawMaterialError } = await supabase
+          .from('raw_material_stock_history')
+          .select('*, raw_materials (id, name)')
+          .eq('reference_type', 'work_order')
+          .order('created_at', { ascending: false });
+        if (rawMaterialError) throw rawMaterialError;
+
+        const rawUserIds = rawMaterialRows
+          .map(row => row.changed_by)
+          .filter((id): id is string => Boolean(id));
+        const missingUserIds = rawUserIds.filter(id => !profilesMap[id]);
+        if (missingUserIds.length > 0) {
+          const { data: profiles } = await supabase
+            .rpc('get_org_user_names', { _user_ids: missingUserIds });
+          if (profiles) {
+            profilesMap = (profiles as Array<{ user_id: string; full_name: string | null; email: string | null }>).reduce((acc, profile) => {
+              acc[profile.user_id] = { full_name: profile.full_name, email: profile.email };
+              return acc;
+            }, { ...profilesMap });
+          }
+        }
+
+        rawMaterialHistory = rawMaterialRows.map(row => ({
+          id: `raw-material-${row.id}`,
+          product_id: row.raw_material_id,
+          previous_stock: row.previous_stock,
+          new_stock: row.new_stock,
+          change_amount: row.change_amount,
+          change_type: row.change_type,
+          notes: row.notes,
+          changed_by: row.changed_by,
+          created_at: row.created_at,
+          raw_materials: row.raw_materials,
+          changed_by_user: row.changed_by
+            ? profilesMap[row.changed_by] || null
+            : null,
+        }));
+      }
       
       // Add user profile info
-      return filtered.map(entry => ({
+      return [...filtered.map(entry => ({
         ...entry,
         changed_by_user: entry.changed_by
           ? profilesMap[entry.changed_by] || (entry.changed_by === user?.id
@@ -143,7 +188,8 @@ export function useStockHistory(
               }
             : null)
           : null,
-      })) as StockHistoryEntry[];
+      })) as StockHistoryEntry[], ...rawMaterialHistory]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
     },
   });
 }

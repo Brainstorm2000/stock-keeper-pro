@@ -72,6 +72,9 @@ const productSchema = z.object({
   branch_id: z.string().optional(),
   supplier_id: z.string().optional(),
   brand_id: z.string().optional(),
+  generic_name: z.string().trim().max(200).optional(),
+  manufacturing_date: z.string().optional(),
+  nafdac_number: z.string().trim().max(100).optional(),
   product_type: z.enum(["sellable", "consumable", "variable", "service"]),
   product_category_id: z.string().min(1, "Product category is required"),
   is_taxable: z.boolean().default(true),
@@ -170,6 +173,9 @@ export function ProductDialog({
       branch_id: "",
       supplier_id: "",
       brand_id: "",
+      generic_name: "",
+      manufacturing_date: "",
+      nafdac_number: "",
       product_type: "sellable",
       product_category_id: "",
       is_taxable: true,
@@ -197,6 +203,9 @@ export function ProductDialog({
         branch_id: product.branch_id || "",
         supplier_id: product.supplier_id || "",
         brand_id: product.brand_id || "",
+        generic_name: product.generic_name || "",
+        manufacturing_date: product.manufacturing_date || "",
+        nafdac_number: product.nafdac_number || "",
         product_type: getProductType(product),
         product_category_id: product.product_category_id || "",
         is_taxable: product.is_taxable ?? true,
@@ -222,6 +231,9 @@ export function ProductDialog({
         branch_id: defaultBranchId || "",
         supplier_id: "",
         brand_id: "",
+        generic_name: "",
+        manufacturing_date: "",
+        nafdac_number: "",
         product_type: "sellable",
         product_category_id: "",
         is_taxable: true,
@@ -344,6 +356,9 @@ export function ProductDialog({
         branch_id: data.branch_id || targetBranchIds[0],
         supplier_id: data.supplier_id || undefined,
         brand_id: data.brand_id || undefined,
+        generic_name: data.generic_name || null,
+        manufacturing_date: data.manufacturing_date || null,
+        nafdac_number: data.nafdac_number || null,
         item_type: data.product_type === "variable" ? "variable" : data.product_type === "service" ? "service" : "product",
         category: data.product_type === "consumable"
           ? "consumable"
@@ -934,29 +949,63 @@ export function ProductDialog({
                 </div>
               )}
 
-              {brands.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Brand (Optional)</Label>
-                  <Select
-                    value={selectedBrandId || "none"}
-                    onValueChange={(value) =>
-                      setValue("brand_id", value === "none" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select brand" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No brand</SelectItem>
-                      {brands.map((brand) => (
-                        <SelectItem key={brand.id} value={brand.id}>
-                          {brand.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>Brand Name (Optional)</Label>
+                <Select
+                  value={selectedBrandId || "none"}
+                  onValueChange={(value) =>
+                    setValue("brand_id", value === "none" ? "" : value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select brand name" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No brand</SelectItem>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand.id} value={brand.id}>
+                        {brand.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="generic_name">Generic Name (Optional)</Label>
+                <Input
+                  id="generic_name"
+                  {...register("generic_name")}
+                  placeholder="e.g., paracetamol"
+                />
+                {errors.generic_name && (
+                  <p className="text-sm text-destructive">{errors.generic_name.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="manufacturing_date">Manufacturing Date (Optional)</Label>
+                <Input
+                  id="manufacturing_date"
+                  type="date"
+                  {...register("manufacturing_date")}
+                />
+                {errors.manufacturing_date && (
+                  <p className="text-sm text-destructive">{errors.manufacturing_date.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="nafdac_number">NAFDAC Number (Optional)</Label>
+                <Input
+                  id="nafdac_number"
+                  {...register("nafdac_number")}
+                  placeholder="Enter NAFDAC registration number"
+                />
+                {errors.nafdac_number && (
+                  <p className="text-sm text-destructive">{errors.nafdac_number.message}</p>
+                )}
+              </div>
 
               {!isVariable && (
                 <div className="space-y-2">

@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Factory, Plus } from "lucide-react";
+import { Factory, Pencil, Plus, Trash2 } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import {
+  useDeleteManualProduction,
   useManualProductionHistory,
   useRecordManualProduction,
+  useUpdateManualProduction,
+  type ManualProductionRecord,
 } from "@/hooks/useProduction";
 import { useBranches, useMyBranchAssignments } from "@/hooks/useBranches";
 import { useAuth } from "@/lib/auth";
@@ -14,6 +17,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -42,7 +55,11 @@ export function QuickProductionTab({
   const { data: assignments = [] } = useMyBranchAssignments();
   const { data: records = [], isLoading } = useManualProductionHistory();
   const recordProduction = useRecordManualProduction();
-  const { canCreate } = useModuleAccess("production");
+  const updateProduction = useUpdateManualProduction();
+  const deleteProduction = useDeleteManualProduction();
+  const { canCreate, canEdit } = useModuleAccess("production");
+  const [editingRecord, setEditingRecord] = useState<ManualProductionRecord | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<ManualProductionRecord | null>(null);
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
@@ -71,23 +88,54 @@ export function QuickProductionTab({
       (!branchFilter || branchFilter === "all" || recordBranchId === branchFilter)
     );
   });
-  const selectedProduct = availableProducts.find((product) => product.id === productId);
+  const selectedProduct =
+    availableProducts.find((product) => product.id === productId) ||
+    (editingRecord ? products.find((product) => product.id === productId) : undefined);
+
+  const resetForm = () => {
+    setProductId("");
+    setQuantity("");
+    setExpirationDate("");
+    setNotes("");
+    setEditingRecord(null);
+  };
+
+  const startEditing = (record: ManualProductionRecord) => {
+    if (!record.products) return;
+    setEditingRecord(record);
+    setProductId(record.product_id);
+    setQuantity(
+      String(
+        Number(record.batch_initial_quantity ?? record.change_amount) /
+          getProductStockFactor(record.products),
+      ),
+    );
+    setExpirationDate(record.expiration_date || "");
+    setNotes(record.notes || "");
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const amount = Number(quantity);
     if (!selectedProduct || !Number.isFinite(amount) || amount <= 0) return;
 
-    await recordProduction.mutateAsync({
-      productId: selectedProduct.id,
-      quantity: amount * getProductStockFactor(selectedProduct),
-      notes,
-      expirationDate: expirationDate || null,
-    });
-    setProductId("");
-    setQuantity("");
-    setExpirationDate("");
-    setNotes("");
+    const stockQuantity = amount * getProductStockFactor(selectedProduct);
+    if (editingRecord) {
+      await updateProduction.mutateAsync({
+        historyId: editingRecord.id,
+        quantity: stockQuantity,
+        notes,
+        expirationDate: expirationDate || null,
+      });
+    } else {
+      await recordProduction.mutateAsync({
+        productId: selectedProduct.id,
+        quantity: stockQuantity,
+        notes,
+        expirationDate: expirationDate || null,
+      });
+    }
+    resetForm();
   };
 
   return (
@@ -100,11 +148,11 @@ export function QuickProductionTab({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {canCreate ? (
+          {canCreate || (editingRecord && canEdit) ? (
             <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="quick-production-product">Product</Label>
-                <Select value={productId} onValueChange={setProductId}>
+                <Select value={productId} onValueChange={setProductId} disabled={!!editingRecord}>
                   <SelectTrigger id="quick-production-product">
                     <SelectValue placeholder="Select a stock-managed product" />
                   </SelectTrigger>
@@ -156,11 +204,25 @@ export function QuickProductionTab({
               <div className="md:col-span-2">
                 <Button
                   type="submit"
-                  disabled={!selectedProduct || !quantity || recordProduction.isPending}
+                  disabled={
+                    !selectedProduct ||
+                    !quantity ||
+                    recordProduction.isPending ||
+                    updateProduction.isPending
+                  }
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  {recordProduction.isPending ? "Recording..." : "Record Production"}
+                  {recordProduction.isPending || updateProduction.isPending
+                    ? "Saving..."
+                    : editingRecord
+                      ? "Save Changes"
+                      : "Record Production"}
                 </Button>
+                {editingRecord && (
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Cancel Edit
+                  </Button>
+                )}
               </div>
             </form>
           ) : (
@@ -190,18 +252,19 @@ export function QuickProductionTab({
                   <TableHead>Branch</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead>Notes</TableHead>
+                  {canEdit && <TableHead>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={canEdit ? 6 : 5} className="py-8 text-center text-muted-foreground">
                       Loading production records...
                     </TableCell>
                   </TableRow>
                 ) : accessibleRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={canEdit ? 6 : 5} className="py-8 text-center text-muted-foreground">
                       No direct production records found
                     </TableCell>
                   </TableRow>
@@ -214,12 +277,52 @@ export function QuickProductionTab({
                       <TableCell>{record.products?.name || "—"}</TableCell>
                       <TableCell>{record.products?.branches?.name || "—"}</TableCell>
                       <TableCell className="text-right">
-                        {Number(record.change_amount).toLocaleString()}{" "}
+                        {(
+                          Number(record.batch_initial_quantity ?? record.change_amount) /
+                          (record.products
+                            ? getProductStockFactor(record.products)
+                            : 1)
+                        ).toLocaleString()}{" "}
                         {record.products?.sub_units?.abbreviation || record.products?.units?.abbreviation || ""}
                       </TableCell>
                       <TableCell className="max-w-[240px] truncate">
                         {record.notes || "—"}
                       </TableCell>
+                      {canEdit && (
+                        <TableCell>
+                          {record.batch_source_type === "manual_production" ? (
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                aria-label="Edit production record"
+                                onClick={() => startEditing(record)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive"
+                                aria-label="Delete production record"
+                                onClick={() => setDeletingRecord(record)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : record.batch_source_type === "manual_production_deleted" ? (
+                            <span className="text-xs text-muted-foreground">
+                              Reversed
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              Legacy record
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
@@ -228,6 +331,36 @@ export function QuickProductionTab({
           </div>
         </CardContent>
       </Card>
+      <AlertDialog
+        open={!!deletingRecord}
+        onOpenChange={(open) => !open && setDeletingRecord(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete production record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the produced quantity from stock. It can only be
+              deleted if the units from this batch have not already been used.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Record</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteProduction.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async (event) => {
+                event.preventDefault();
+                if (!deletingRecord) return;
+                await deleteProduction.mutateAsync(deletingRecord.id);
+                if (editingRecord?.id === deletingRecord.id) resetForm();
+                setDeletingRecord(null);
+              }}
+            >
+              Delete Record
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

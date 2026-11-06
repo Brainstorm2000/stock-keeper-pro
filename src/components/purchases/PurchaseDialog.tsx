@@ -57,6 +57,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [taxRate, setTaxRate] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
+  const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [notes, setNotes] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -185,6 +186,14 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
 
   const handleSubmit = async () => {
     if (!organization?.id || !branchId || !supplierId || cart.length === 0) return;
+    if (numericAmountPaid > 0 && !paymentDate) {
+      toast({
+        title: 'Payment date required',
+        description: 'Choose the date the payment was made.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     let receiptUrl: string | undefined;
     if (receiptFile) {
@@ -206,8 +215,9 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
       purchase_date: purchaseDate,
       reference_number: referenceNumber || undefined,
       tax_rate: numericTaxRate,
-      payment_status: paymentStatus,
-      amount_paid: Number(amountPaid) || 0,
+      initial_payment: numericAmountPaid > 0
+        ? { amount: numericAmountPaid, payment_date: paymentDate }
+        : null,
       notes: notes || undefined,
       receipt_url: receiptUrl,
       items: cart.map(({ product, cartLineId, ...item }) => item),
@@ -220,6 +230,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
     setReferenceNumber('');
     setTaxRate('');
     setAmountPaid('');
+    setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
     setNotes('');
     setReceiptFile(null);
     setCart([]);
@@ -295,27 +306,6 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Payment Status</Label>
-              <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-muted-foreground capitalize">
-                {paymentStatus}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Amount Paid {totalAmount > 0 && `(max: ${formatCurrency(totalAmount)})`}</Label>
-              <Input
-                type="number"
-                min="0"
-                max={totalAmount}
-                placeholder="0"
-                value={amountPaid}
-                onChange={(e) => {
-                  const value = e.target.value === '' ? '' : Math.min(Number(e.target.value), totalAmount).toString();
-                  setAmountPaid(value);
-                }}
-              />
-            </div>
           </div>
 
           {/* Product Search */}
@@ -495,6 +485,44 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
               </div>
             </div>
           )}
+
+          {/* Payment details */}
+          <div className="space-y-3">
+            <Label className="text-base font-semibold">Payment Details</Label>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Amount Paid {totalAmount > 0 && `(max: ${formatCurrency(totalAmount)})`}</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max={totalAmount}
+                  placeholder="0"
+                  value={amountPaid}
+                  onChange={(e) => {
+                    const value = e.target.value === ''
+                      ? ''
+                      : Math.min(Number(e.target.value), totalAmount).toString();
+                    setAmountPaid(value);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Date</Label>
+                <Input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  disabled={numericAmountPaid <= 0}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Status</Label>
+                <div className="flex h-10 items-center rounded-md border bg-muted px-3 text-muted-foreground capitalize">
+                  {paymentStatus}
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Notes */}
           <div className="space-y-2">

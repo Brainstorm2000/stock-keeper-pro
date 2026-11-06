@@ -123,7 +123,10 @@ export function StockHistoryTable({
     return history.filter((entry) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const productName = entry.products?.name?.toLowerCase() || "";
+        const productName =
+          entry.products?.name?.toLowerCase() ||
+          entry.raw_materials?.name?.toLowerCase() ||
+          "";
         const notes = entry.notes?.toLowerCase() || "";
         const changeType = entry.change_type.toLowerCase();
 
@@ -301,7 +304,7 @@ export function StockHistoryTable({
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  {!productId && <TableHead>Product</TableHead>}
+                  {!productId && <TableHead>Item</TableHead>}
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Previous</TableHead>
                   <TableHead className="text-right">Change</TableHead>
@@ -318,7 +321,7 @@ export function StockHistoryTable({
                     </TableCell>
                     {!productId && (
                       <TableCell className="font-medium">
-                        {entry.products?.name || "Unknown"}
+                        {entry.products?.name || entry.raw_materials?.name || "Unknown"}
                       </TableCell>
                     )}
                     <TableCell>

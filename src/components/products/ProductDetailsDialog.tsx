@@ -68,6 +68,16 @@ export function ProductDetailsDialog({
             <h3 className="font-semibold">Product details</h3>
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Detail label="SKU" value={product.sku} />
+              <Detail label="Generic name" value={product.generic_name} />
+              <Detail
+                label="Brand name"
+                value={product.brands?.name}
+              />
+              <Detail label="NAFDAC number" value={product.nafdac_number} />
+              <Detail
+                label="Manufacturing date"
+                value={product.manufacturing_date}
+              />
               <Detail
                 label="Type"
                 value={
@@ -83,7 +93,6 @@ export function ProductDetailsDialog({
               <Detail label="Product category" value={product.category} />
               <Detail label="Branch" value={product.branches?.name} />
               <Detail label="Supplier" value={product.suppliers?.name} />
-              <Detail label="Brand" value={product.brands?.name} />
               <Detail
                 label="Archived"
                 value={product.is_archived ? "Yes" : "No"}

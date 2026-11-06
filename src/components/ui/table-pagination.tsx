@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +29,24 @@ export function TablePagination({
   onPageSizeChange,
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }: TablePaginationProps) {
+  const paginationRef = useRef<HTMLDivElement>(null);
+
+  const changePage = (page: number) => {
+    if (page === currentPage) return;
+    onPageChange(page);
+
+    requestAnimationFrame(() => {
+      let container = paginationRef.current?.parentElement ?? null;
+      while (container && !container.querySelector('table')) {
+        container = container.parentElement;
+      }
+      container?.querySelector('table')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  };
+
   if (totalItems === 0) return null;
 
   const startItem = (currentPage - 1) * pageSize + 1;
@@ -49,7 +68,7 @@ export function TablePagination({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+    <div ref={paginationRef} className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4 mt-4 border-t border-slate-100 dark:border-slate-800">
       <div className="flex items-center gap-4">
         <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">
           Showing{' '}
@@ -80,7 +99,7 @@ export function TablePagination({
           variant="outline"
           size="sm"
           className="h-9 w-9 p-0 border-slate-200 dark:border-slate-800"
-          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          onClick={() => changePage(Math.max(1, currentPage - 1))}
           disabled={currentPage <= 1}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -90,7 +109,7 @@ export function TablePagination({
             <Button
               key={p}
               size="sm"
-              onClick={() => onPageChange(p)}
+              onClick={() => changePage(p)}
               className={`h-9 w-9 p-0 font-bold transition-all ${
                 p === currentPage
                   ? 'bg-[#FF9E3D] text-[#000B26] shadow-sm hover:bg-[#FF9E3D]/90'
@@ -105,7 +124,7 @@ export function TablePagination({
           variant="outline"
           size="sm"
           className="h-9 w-9 p-0 border-slate-200 dark:border-slate-800"
-          onClick={() => onPageChange(Math.min(safeTotal, currentPage + 1))}
+          onClick={() => changePage(Math.min(safeTotal, currentPage + 1))}
           disabled={currentPage >= safeTotal}
         >
           <ChevronRight className="h-4 w-4" />

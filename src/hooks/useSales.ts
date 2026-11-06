@@ -26,7 +26,13 @@ export interface SaleItem {
   cost_price: number;
   discount_amount: number;
   total_price: number;
-  batch_allocations?: { batch_number: string; quantity: number }[];
+  inventory_batch_id?: string | null;
+  batch_allocations?: {
+    batch_id?: string;
+    batch_number: string;
+    expiration_date?: string | null;
+    quantity: number;
+  }[];
 }
 
 export interface PaymentDetail {
@@ -200,14 +206,14 @@ export function useSaleWithItems(saleId: string | null) {
         const { data: batchMovements, error: batchError } = saleItemIds.length
           ? await supabase
               .from('inventory_batch_movements')
-              .select('source_id, quantity, inventory_batches(batch_number)')
+              .select('source_id, batch_id, quantity, inventory_batches(batch_number, expiration_date)')
               .eq('source_type', 'sale_item')
               .eq('direction', 'out')
               .in('source_id', saleItemIds)
           : { data: [], error: null };
         if (batchError) throw batchError;
 
-        const allocationsByItem = new Map<string, { batch_number: string; quantity: number }[]>();
+        const allocationsByItem = new Map<string, NonNullable<SaleItem['batch_allocations']>>();
         for (const movement of batchMovements || []) {
           if (!movement.source_id) continue;
           const batch = Array.isArray(movement.inventory_batches)
@@ -216,7 +222,9 @@ export function useSaleWithItems(saleId: string | null) {
           if (!batch) continue;
           const allocations = allocationsByItem.get(movement.source_id) || [];
           allocations.push({
+            batch_id: movement.batch_id,
             batch_number: batch.batch_number,
+            expiration_date: batch.expiration_date,
             quantity: Number(movement.quantity),
           });
           allocationsByItem.set(movement.source_id, allocations);
@@ -497,6 +505,7 @@ export function useUpdateSale() {
           cost_price: item.cost_price,
           discount_amount: item.discount_amount,
           total_price: item.total_price,
+          inventory_batch_id: item.inventory_batch_id || null,
         }));
 
         const { error: insertError } = await supabase

@@ -14,6 +14,8 @@ interface CartItem {
   total_price: number;
   max_quantity?: number;
   item_type: "product" | "service" | "variable";
+  purchase_batch_number?: string | null;
+  purchase_batch_expiration_date?: string | null;
 }
 
 interface CartItemRowProps {
@@ -100,6 +102,14 @@ export function CartItemRow({
           />
           <span>× {item.quantity} {item.unit_label || ""}</span>
         </div>
+        {item.purchase_batch_number && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Batch: {item.purchase_batch_number}
+            {item.purchase_batch_expiration_date
+              ? ` · Expires ${item.purchase_batch_expiration_date}`
+              : ""}
+          </p>
+        )}
         {isOverStock && (
           <div className="flex items-center gap-1 text-destructive text-xs mt-1">
             <AlertTriangle className="h-3 w-3" />

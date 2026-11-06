@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, Search, Pencil, Trash2, Package, Beaker } from 'lucide-react';
+import { AlertTriangle, Search, Pencil, Trash2, Package, Beaker, Check, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useProducts } from '@/hooks/useProducts';
@@ -25,6 +27,7 @@ import { useModuleAccess } from '@/components/access/ModuleAccessGuard';
 import { formatCurrency } from '@/lib/currency';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { BulkActionBar, BulkSelectCheckbox } from '@/components/ui/bulk-action-bar';
+import { cn } from '@/lib/utils';
 
 export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilter?: string; productsOnly?: boolean }) {
   const { data: allProducts = [] } = useProducts();
@@ -39,11 +42,12 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
   const deleteDamage = useDeleteDamage();
   const editWaste = useEditWaste();
   const deleteWaste = useDeleteWaste();
-  const { canEdit, canDelete } = useModuleAccess('production');
+  const { canEdit, canDelete } = useModuleAccess(productsOnly ? 'products' : 'production');
 
   // Record damage form
   const [damageDialogOpen, setDamageDialogOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [damageQty, setDamageQty] = useState('');
   const [damageNotes, setDamageNotes] = useState('');
 
@@ -350,14 +354,60 @@ export function DamagesTab({ branchFilter, productsOnly = false }: { branchFilte
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Product *</Label>
-              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
-                <SelectContent>
-                  {products.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name} (Stock: {Number(p.current_stock)})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={productPickerOpen} onOpenChange={setProductPickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={productPickerOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedProduct
+                      ? `${selectedProduct.name} (Stock: ${Number(selectedProduct.current_stock)})`
+                      : 'Search or select a product'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search products by name, generic name, or SKU..." />
+                    <CommandList>
+                      <CommandEmpty>No product found.</CommandEmpty>
+                      <CommandGroup>
+                        {products.map((product) => (
+                          <CommandItem
+                            key={product.id}
+                            value={`${product.name} ${product.generic_name || ''} ${product.sku || ''}`}
+                            onSelect={() => {
+                              setSelectedProductId(product.id);
+                              setProductPickerOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                selectedProductId === product.id ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                            <span className="min-w-0 flex-1 truncate">
+                              {product.name}
+                              {product.generic_name && (
+                                <span className="ml-2 text-muted-foreground">
+                                  ({product.generic_name})
+                                </span>
+                              )}
+                            </span>
+                            <span className="ml-2 whitespace-nowrap text-xs text-muted-foreground">
+                              Stock: {Number(product.current_stock)}
+                            </span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             {selectedProduct && (
               <div className="text-sm text-muted-foreground p-3 rounded-md bg-muted">
