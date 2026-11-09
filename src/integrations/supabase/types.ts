@@ -2423,6 +2423,7 @@ export type Database = {
           discount_amount: number
           id: string
           inventory_batch_id: string | null
+          uses_unbatched_stock: boolean
           product_id: string
           quantity: number
           sale_id: string
@@ -2438,6 +2439,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           inventory_batch_id?: string | null
+          uses_unbatched_stock?: boolean
           product_id: string
           quantity: number
           sale_id: string
@@ -2453,6 +2455,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           inventory_batch_id?: string | null
+          uses_unbatched_stock?: boolean
           product_id?: string
           quantity?: number
           sale_id?: string

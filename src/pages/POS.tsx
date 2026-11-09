@@ -99,6 +99,7 @@ interface CartItem extends SaleItem {
   purchase_batch_expiration_date?: string | null;
 }
 type SaleUnitChoice = "main" | "sub";
+const UNBATCHED_STOCK_OPTION = "unbatched-stock";
 
 export default function POS() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -267,6 +268,72 @@ export default function POS() {
       .filter((batch) => batch.availableQuantity > 0 && batch.availableSaleQuantity > 0);
   };
 
+  const getAvailableUnbatchedQuantity = useCallback((
+    productId: string,
+    variationId: string | null,
+    unitMultiplier: number,
+    includeCartReservations = true,
+  ) => {
+    const product = products.find((entry) => entry.id === productId);
+    if (!product) return 0;
+
+    const branchId = selectedBranchId || product.branch_id || null;
+    const currentQuantity = variationId
+      ? Number(
+          product.variations?.find((variation) => variation.id === variationId)
+            ?.current_stock || 0,
+        )
+      : Number(product.current_stock || 0);
+    const previouslySold = (editSale?.sale_items || [])
+      .filter(
+        (item) =>
+          item.product_id === productId &&
+          (item.variation_id || null) === variationId,
+      )
+      .reduce((sum, item) => {
+        const multiplier = item.unit_label
+          ? Number(item.unit_multiplier) || 1
+          : product.sub_unit_id
+            ? getProductStockFactor(product)
+            : 1;
+        return sum + Number(item.quantity) * multiplier;
+      }, 0);
+    const trackedQuantity = inventoryBatches
+      .filter(
+        (batch) =>
+          batch.purchase_item_id &&
+          batch.product_id === productId &&
+          batch.variation_id === variationId &&
+          batch.branch_id === branchId,
+      )
+      .reduce(
+        (sum, batch) =>
+          sum +
+          Number(batch.remaining_quantity) +
+          getPreviouslySoldBatchQuantity(batch.id),
+        0,
+      );
+    const cartQuantity = includeCartReservations
+      ? cart
+            .filter(
+              (item) =>
+                item.product_id === productId &&
+                (item.variation_id || null) === variationId &&
+                item.uses_unbatched_stock,
+            )
+            .reduce(
+              (sum, item) =>
+                sum + item.quantity * Number(item.unit_multiplier || 1),
+              0,
+            )
+      : 0;
+
+    return Math.max(
+      0,
+      currentQuantity + previouslySold - trackedQuantity - cartQuantity,
+    ) / unitMultiplier;
+  }, [products, selectedBranchId, editSale, inventoryBatches, cart, getPreviouslySoldBatchQuantity]);
+
   useEffect(() => {
     if (!editSale) return;
 
@@ -298,6 +365,7 @@ export default function POS() {
         purchase_batch_expiration_date: item.batch_allocations?.length === 1
           ? item.batch_allocations[0].expiration_date
           : null,
+        uses_unbatched_stock: item.uses_unbatched_stock || false,
       } as CartItem;
     });
 
@@ -523,14 +591,27 @@ export default function POS() {
   // Check for stock warnings in cart
   const hasStockWarning = useMemo(() => {
     const quantities = new Map<string, { quantity: number; maxQuantity: number }>();
+    const unbatchedQuantities = new Map<string, number>();
     for (const item of cart) {
       if (item.item_type !== "product" || item.max_quantity === undefined) continue;
       const key = `${item.product_id}:${item.variation_id || ""}`;
-      const previous = quantities.get(key);
-      quantities.set(key, {
-        quantity: (previous?.quantity || 0) + item.quantity * Number(item.unit_multiplier || 1),
-        maxQuantity: item.max_quantity * Number(item.unit_multiplier || 1),
-      });
+      if (item.uses_unbatched_stock) {
+        unbatchedQuantities.set(
+          key,
+          (unbatchedQuantities.get(key) || 0) +
+            item.quantity * Number(item.unit_multiplier || 1),
+        );
+      } else if (!item.inventory_batch_id) {
+        const previous = quantities.get(key);
+        quantities.set(key, {
+          quantity:
+            (previous?.quantity || 0) +
+            item.quantity * Number(item.unit_multiplier || 1),
+          maxQuantity:
+            previous?.maxQuantity ??
+            item.max_quantity * Number(item.unit_multiplier || 1),
+        });
+      }
     }
     const overProductStock = Array.from(quantities.values()).some(
       ({ quantity, maxQuantity }) => quantity > maxQuantity,
@@ -551,13 +632,31 @@ export default function POS() {
         : 0;
       return quantity > available;
     });
-    return overProductStock || overBatchStock;
-  }, [cart, inventoryBatches, getPreviouslySoldBatchQuantity]);
+    const overUnbatchedStock = Array.from(unbatchedQuantities).some(
+      ([key, quantity]) => {
+        const [productId, variationId] = key.split(":");
+        const available = getAvailableUnbatchedQuantity(
+          productId,
+          variationId || null,
+          1,
+          false,
+        );
+        return quantity > available;
+      },
+    );
+    return overProductStock || overBatchStock || overUnbatchedStock;
+  }, [
+    cart,
+    inventoryBatches,
+    getPreviouslySoldBatchQuantity,
+    getAvailableUnbatchedQuantity,
+  ]);
 
   const addToCart = (
     product: Product,
     unitChoice: SaleUnitChoice = "main",
     inventoryBatchId?: string,
+    usesUnbatchedStock = false,
   ) => {
     const productType = product.item_type || "product";
     if (productType === "variable") {
@@ -567,14 +666,22 @@ export default function POS() {
 
     const unitMultiplier = getUnitMultiplier(product, unitChoice);
     const batchOptions = getPurchaseBatchOptions(product.id, null, unitMultiplier);
+    const unbatchedQuantity = getAvailableUnbatchedQuantity(
+      product.id,
+      null,
+      unitMultiplier,
+    );
     if (!inventoryBatchId && inventoryBatchesLoading) {
       toast({ title: "Checking batch availability", description: "Please try selecting the product again." });
       return;
     }
-    if (!inventoryBatchId && batchOptions.length > 0) {
+    if (!inventoryBatchId && !usesUnbatchedStock && batchOptions.length > 0) {
       setSelectedBatchId("");
       setBatchPicker({ product, unitChoice });
       return;
+    }
+    if (!inventoryBatchId && !usesUnbatchedStock && unbatchedQuantity > 0) {
+      usesUnbatchedStock = true;
     }
     const selectedBatch = inventoryBatchId
       ? batchOptions.find((batch) => batch.id === inventoryBatchId)
@@ -583,7 +690,9 @@ export default function POS() {
       toast({ title: "Batch unavailable", description: "This purchase batch no longer has enough stock.", variant: "destructive" });
       return;
     }
-    const maxQty = selectedBatch
+    const maxQty = usesUnbatchedStock
+      ? unbatchedQuantity
+      : selectedBatch
       ? selectedBatch.availableSaleQuantity
       : productType === "service"
         ? Infinity
@@ -610,6 +719,7 @@ export default function POS() {
         max_quantity: maxQty,
         item_type: productType,
         inventory_batch_id: selectedBatch?.id ?? null,
+        uses_unbatched_stock: usesUnbatchedStock,
         purchase_batch_number: selectedBatch?.batch_number ?? null,
         purchase_batch_expiration_date: selectedBatch?.expiration_date ?? null,
       },
@@ -620,18 +730,27 @@ export default function POS() {
     variation: ProductVariation,
     inventoryBatchId?: string,
     productOverride?: Product,
+    usesUnbatchedStock = false,
   ) => {
     const product = productOverride || variationPickerProduct;
     if (!product) return;
     const batchOptions = getPurchaseBatchOptions(product.id, variation.id, 1);
+    const unbatchedQuantity = getAvailableUnbatchedQuantity(
+      product.id,
+      variation.id,
+      1,
+    );
     if (!inventoryBatchId && inventoryBatchesLoading) {
       toast({ title: "Checking batch availability", description: "Please try selecting the product again." });
       return;
     }
-    if (!inventoryBatchId && batchOptions.length > 0) {
+    if (!inventoryBatchId && !usesUnbatchedStock && batchOptions.length > 0) {
       setSelectedBatchId("");
       setBatchPicker({ product, variation, unitChoice: "main" });
       return;
+    }
+    if (!inventoryBatchId && !usesUnbatchedStock && unbatchedQuantity > 0) {
+      usesUnbatchedStock = true;
     }
     const selectedBatch = inventoryBatchId
       ? batchOptions.find((batch) => batch.id === inventoryBatchId)
@@ -640,12 +759,15 @@ export default function POS() {
       toast({ title: "Batch unavailable", description: "This purchase batch no longer has enough stock.", variant: "destructive" });
       return;
     }
-    const maxQty = selectedBatch
+    const maxQty = usesUnbatchedStock
+      ? unbatchedQuantity
+      : selectedBatch
       ? selectedBatch.availableSaleQuantity
       : getMaxQuantity(product.id, variation.id) ?? Number(variation.current_stock);
     const existingIndex = cart.findIndex(
       (item) =>
         item.variation_id === variation.id &&
+        Boolean(item.uses_unbatched_stock) === usesUnbatchedStock &&
         (item.inventory_batch_id || null) === (selectedBatch?.id || null),
     );
     if (existingIndex > -1) {
@@ -678,6 +800,7 @@ export default function POS() {
           max_quantity: maxQty,
           item_type: "product",
           inventory_batch_id: selectedBatch?.id ?? null,
+          uses_unbatched_stock: usesUnbatchedStock,
           purchase_batch_number: selectedBatch?.batch_number ?? null,
           purchase_batch_expiration_date: selectedBatch?.expiration_date ?? null,
         },
@@ -687,10 +810,21 @@ export default function POS() {
 
   const confirmBatchSelection = () => {
     if (!batchPicker || !selectedBatchId) return;
+    const usesUnbatchedStock = selectedBatchId === UNBATCHED_STOCK_OPTION;
     if (batchPicker.variation) {
-      addVariationToCart(batchPicker.variation, selectedBatchId, batchPicker.product);
+      addVariationToCart(
+        batchPicker.variation,
+        usesUnbatchedStock ? undefined : selectedBatchId,
+        batchPicker.product,
+        usesUnbatchedStock,
+      );
     } else {
-      addToCart(batchPicker.product, batchPicker.unitChoice, selectedBatchId);
+      addToCart(
+        batchPicker.product,
+        batchPicker.unitChoice,
+        usesUnbatchedStock ? undefined : selectedBatchId,
+        usesUnbatchedStock,
+      );
     }
     setBatchPicker(null);
     setSelectedBatchId("");
@@ -1884,56 +2018,102 @@ export default function POS() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
-                Choose a purchase batch
+                Choose a stock source
                 {batchPicker ? ` for ${batchPicker.product.name}` : ""}
               </DialogTitle>
             </DialogHeader>
             {batchPicker && (
               <div className="space-y-2">
-                {batchPickerOptions.length === 0 ? (
+                {batchPickerOptions.length === 0 &&
+                getAvailableUnbatchedQuantity(
+                  batchPicker.product.id,
+                  batchPicker.variation?.id || null,
+                  batchPicker.variation
+                    ? 1
+                    : getUnitMultiplier(batchPicker.product, batchPicker.unitChoice),
+                ) <= 0 ? (
                   <p className="py-4 text-sm text-muted-foreground">
-                    No purchase batches have stock available for this product.
+                    No tracked or unbatched stock is available for this product.
                   </p>
                 ) : (
-                  batchPickerOptions.map((batch) => (
-                    <Button
-                      key={batch.id}
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        "h-auto w-full justify-between py-3 text-left",
-                        selectedBatchId === batch.id && "border-primary bg-accent",
-                      )}
-                      onClick={() => setSelectedBatchId(batch.id)}
-                    >
-                      <span className="flex flex-col items-start gap-1">
-                        <span className="font-medium">
-                          Batch {batch.batch_number}
+                  <>
+                    {batchPickerOptions.map((batch) => (
+                      <Button
+                        key={batch.id}
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          "h-auto w-full justify-between py-3 text-left",
+                          selectedBatchId === batch.id && "border-primary bg-accent",
+                        )}
+                        onClick={() => setSelectedBatchId(batch.id)}
+                      >
+                        <span className="flex flex-col items-start gap-1">
+                          <span className="font-medium">
+                            Batch {batch.batch_number}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {batch.expiration_date
+                              ? `Expires ${batch.expiration_date}`
+                              : "No expiry date"}
+                          </span>
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {batch.expiration_date
-                            ? `Expires ${batch.expiration_date}`
-                            : "No expiry date"}
+                        <span className="text-right">
+                          <span className="block font-semibold">
+                            {batch.availableQuantity.toLocaleString()} in stock
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {batch.availableSaleQuantity.toLocaleString()}{" "}
+                            {batchPicker.unitChoice === "sub" &&
+                            !batchPicker.variation
+                              ? batchPicker.product.sub_units?.abbreviation ||
+                                batchPicker.product.sub_units?.name ||
+                                "subunits"
+                              : batchPicker.product.units?.abbreviation ||
+                                batchPicker.product.units?.name ||
+                                "units"}
+                          </span>
                         </span>
-                      </span>
-                      <span className="text-right">
-                        <span className="block font-semibold">
-                          {batch.availableQuantity.toLocaleString()} in stock
+                      </Button>
+                    ))}
+                    {getAvailableUnbatchedQuantity(
+                      batchPicker.product.id,
+                      batchPicker.variation?.id || null,
+                      batchPicker.variation
+                        ? 1
+                        : getUnitMultiplier(batchPicker.product, batchPicker.unitChoice),
+                    ) > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          "h-auto w-full justify-between py-3 text-left",
+                          selectedBatchId === UNBATCHED_STOCK_OPTION &&
+                            "border-primary bg-accent",
+                        )}
+                        onClick={() =>
+                          setSelectedBatchId(UNBATCHED_STOCK_OPTION)
+                        }
+                      >
+                        <span className="flex flex-col items-start gap-1">
+                          <span className="font-medium">Unbatched stock</span>
+                          <span className="text-xs text-muted-foreground">
+                            Not assigned to a purchase batch
+                          </span>
                         </span>
-                        <span className="block text-xs text-muted-foreground">
-                          {batch.availableSaleQuantity.toLocaleString()}{" "}
-                          {batchPicker.unitChoice === "sub" &&
-                          !batchPicker.variation
-                            ? batchPicker.product.sub_units?.abbreviation ||
-                              batchPicker.product.sub_units?.name ||
-                              "subunits"
-                            : batchPicker.product.units?.abbreviation ||
-                              batchPicker.product.units?.name ||
-                              "units"}
+                        <span className="font-semibold">
+                          {getAvailableUnbatchedQuantity(
+                            batchPicker.product.id,
+                            batchPicker.variation?.id || null,
+                            batchPicker.variation
+                              ? 1
+                              : getUnitMultiplier(batchPicker.product, batchPicker.unitChoice),
+                          ).toLocaleString()}{" "}
+                          in stock
                         </span>
-                      </span>
-                    </Button>
-                  ))
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -1952,7 +2132,7 @@ export default function POS() {
                 disabled={
                   !batchPickerOptions.some(
                     (batch) => batch.id === selectedBatchId,
-                  )
+                  ) && selectedBatchId !== UNBATCHED_STOCK_OPTION
                 }
               >
                 Add to cart

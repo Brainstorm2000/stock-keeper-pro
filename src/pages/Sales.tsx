@@ -713,6 +713,11 @@ export default function Sales() {
                                   .join(", ")}
                               </span>
                             )}
+                            {item.uses_unbatched_stock && (
+                              <span className="block text-xs text-muted-foreground">
+                                Unbatched stock
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             {item.quantity}

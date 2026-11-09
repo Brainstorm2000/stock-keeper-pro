@@ -16,6 +16,7 @@ interface CartItem {
   item_type: "product" | "service" | "variable";
   purchase_batch_number?: string | null;
   purchase_batch_expiration_date?: string | null;
+  uses_unbatched_stock?: boolean;
 }
 
 interface CartItemRowProps {
@@ -109,6 +110,9 @@ export function CartItemRow({
               ? ` · Expires ${item.purchase_batch_expiration_date}`
               : ""}
           </p>
+        )}
+        {item.uses_unbatched_stock && (
+          <p className="mt-1 text-xs text-muted-foreground">Unbatched stock</p>
         )}
         {isOverStock && (
           <div className="flex items-center gap-1 text-destructive text-xs mt-1">

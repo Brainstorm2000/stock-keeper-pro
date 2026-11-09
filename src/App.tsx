@@ -37,6 +37,7 @@ import Assets from "./pages/Assets";
 import Tax from "./pages/Tax";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
+import { OrganizationActivityNotifications } from "@/components/organization/OrganizationActivityNotifications";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -94,7 +95,8 @@ const App = () => (
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Sonner />
+          <Sonner visibleToasts={5} />
+          <OrganizationActivityNotifications />
           <OfflineBanner />
           <BrowserRouter>
             <ScrollToTopButton />

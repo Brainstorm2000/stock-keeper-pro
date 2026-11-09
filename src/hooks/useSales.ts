@@ -27,6 +27,7 @@ export interface SaleItem {
   discount_amount: number;
   total_price: number;
   inventory_batch_id?: string | null;
+  uses_unbatched_stock?: boolean;
   batch_allocations?: {
     batch_id?: string;
     batch_number: string;
@@ -506,6 +507,7 @@ export function useUpdateSale() {
           discount_amount: item.discount_amount,
           total_price: item.total_price,
           inventory_batch_id: item.inventory_batch_id || null,
+          uses_unbatched_stock: item.uses_unbatched_stock || false,
         }));
 
         const { error: insertError } = await supabase
