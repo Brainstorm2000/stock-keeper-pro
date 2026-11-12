@@ -102,12 +102,13 @@ export function usePerformanceRows(
   dir: 'asc' | 'desc',
   page: number,
   pageSize: number,
+  enabled = true,
 ) {
   const { organizationId } = useAuth();
 
   return useQuery({
     queryKey: ['stock-performance-rows', organizationId, filters, sort, dir, page, pageSize],
-    enabled: !!organizationId,
+    enabled: !!organizationId && enabled,
     placeholderData: (prev) => prev,
     queryFn: async () => {
       const { data, error } = await rpc('stock_sales_performance_rows', {

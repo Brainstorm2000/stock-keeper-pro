@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { TablePagination } from '@/components/ui/table-pagination';
@@ -10,6 +11,9 @@ import { useAuth } from '@/lib/auth';
 import { exportToCSV, exportToPDF } from '@/lib/export-utils';
 import { formatCurrency } from '@/lib/currency';
 import { calculateCompletedCogs, calculateCompletedRevenue, calculateSellableInventoryValue } from '@/lib/executive-summary';
+import { getExpirationAlertCounts, getExpirationProductIds } from '@/lib/expiration-alerts';
+import { useInventoryBatches } from '@/hooks/useInventoryBatches';
+import { getExpirationStatus } from '@/lib/expiration-status';
 import type { Product } from '@/hooks/useProducts';
 import type { Sale } from '@/hooks/useSales';
 import {
@@ -41,6 +45,7 @@ export function StockPerformanceTab({ dateRange, selectedBranch, branches, produ
   const { organizationId } = useAuth();
   const { data: org } = useOrganization();
   const { data: suppliers = [] } = useSuppliers();
+  const { data: inventoryBatches = [] } = useInventoryBatches();
 
   const [category, setCategory] = useState('all');
   const [supplierId, setSupplierId] = useState('all');
@@ -66,11 +71,43 @@ export function StockPerformanceTab({ dateRange, selectedBranch, branches, produ
     fastThreshold: FAST_MOVER_THRESHOLD,
   }), [dateRange, selectedBranch, category, supplierId, stockStatus, debouncedSearch]);
 
-  const rowsQuery = usePerformanceRows(filters, sort, dir, page, pageSize);
+  const isExpiryFilter = stockStatus === 'expired' || stockStatus === 'almost_expired';
+  const rowsQuery = usePerformanceRows(filters, sort, dir, page, pageSize, !isExpiryFilter);
+  const expiryRowsQuery = useQuery({
+    queryKey: ['stock-performance-expiry-rows', organizationId, filters, sort, dir],
+    enabled: !!organizationId && isExpiryFilter,
+    queryFn: () => fetchAllPerformanceRows(
+      organizationId as string,
+      { ...filters, stockStatus: 'all' },
+      sort,
+      dir,
+    ),
+  });
   const summaryQuery = usePerformanceSummary(filters);
 
-  const rows = rowsQuery.data?.rows ?? [];
-  const totalCount = rowsQuery.data?.totalCount ?? 0;
+  const expiryProductIds = useMemo(() => {
+    if (!isExpiryFilter) return null;
+    return getExpirationProductIds(
+      products,
+      inventoryBatches,
+      stockStatus,
+      selectedBranch,
+    );
+  }, [products, inventoryBatches, stockStatus, selectedBranch, isExpiryFilter]);
+  const allFilteredRows = useMemo(() => {
+    if (!isExpiryFilter || !expiryProductIds) return rowsQuery.data?.rows ?? [];
+    return (expiryRowsQuery.data ?? [])
+      .filter((row) => expiryProductIds.has(row.product_id))
+      .map((row) => ({ ...row, stock_status: stockStatus }));
+  }, [isExpiryFilter, expiryProductIds, rowsQuery.data, expiryRowsQuery.data, stockStatus]);
+  const rows = isExpiryFilter
+    ? allFilteredRows.slice((page - 1) * pageSize, page * pageSize)
+    : allFilteredRows;
+  const totalCount = isExpiryFilter
+    ? allFilteredRows.length
+    : rowsQuery.data?.totalCount ?? 0;
+  const rowsLoading = isExpiryFilter ? expiryRowsQuery.isLoading : rowsQuery.isLoading;
+  const rowsError = isExpiryFilter ? expiryRowsQuery.error : rowsQuery.error;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const periodLabel = `${format(dateRange.from, 'MMM dd, yyyy')} – ${format(dateRange.to, 'MMM dd, yyyy')}`;
@@ -111,7 +148,16 @@ export function StockPerformanceTab({ dateRange, selectedBranch, branches, produ
 
   const loadAll = async () => {
     if (!organizationId) throw new Error('No organization');
-    return fetchAllPerformanceRows(organizationId, filters, sort, dir);
+    const all = await fetchAllPerformanceRows(
+      organizationId,
+      isExpiryFilter ? { ...filters, stockStatus: 'all' } : filters,
+      sort,
+      dir,
+    );
+    if (!isExpiryFilter || !expiryProductIds) return all;
+    return all
+      .filter((row) => expiryProductIds.has(row.product_id))
+      .map((row) => ({ ...row, stock_status: stockStatus }));
   };
 
   const handleExportCSV = async () => {
@@ -208,6 +254,11 @@ export function StockPerformanceTab({ dateRange, selectedBranch, branches, produ
   const summaryWithDerivedProfit = executiveSummary
     ? {
         ...executiveSummary,
+        ...getExpirationAlertCounts(
+          products.filter((product) => selectedBranch === 'all' || product.branch_id === selectedBranch),
+          inventoryBatches,
+          selectedBranch,
+        ),
         gross_profit: executiveSummary.gross_revenue - executiveSummary.total_cogs,
         avg_margin: executiveSummary.gross_revenue > 0
           ? ((executiveSummary.gross_revenue - executiveSummary.total_cogs) / executiveSummary.gross_revenue) * 100
@@ -254,8 +305,8 @@ export function StockPerformanceTab({ dateRange, selectedBranch, branches, produ
           <div className="max-h-[65vh] overflow-auto print-scroll">
             <StockPerformanceTable
               rows={printRows.length ? printRows : rows}
-              loading={rowsQuery.isLoading}
-              error={rowsQuery.error as Error | null}
+              loading={rowsLoading}
+              error={rowsError as Error | null}
               sort={sort}
               dir={dir}
               onSort={handleSort}

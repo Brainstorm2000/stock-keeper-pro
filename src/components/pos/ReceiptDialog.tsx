@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ThermalReceipt } from './ThermalReceipt';
 import type { Sale } from '@/hooks/useSales';
+import type { ReceiptPaperSize } from '@/hooks/useOrganization';
 
 interface ReceiptDialogProps {
   open: boolean;
@@ -13,8 +14,10 @@ interface ReceiptDialogProps {
   organizationLogoUrl?: string | null;
   organizationAddress?: string;
   organizationEmail?: string;
+  paperSize?: ReceiptPaperSize;
   showSuccessMessage?: boolean;
   onNewSale?: () => void;
+  onPrinted?: () => void;
 }
 
 export function ReceiptDialog({
@@ -25,15 +28,22 @@ export function ReceiptDialog({
   organizationLogoUrl,
   organizationAddress,
   organizationEmail,
+  paperSize = '80mm',
   showSuccessMessage = false,
   onNewSale,
+  onPrinted,
 }: ReceiptDialogProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
     if (!receiptRef.current) return;
 
-    const printWindow = window.open('', '_blank', 'width=250,height=600');
+    const isA4 = paperSize === 'a4';
+    const paperWidth = isA4 ? '190mm' : paperSize;
+    const pageSize = isA4 ? 'A4 portrait' : `${paperSize} auto`;
+    const pageMargin = isA4 ? '10mm' : '0';
+    const baseFontSize = paperSize === '57mm' ? '12px' : isA4 ? '16px' : '14px';
+    const printWindow = window.open('', '_blank', isA4 ? 'width=900,height=900' : 'width=380,height=700');
     if (!printWindow) return;
 
     // Build print document via DOM APIs (no innerHTML injection of dynamic data).
@@ -51,12 +61,12 @@ export function ReceiptDialog({
               box-sizing: border-box;
             }
             body {
-              font-family: 'Courier New', monospace;
-              font-size: 10px;
-              line-height: 1.2;
-              width: 58mm;
-              max-width: 58mm;
-              padding: 2mm;
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: ${baseFontSize};
+              line-height: 1.35;
+              width: ${paperWidth};
+              max-width: ${paperWidth};
+              padding: 0;
               background: white;
               color: black;
             }
@@ -96,11 +106,12 @@ export function ReceiptDialog({
             .text-gray-500 { color: #666; }
             @media print {
               @page {
-                size: 58mm auto;
-                margin: 0;
+                size: ${pageSize};
+                margin: ${pageMargin};
               }
               body {
-                width: 58mm;
+                width: ${paperWidth};
+                max-width: ${paperWidth};
               }
             }
           </style>
@@ -124,6 +135,7 @@ export function ReceiptDialog({
     printWindow.setTimeout(() => {
       printWindow.focus();
       printWindow.print();
+      onPrinted?.();
       printWindow.setTimeout(() => printWindow.close(), 2000);
     }, 100);
   };
@@ -150,6 +162,7 @@ export function ReceiptDialog({
           <ThermalReceipt
             ref={receiptRef}
             sale={sale}
+            paperSize={paperSize}
             organizationName={organizationName}
             organizationLogoUrl={organizationLogoUrl}
             organizationAddress={organizationAddress}

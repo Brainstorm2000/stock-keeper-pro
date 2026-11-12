@@ -25,6 +25,7 @@ interface Organization {
   address: string | null;
   logo_url: string | null;
   is_active: boolean;
+  enable_batch_pos_sales: boolean;
   created_at: string;
 }
 
@@ -144,6 +145,7 @@ export default function AdminOrganizationsPage() {
   const [viewOrgId, setViewOrgId] = useState<string | null>(null);
   const [modulesOrgId, setModulesOrgId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [updatingBatchPosOrgId, setUpdatingBatchPosOrgId] = useState<string | null>(null);
 
   // Form state
   const [formName, setFormName] = useState('');
@@ -228,6 +230,31 @@ export default function AdminOrganizationsPage() {
     }
   };
 
+  const handleToggleBatchPosSales = async (org: Organization) => {
+    setUpdatingBatchPosOrgId(org.id);
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .update({ enable_batch_pos_sales: !org.enable_batch_pos_sales })
+        .eq('id', org.id);
+      if (error) throw error;
+      toast({
+        title: org.enable_batch_pos_sales
+          ? 'Batch POS sales disabled'
+          : 'Batch POS sales enabled',
+      });
+      queryClient.invalidateQueries({ queryKey: ['admin-all-organizations'] });
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : String(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingBatchPosOrgId(null);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteOrgId) return;
     try {
@@ -308,6 +335,7 @@ export default function AdminOrganizationsPage() {
                       <TableHead>Sub Status</TableHead>
                       <TableHead>Days Left</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Batch POS sales</TableHead>
                        <TableHead>Users</TableHead>
                        <TableHead>Branches</TableHead>
                       <TableHead>Created</TableHead>
@@ -317,7 +345,7 @@ export default function AdminOrganizationsPage() {
                   <TableBody>
                     {filteredOrgs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">No organizations found</TableCell>
+                        <TableCell colSpan={10} className="text-center text-muted-foreground py-8">No organizations found</TableCell>
                       </TableRow>
                     ) : (
                       filteredOrgs.map((org) => {
@@ -372,6 +400,14 @@ export default function AdminOrganizationsPage() {
                           </TableCell>
                           <TableCell>
                             <Badge variant={org.is_active ? 'default' : 'secondary'}>{org.is_active ? 'Active' : 'Inactive'}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Switch
+                              checked={org.enable_batch_pos_sales}
+                              disabled={updatingBatchPosOrgId === org.id}
+                              onCheckedChange={() => handleToggleBatchPosSales(org)}
+                              aria-label={`${org.enable_batch_pos_sales ? 'Disable' : 'Enable'} batch POS sales for ${org.name}`}
+                            />
                           </TableCell>
                            <TableCell>{userCounts[org.id] || 0}</TableCell>
                            <TableCell>{branchCounts[org.id] || 0}</TableCell>

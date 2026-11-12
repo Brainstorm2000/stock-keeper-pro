@@ -6,9 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganization, useUpdateOrganization } from '@/hooks/useOrganization';
+import type { ReceiptPaperSize } from '@/hooks/useOrganization';
 import { LogoUpload } from '@/components/onboarding/LogoUpload';
 import { Loader2, Building2, CreditCard } from 'lucide-react';
 import { PaymentMethodsDialog } from '@/components/organization/PaymentMethodsDialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface OrganizationSettingsDialogProps {
   open: boolean;
@@ -24,6 +26,7 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [receiptPaperSize, setReceiptPaperSize] = useState<ReceiptPaperSize>('80mm');
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
 
   // Sync state with organization data when dialog opens
@@ -33,6 +36,7 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
       setEmail(organization.email || '');
       setAddress(organization.address || '');
       setLogoUrl(organization.logo_url || '');
+      setReceiptPaperSize(organization.receipt_paper_size || '80mm');
     }
   }, [organization, open]);
 
@@ -53,6 +57,7 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
         email: email.trim() || null,
         address: address.trim() || null,
         logo_url: logoUrl || null,
+        receipt_paper_size: receiptPaperSize,
       },
       {
         onSuccess: () => {
@@ -66,7 +71,7 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5" />
@@ -124,7 +129,33 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3 rounded-lg border p-4">
+              <div>
+                <h3 className="font-semibold">Receipt Settings</h3>
+                <p className="text-sm text-muted-foreground">
+                  Receipts use the organization name, logo, address, and email above.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="receiptPaperSize">Paper size</Label>
+                <Select
+                  value={receiptPaperSize}
+                  onValueChange={(value: ReceiptPaperSize) => setReceiptPaperSize(value)}
+                  disabled={isUpdating}
+                >
+                  <SelectTrigger id="receiptPaperSize">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="80mm">80 mm (default)</SelectItem>
+                    <SelectItem value="57mm">57 mm</SelectItem>
+                    <SelectItem value="a4">A4</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* <div className="space-y-2">
               <Label htmlFor="orgSlug">Organization Code</Label>
               <Input
                 id="orgSlug"
@@ -135,7 +166,7 @@ export function OrganizationSettingsDialog({ open, onOpenChange }: OrganizationS
               <p className="text-xs text-muted-foreground">
                 This code is used by team members to join your organization
               </p>
-            </div>
+            </div> */}
 
             <Button type="submit" disabled={isUpdating} className="w-full">
               {isUpdating ? (

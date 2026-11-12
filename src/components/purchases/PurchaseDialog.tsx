@@ -462,7 +462,7 @@ export function PurchaseDialog({ open, onOpenChange }: PurchaseDialogProps) {
                             aria-label={`Expiry date for ${item.product.name}`}
                             value={item.expiration_date || ''}
                             onChange={(e) => updateCartItem(key, 'expiration_date', e.target.value)}
-                            className="w-36"
+                            className="w-36 bg-muted/40 text-muted-foreground focus-visible:text-foreground"
                           />
                         </TableCell>
                         <TableCell className="text-right font-medium">

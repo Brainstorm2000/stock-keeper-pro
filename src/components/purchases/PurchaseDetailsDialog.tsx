@@ -327,6 +327,7 @@ export function PurchaseDetailsDialog({
                     <TableRow>
                       <TableHead>Payment Date</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Recorded by</TableHead>
                       {canManagePayments && (
                         <TableHead className="text-right">Actions</TableHead>
                       )}
@@ -364,6 +365,9 @@ export function PurchaseDetailsDialog({
                           ) : (
                             formatCurrency(Number(payment.amount))
                           )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {payment.created_by_user?.full_name || payment.created_by_user?.email?.split("@")[0] || "Unknown"}
                         </TableCell>
                         {canManagePayments && (
                           <TableCell className="text-right">

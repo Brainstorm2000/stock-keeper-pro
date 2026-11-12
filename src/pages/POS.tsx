@@ -53,7 +53,12 @@ import { useProducts, type Product } from "@/hooks/useProducts";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { useBranches, useMyBranchAssignments } from "@/hooks/useBranches";
 import { useOrganization } from "@/hooks/useOrganization";
-import { useCustomers, type Customer } from "@/hooks/useCustomers";
+import {
+  useCustomers,
+  useCreateCustomer,
+  useUpdateCustomer,
+  type Customer,
+} from "@/hooks/useCustomers";
 import { useInventoryBatches } from "@/hooks/useInventoryBatches";
 import { useAuth } from "@/lib/auth";
 import {
@@ -69,7 +74,9 @@ import {
   type PaymentDetail,
 } from "@/hooks/useSales";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeCustomerPhone } from "@/lib/customer-identity";
 import { useToast } from "@/hooks/use-toast";
+import { syncLocalPosSale, syncPendingLocalPosSales } from "@/lib/offline/local-sync";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 import { CartItemRow } from "@/components/pos/CartItemRow";
@@ -124,6 +131,7 @@ export default function POS() {
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [splitPaymentDialogOpen, setSplitPaymentDialogOpen] = useState(false);
   const [lastSaleId, setLastSaleId] = useState<string | null>(null);
+  const [receiptPrintedSaleId, setReceiptPrintedSaleId] = useState<string | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [useSplitPayment, setUseSplitPayment] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([]);
@@ -160,6 +168,7 @@ export default function POS() {
   const { data: branches = [] } = useBranches();
   const { data: myBranchAssignments = [] } = useMyBranchAssignments();
   const { data: organization } = useOrganization();
+  const batchPosSalesEnabled = organization?.enable_batch_pos_sales !== false;
   const { data: customers = [] } = useCustomers();
   const { data: heldOrders = [] } = useHeldOrders();
   const { data: lastSale } = useSaleWithItems(lastSaleId);
@@ -167,17 +176,65 @@ export default function POS() {
   const editSaleId = searchParams.get("editSaleId");
   const { data: editSale } = useSaleWithItems(editSaleId);
   const createSale = useCreateSale();
+  const createCustomer = useCreateCustomer();
+  const updateCustomer = useUpdateCustomer();
   const updateSale = useUpdateSale();
   const createHeldOrder = useCreateHeldOrder();
   const deleteHeldOrder = useDeleteHeldOrder();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const syncPending = () => {
+      const excludedSaleIds = receiptDialogOpen && lastSaleId && receiptPrintedSaleId !== lastSaleId
+        ? new Set([lastSaleId])
+        : new Set<string>();
+      void syncPendingLocalPosSales(excludedSaleIds).catch((error: unknown) => {
+        console.error("Pending POS sale sync failed", error);
+      });
+    };
+
+    syncPending();
+    window.addEventListener("online", syncPending);
+    return () => window.removeEventListener("online", syncPending);
+  }, [lastSaleId, receiptDialogOpen, receiptPrintedSaleId]);
+
+  const syncSaleAfterReceipt = (saleId: string | null) => {
+    if (!saleId) return;
+    void syncLocalPosSale(saleId).catch((error: unknown) => {
+      toast({
+        title: "Sale saved; server sync pending",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    });
+  };
+
+  const handleReceiptPrinted = () => {
+    setReceiptPrintedSaleId(lastSaleId);
+    syncSaleAfterReceipt(lastSaleId);
+  };
+
+  const handleReceiptOpenChange = (open: boolean) => {
+    setReceiptDialogOpen(open);
+    if (!open) {
+      setReceiptPrintedSaleId(lastSaleId);
+      syncSaleAfterReceipt(lastSaleId);
+    }
+  };
+
+  useEffect(() => {
+    if (!batchPosSalesEnabled) {
+      setBatchPicker(null);
+      setSelectedBatchId("");
+    }
+  }, [batchPosSalesEnabled]);
+
   const myBranchIds = new Set(myBranchAssignments.map((assignment) => assignment.branch_id));
   const accessibleCustomers = isSuperAdmin
-    ? customers
+    ? customers.filter((customer) => customer.branch_id !== null)
     : customers.filter(
-        (customer) => !customer.branch_id || myBranchIds.has(customer.branch_id),
+        (customer) => customer.branch_id !== null && myBranchIds.has(customer.branch_id),
       );
   const branchCustomers = selectedBranchId
     ? accessibleCustomers.filter((customer) => customer.branch_id === selectedBranchId)
@@ -658,6 +715,8 @@ export default function POS() {
     inventoryBatchId?: string,
     usesUnbatchedStock = false,
   ) => {
+    const selectedInventoryBatchId = batchPosSalesEnabled ? inventoryBatchId : undefined;
+    let selectedUnbatchedStock = batchPosSalesEnabled && usesUnbatchedStock;
     const productType = product.item_type || "product";
     if (productType === "variable") {
       setVariationPickerProduct(product);
@@ -665,32 +724,34 @@ export default function POS() {
     }
 
     const unitMultiplier = getUnitMultiplier(product, unitChoice);
-    const batchOptions = getPurchaseBatchOptions(product.id, null, unitMultiplier);
+    const batchOptions = batchPosSalesEnabled
+      ? getPurchaseBatchOptions(product.id, null, unitMultiplier)
+      : [];
     const unbatchedQuantity = getAvailableUnbatchedQuantity(
       product.id,
       null,
       unitMultiplier,
     );
-    if (!inventoryBatchId && inventoryBatchesLoading) {
+    if (!selectedInventoryBatchId && batchPosSalesEnabled && inventoryBatchesLoading) {
       toast({ title: "Checking batch availability", description: "Please try selecting the product again." });
       return;
     }
-    if (!inventoryBatchId && !usesUnbatchedStock && batchOptions.length > 0) {
+    if (!selectedInventoryBatchId && batchPosSalesEnabled && !selectedUnbatchedStock && batchOptions.length > 0) {
       setSelectedBatchId("");
       setBatchPicker({ product, unitChoice });
       return;
     }
-    if (!inventoryBatchId && !usesUnbatchedStock && unbatchedQuantity > 0) {
-      usesUnbatchedStock = true;
+    if (!selectedInventoryBatchId && batchPosSalesEnabled && !selectedUnbatchedStock && unbatchedQuantity > 0) {
+      selectedUnbatchedStock = true;
     }
-    const selectedBatch = inventoryBatchId
-      ? batchOptions.find((batch) => batch.id === inventoryBatchId)
+    const selectedBatch = selectedInventoryBatchId
+      ? batchOptions.find((batch) => batch.id === selectedInventoryBatchId)
       : undefined;
-    if (inventoryBatchId && !selectedBatch) {
+    if (selectedInventoryBatchId && !selectedBatch) {
       toast({ title: "Batch unavailable", description: "This purchase batch no longer has enough stock.", variant: "destructive" });
       return;
     }
-    const maxQty = usesUnbatchedStock
+    const maxQty = selectedUnbatchedStock
       ? unbatchedQuantity
       : selectedBatch
       ? selectedBatch.availableSaleQuantity
@@ -719,7 +780,7 @@ export default function POS() {
         max_quantity: maxQty,
         item_type: productType,
         inventory_batch_id: selectedBatch?.id ?? null,
-        uses_unbatched_stock: usesUnbatchedStock,
+        uses_unbatched_stock: selectedUnbatchedStock,
         purchase_batch_number: selectedBatch?.batch_number ?? null,
         purchase_batch_expiration_date: selectedBatch?.expiration_date ?? null,
       },
@@ -732,34 +793,38 @@ export default function POS() {
     productOverride?: Product,
     usesUnbatchedStock = false,
   ) => {
+    const selectedInventoryBatchId = batchPosSalesEnabled ? inventoryBatchId : undefined;
+    let selectedUnbatchedStock = batchPosSalesEnabled && usesUnbatchedStock;
     const product = productOverride || variationPickerProduct;
     if (!product) return;
-    const batchOptions = getPurchaseBatchOptions(product.id, variation.id, 1);
+    const batchOptions = batchPosSalesEnabled
+      ? getPurchaseBatchOptions(product.id, variation.id, 1)
+      : [];
     const unbatchedQuantity = getAvailableUnbatchedQuantity(
       product.id,
       variation.id,
       1,
     );
-    if (!inventoryBatchId && inventoryBatchesLoading) {
+    if (!selectedInventoryBatchId && batchPosSalesEnabled && inventoryBatchesLoading) {
       toast({ title: "Checking batch availability", description: "Please try selecting the product again." });
       return;
     }
-    if (!inventoryBatchId && !usesUnbatchedStock && batchOptions.length > 0) {
+    if (!selectedInventoryBatchId && batchPosSalesEnabled && !selectedUnbatchedStock && batchOptions.length > 0) {
       setSelectedBatchId("");
       setBatchPicker({ product, variation, unitChoice: "main" });
       return;
     }
-    if (!inventoryBatchId && !usesUnbatchedStock && unbatchedQuantity > 0) {
-      usesUnbatchedStock = true;
+    if (!selectedInventoryBatchId && batchPosSalesEnabled && !selectedUnbatchedStock && unbatchedQuantity > 0) {
+      selectedUnbatchedStock = true;
     }
-    const selectedBatch = inventoryBatchId
-      ? batchOptions.find((batch) => batch.id === inventoryBatchId)
+    const selectedBatch = selectedInventoryBatchId
+      ? batchOptions.find((batch) => batch.id === selectedInventoryBatchId)
       : undefined;
-    if (inventoryBatchId && !selectedBatch) {
+    if (selectedInventoryBatchId && !selectedBatch) {
       toast({ title: "Batch unavailable", description: "This purchase batch no longer has enough stock.", variant: "destructive" });
       return;
     }
-    const maxQty = usesUnbatchedStock
+    const maxQty = selectedUnbatchedStock
       ? unbatchedQuantity
       : selectedBatch
       ? selectedBatch.availableSaleQuantity
@@ -767,7 +832,7 @@ export default function POS() {
     const existingIndex = cart.findIndex(
       (item) =>
         item.variation_id === variation.id &&
-        Boolean(item.uses_unbatched_stock) === usesUnbatchedStock &&
+        Boolean(item.uses_unbatched_stock) === selectedUnbatchedStock &&
         (item.inventory_batch_id || null) === (selectedBatch?.id || null),
     );
     if (existingIndex > -1) {
@@ -800,7 +865,7 @@ export default function POS() {
           max_quantity: maxQty,
           item_type: "product",
           inventory_batch_id: selectedBatch?.id ?? null,
-          uses_unbatched_stock: usesUnbatchedStock,
+          uses_unbatched_stock: selectedUnbatchedStock,
           purchase_batch_number: selectedBatch?.batch_number ?? null,
           purchase_batch_expiration_date: selectedBatch?.expiration_date ?? null,
         },
@@ -994,6 +1059,80 @@ export default function POS() {
       return;
     }
 
+    const enteredCustomerName = customerName.trim();
+    const enteredCustomerPhone = customerPhone.trim();
+    const selectedCustomer =
+      selectedCustomerId && selectedCustomerId !== "none"
+        ? customers.find((customer) => customer.id === selectedCustomerId)
+        : undefined;
+    let checkoutCustomerId =
+      selectedCustomerId && selectedCustomerId !== "none"
+        ? selectedCustomerId
+        : undefined;
+    let customerNeedsSaving = false;
+
+    if (enteredCustomerName) {
+      const normalizedPhone = normalizeCustomerPhone(enteredCustomerPhone);
+      const matchingCustomer = selectedCustomer || (
+        !checkoutCustomerId
+          ? customers.find((customer) => {
+              if (customer.branch_id !== branchResult.branchId) return false;
+              if (normalizedPhone) {
+                return normalizeCustomerPhone(customer.phone) === normalizedPhone;
+              }
+              return (
+                !customer.phone &&
+                customer.name.trim().toLocaleLowerCase() ===
+                  enteredCustomerName.toLocaleLowerCase()
+              );
+            })
+          : undefined
+      );
+      const customerChanges = selectedCustomer
+        ? {
+            ...(selectedCustomer.name !== enteredCustomerName
+              ? { name: enteredCustomerName }
+              : {}),
+            ...(enteredCustomerPhone &&
+            selectedCustomer.phone !== enteredCustomerPhone
+              ? { phone: enteredCustomerPhone }
+              : {}),
+          }
+        : null;
+
+      if (typeof navigator === "undefined" || navigator.onLine) {
+        if (matchingCustomer) {
+          checkoutCustomerId = matchingCustomer.id;
+          if (selectedCustomer && customerChanges && Object.keys(customerChanges).length > 0) {
+            try {
+              await updateCustomer.mutateAsync({
+                id: matchingCustomer.id,
+                ...customerChanges,
+              });
+            } catch {
+              return;
+            }
+          }
+        } else if (!checkoutCustomerId) {
+          try {
+            const createdCustomer = await createCustomer.mutateAsync({
+              organization_id: checkoutOrganizationId,
+              branch_id: branchResult.branchId,
+              name: enteredCustomerName,
+              phone: enteredCustomerPhone || undefined,
+            });
+            checkoutCustomerId = createdCustomer.id;
+          } catch {
+            return;
+          }
+        }
+      } else {
+        customerNeedsSaving = !matchingCustomer || Object.keys(customerChanges || {}).length > 0;
+      }
+    } else if (enteredCustomerPhone && !checkoutCustomerId) {
+      customerNeedsSaving = true;
+    }
+
     // Determine payment method and details
     const primaryPaymentMethod =
       useSplitPayment && paymentSplits.length > 0
@@ -1051,12 +1190,9 @@ export default function POS() {
     const salePayload = {
       organization_id: checkoutOrganizationId,
       branch_id: branchResult.branchId,
-      customer_id:
-        selectedCustomerId && selectedCustomerId !== "none"
-          ? selectedCustomerId
-          : undefined,
-      customer_name: customerName || undefined,
-      customer_phone: customerPhone || undefined,
+      customer_id: checkoutCustomerId,
+      customer_name: enteredCustomerName || undefined,
+      customer_phone: enteredCustomerPhone || undefined,
       sale_date: saleDate || undefined,
       subtotal,
       discount_amount: discountValue,
@@ -1119,10 +1255,19 @@ export default function POS() {
     }
 
     setLastSaleId(result.saleId ?? result.id ?? editSaleId);
+    setReceiptPrintedSaleId(null);
     setCheckoutDialogOpen(false);
     setSplitPaymentDialogOpen(false);
     setReceiptDialogOpen(true);
     clearCart();
+    if (customerNeedsSaving) {
+      toast({
+        title: "Customer details not added",
+        description:
+          "The sale was saved, but new customer details must be added after reconnecting or entering a customer name.",
+        variant: "destructive",
+      });
+    }
 
     // Play loud notification sound on sale completion
     playSaleCompletedSound();
@@ -1174,7 +1319,9 @@ export default function POS() {
   };
 
   const handleNewSale = () => {
+    syncSaleAfterReceipt(lastSaleId);
     setReceiptDialogOpen(false);
+    setReceiptPrintedSaleId(lastSaleId);
     setLastSaleId(null);
   };
 
@@ -1903,7 +2050,13 @@ export default function POS() {
               </Button>
               <Button
                 onClick={handleCheckout}
-                disabled={createSale.isPending || updateSale.isPending || hasStockWarning}
+                disabled={
+                  createSale.isPending ||
+                  updateSale.isPending ||
+                  createCustomer.isPending ||
+                  updateCustomer.isPending ||
+                  hasStockWarning
+                }
                 className="bg-[#FF9E3D] hover:bg-[#e68a2e] text-black border-none shadow-md transition-all active:scale-95"
               >
                 {createSale.isPending || updateSale.isPending ? (
@@ -1989,14 +2142,16 @@ export default function POS() {
         {/* Receipt Dialog */}
         <ReceiptDialog
           open={receiptDialogOpen}
-          onOpenChange={setReceiptDialogOpen}
+          onOpenChange={handleReceiptOpenChange}
           sale={lastSale || null}
           organizationName={organization?.name}
           organizationLogoUrl={organization?.logo_url || undefined}
           organizationAddress={organization?.address || undefined}
           organizationEmail={organization?.email || undefined}
+          paperSize={organization?.receipt_paper_size || '80mm'}
           showSuccessMessage={true}
           onNewSale={handleNewSale}
+          onPrinted={handleReceiptPrinted}
         />
         <VariationPickerDialog
           productId={variationPickerProduct?.id || null}

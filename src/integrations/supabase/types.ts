@@ -964,10 +964,12 @@ export type Database = {
           address: string | null
           created_at: string
           email: string | null
+          enable_batch_pos_sales: boolean
           id: string
           is_active: boolean
           logo_url: string | null
           name: string
+          receipt_paper_size: string
           slug: string
           updated_at: string
         }
@@ -975,10 +977,12 @@ export type Database = {
           address?: string | null
           created_at?: string
           email?: string | null
+          enable_batch_pos_sales?: boolean
           id?: string
           is_active?: boolean
           logo_url?: string | null
           name: string
+          receipt_paper_size?: string
           slug: string
           updated_at?: string
         }
@@ -986,10 +990,12 @@ export type Database = {
           address?: string | null
           created_at?: string
           email?: string | null
+          enable_batch_pos_sales?: boolean
           id?: string
           is_active?: boolean
           logo_url?: string | null
           name?: string
+          receipt_paper_size?: string
           slug?: string
           updated_at?: string
         }

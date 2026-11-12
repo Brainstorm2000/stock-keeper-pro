@@ -95,6 +95,8 @@ export function OrganizationActivityNotifications() {
         },
         (payload) => {
           const notification = payload.new as ActivityNotification;
+          if (notification.actor_id === user.id) return;
+
           const context = audioContextRef.current;
           if (context?.state === 'running') {
             playNotificationTone(context);

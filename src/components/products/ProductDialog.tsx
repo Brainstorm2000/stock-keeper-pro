@@ -1142,7 +1142,13 @@ export function ProductDialog({
               {selectedProductType !== "service" && (
                 <div className="space-y-2">
                   <Label htmlFor="expiration_date">Expiration Date (Optional)</Label>
-                  <Input id="expiration_date" type="date" {...register("expiration_date")} />
+                  <Input
+                    id="expiration_date"
+                    type="date"
+                    className="bg-muted/40 text-muted-foreground focus-visible:text-foreground"
+                    disabled={isEditing}
+                    {...register("expiration_date")}
+                  />
                 </div>
               )}
 

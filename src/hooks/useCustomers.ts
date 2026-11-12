@@ -3,8 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
-import { customersTable, readLocalFirst, saveLocal, removeLocal } from '@/lib/offline/repository';
-import { createId } from '@/lib/utils';
+import { customersTable, readLocalFirst } from '@/lib/offline/repository';
+import { useMyBranchAssignments } from '@/hooks/useBranches';
+import {
+  findDuplicateCustomerContact,
+  type CustomerContact,
+} from '@/lib/customer-identity';
 
 export interface Customer {
   id: string;
@@ -31,17 +35,79 @@ export interface CustomerInput {
   debt_limit?: number;
 }
 
+export class DuplicateCustomerContactError extends Error {
+  constructor(field: 'email' | 'phone', customerName: string) {
+    super(`A customer with this ${field} already exists: ${customerName}`);
+    this.name = 'DuplicateCustomerContactError';
+  }
+}
+
+function getDuplicateCustomerContactMessage(error: unknown) {
+  if (error instanceof DuplicateCustomerContactError) return error.message;
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' &&
+          error !== null &&
+          'message' in error &&
+          typeof error.message === 'string'
+        ? error.message
+        : null;
+  if (!message) return null;
+  return /a customer with this (email|phone(?: number)?) already exists/i.test(message)
+    ? message
+    : null;
+}
+
+export function isDuplicateCustomerContactError(error: unknown) {
+  return getDuplicateCustomerContactMessage(error) !== null;
+}
+
+async function ensureUniqueCustomerContact(
+  input: Pick<CustomerInput, 'branch_id' | 'email' | 'phone'>,
+  organizationId: string,
+  excludeId?: string,
+) {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('id, name, branch_id, email, phone')
+    .eq('organization_id', organizationId);
+
+  if (error) throw error;
+
+  const duplicate = findDuplicateCustomerContact(
+    input,
+    (data || []) as CustomerContact[],
+    excludeId,
+  );
+  if (duplicate) {
+    throw new DuplicateCustomerContactError(
+      duplicate.field,
+      duplicate.customer.name,
+    );
+  }
+}
+
 export function useCustomers() {
-  const { organizationId } = useAuth();
+  const { organizationId, isSuperAdmin } = useAuth();
+  const { data: branchAssignments = [], isLoading: assignmentsLoading } = useMyBranchAssignments();
+  const accessibleBranchIds = isSuperAdmin
+    ? []
+    : branchAssignments.map((assignment) => assignment.branch_id).sort();
+
   return useQuery({
-    queryKey: ['customers', organizationId],
-    enabled: !!organizationId,
+    queryKey: ['customers', organizationId, isSuperAdmin, accessibleBranchIds],
+    enabled: !!organizationId && (isSuperAdmin || !assignmentsLoading),
     queryFn: async () => {
       return readLocalFirst(customersTable, async () => {
         const { data, error } = await supabase.from('customers').select('*').eq('organization_id', organizationId!).order('name');
         if (error) throw error;
         return data as Customer[];
-      }, (customer) => customer.organization_id === organizationId);
+      }, (customer) =>
+        customer.organization_id === organizationId &&
+        customer.branch_id !== null &&
+        (isSuperAdmin || accessibleBranchIds.includes(customer.branch_id)),
+      );
     },
   });
 }
@@ -53,21 +119,7 @@ export function useCreateCustomer() {
 
   return useMutation({
     mutationFn: async (customer: CustomerInput & { organization_id: string }) => {
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        const now = new Date().toISOString();
-        return saveLocal(customersTable, {
-          ...customer,
-          id: createId(),
-          created_by: user?.id ?? null,
-          created_at: now,
-          updated_at: now,
-          email: customer.email ?? null,
-          phone: customer.phone ?? null,
-          address: customer.address ?? null,
-          notes: customer.notes ?? null,
-          debt_limit: customer.debt_limit ?? 0,
-        });
-      }
+      await ensureUniqueCustomerContact(customer, customer.organization_id);
       const { data, error } = await supabase
         .from('customers')
         .insert({
@@ -85,6 +137,15 @@ export function useCreateCustomer() {
       toast({ title: 'Customer created successfully' });
     },
     onError: (error: Error) => {
+      const duplicateMessage = getDuplicateCustomerContactMessage(error);
+      if (duplicateMessage) {
+        toast({
+          title: 'Duplicate customer contact',
+          description: duplicateMessage,
+          variant: 'destructive',
+        });
+        return;
+      }
       const { title, description } = parseDbError(error, 'create customer');
       toast({ title, description, variant: 'destructive' });
     },
@@ -96,11 +157,32 @@ export function useUpdateCustomer() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...customer }: CustomerInput & { id: string }) => {
-      const existing = await customersTable.get(id);
-      if (typeof navigator !== 'undefined' && !navigator.onLine && existing) {
-        return saveLocal(customersTable, { ...existing.data, ...customer, id } as Customer);
+    mutationFn: async ({ id, ...customer }: Partial<CustomerInput> & { id: string }) => {
+      if (
+        customer.branch_id !== undefined ||
+        customer.email !== undefined ||
+        customer.phone !== undefined
+      ) {
+        const { data: currentCustomer, error: currentCustomerError } = await supabase
+          .from('customers')
+          .select('organization_id, branch_id')
+          .eq('id', id)
+          .single();
+
+        if (currentCustomerError) throw currentCustomerError;
+        await ensureUniqueCustomerContact(
+          {
+            ...customer,
+            branch_id:
+              customer.branch_id !== undefined
+                ? customer.branch_id
+                : currentCustomer.branch_id,
+          },
+          currentCustomer.organization_id,
+          id,
+        );
       }
+
       const { data, error } = await supabase
         .from('customers')
         .update(customer)
@@ -116,6 +198,15 @@ export function useUpdateCustomer() {
       toast({ title: 'Customer updated successfully' });
     },
     onError: (error: Error) => {
+      const duplicateMessage = getDuplicateCustomerContactMessage(error);
+      if (duplicateMessage) {
+        toast({
+          title: 'Duplicate customer contact',
+          description: duplicateMessage,
+          variant: 'destructive',
+        });
+        return;
+      }
       const { title, description } = parseDbError(error, 'update customer');
       toast({ title, description, variant: 'destructive' });
     },
@@ -128,10 +219,6 @@ export function useDeleteCustomer() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        await removeLocal(customersTable, id);
-        return;
-      }
       const { error } = await supabase.from('customers').delete().eq('id', id);
       if (error) throw error;
     },
@@ -153,6 +240,35 @@ export function useBulkCreateCustomers() {
 
   return useMutation({
     mutationFn: async (customers: (CustomerInput & { organization_id: string })[]) => {
+      const organizationIds = [...new Set(customers.map((customer) => customer.organization_id))];
+      if (organizationIds.length !== 1) {
+        throw new Error('Customers in a bulk import must belong to one organization.');
+      }
+
+      const { data: existingCustomers, error: existingCustomersError } = await supabase
+        .from('customers')
+        .select('id, name, branch_id, email, phone')
+        .eq('organization_id', organizationIds[0]);
+      if (existingCustomersError) throw existingCustomersError;
+
+      const knownCustomers = [...((existingCustomers || []) as CustomerContact[])];
+      for (const [index, customer] of customers.entries()) {
+        const duplicate = findDuplicateCustomerContact(customer, knownCustomers);
+        if (duplicate) {
+          throw new DuplicateCustomerContactError(
+            duplicate.field,
+            duplicate.customer.name,
+          );
+        }
+        knownCustomers.push({
+          id: `pending-${index}`,
+          name: customer.name,
+          branch_id: customer.branch_id ?? null,
+          email: customer.email ?? null,
+          phone: customer.phone ?? null,
+        });
+      }
+
       const { data, error } = await supabase
         .from('customers')
         .insert(customers.map(c => ({ ...c, created_by: user?.id })))
@@ -166,6 +282,15 @@ export function useBulkCreateCustomers() {
       toast({ title: `${data.length} customers imported successfully` });
     },
     onError: (error: Error) => {
+      const duplicateMessage = getDuplicateCustomerContactMessage(error);
+      if (duplicateMessage) {
+        toast({
+          title: 'Duplicate customer contact',
+          description: duplicateMessage,
+          variant: 'destructive',
+        });
+        return;
+      }
       const { title, description } = parseDbError(error, 'import customers');
       toast({ title, description, variant: 'destructive' });
     },

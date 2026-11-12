@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { format } from "date-fns";
+import { Pencil, Save, X } from "lucide-react";
 import type { Product } from "@/hooks/useProducts";
 import { useProductVariations } from "@/hooks/useProductVariations";
-import { useInventoryBatches } from "@/hooks/useInventoryBatches";
+import { useInventoryBatches, useUpdateInventoryBatchExpiration } from "@/hooks/useInventoryBatches";
 import { formatProductStockQuantity } from "@/lib/product-units";
 import { formatCurrency } from "@/lib/currency";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +29,7 @@ interface ProductDetailsDialogProps {
   product: Product | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  canEditBatchExpiry?: boolean;
 }
 
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
@@ -44,7 +49,9 @@ export function ProductDetailsDialog({
   product,
   open,
   onOpenChange,
+  canEditBatchExpiry = false,
 }: ProductDetailsDialogProps) {
+  const [editingExpiry, setEditingExpiry] = useState<{ batchId: string; value: string } | null>(null);
   const { data: variations = [] } = useProductVariations(
     product?.item_type === "variable" ? product.id : null,
   );
@@ -52,6 +59,20 @@ export function ProductDetailsDialog({
     product?.id,
     open && !!product?.id,
   );
+  const updateBatchExpiration = useUpdateInventoryBatchExpiration();
+
+  const saveBatchExpiry = async () => {
+    if (!editingExpiry) return;
+    try {
+      await updateBatchExpiration.mutateAsync({
+        batchId: editingExpiry.batchId,
+        expirationDate: editingExpiry.value || null,
+      });
+      setEditingExpiry(null);
+    } catch {
+      // The mutation reports update errors through the toast.
+    }
+  };
 
   if (!product) return null;
 
@@ -182,12 +203,13 @@ export function ProductDetailsDialog({
                     <TableHead className="text-right">Received</TableHead>
                     <TableHead className="text-right">Remaining</TableHead>
                     <TableHead>Expiry</TableHead>
+                    {canEditBatchExpiry && <TableHead className="w-24">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {inventoryBatches.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+                      <TableCell colSpan={canEditBatchExpiry ? 6 : 5} className="py-6 text-center text-muted-foreground">
                         No batch records found.
                       </TableCell>
                     </TableRow>
@@ -204,10 +226,59 @@ export function ProductDetailsDialog({
                         {Number(batch.remaining_quantity).toLocaleString()}
                       </TableCell>
                       <TableCell>
-                        {batch.expiration_date
-                          ? format(new Date(`${batch.expiration_date}T00:00:00`), "MMM d, yyyy")
-                          : "—"}
+                        {editingExpiry?.batchId === batch.id ? (
+                          <Input
+                            type="date"
+                            aria-label={`Expiry date for batch ${batch.batch_number}`}
+                            value={editingExpiry.value}
+                            onChange={(event) => setEditingExpiry({ ...editingExpiry, value: event.target.value })}
+                            className="min-w-36"
+                          />
+                        ) : batch.expiration_date ? (
+                          format(new Date(`${batch.expiration_date}T00:00:00`), "MMM d, yyyy")
+                        ) : "—"}
                       </TableCell>
+                      {canEditBatchExpiry && (
+                        <TableCell>
+                          {editingExpiry?.batchId === batch.id ? (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Save batch expiry"
+                                title="Save expiry"
+                                disabled={updateBatchExpiration.isPending}
+                                onClick={() => void saveBatchExpiry()}
+                              >
+                                <Save className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Cancel batch expiry edit"
+                                title="Cancel"
+                                disabled={updateBatchExpiration.isPending}
+                                onClick={() => setEditingExpiry(null)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Edit expiry for batch ${batch.batch_number}`}
+                              title="Edit expiry"
+                              onClick={() => setEditingExpiry({ batchId: batch.id, value: batch.expiration_date || "" })}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

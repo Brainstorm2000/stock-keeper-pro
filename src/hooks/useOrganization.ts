@@ -5,6 +5,8 @@ import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 import { adminCreateAuthUser } from '@/lib/admin-auth-client';
 
+export type ReceiptPaperSize = '80mm' | '57mm' | 'a4';
+
 export interface Organization {
   id: string;
   name: string;
@@ -12,6 +14,8 @@ export interface Organization {
   logo_url: string | null;
   email: string | null;
   address: string | null;
+  enable_batch_pos_sales: boolean;
+  receipt_paper_size: ReceiptPaperSize;
   created_at: string;
   updated_at: string;
 }
@@ -251,16 +255,18 @@ export function useUpdateOrganization() {
       email,
       address,
       logo_url,
+      receipt_paper_size,
     }: {
       id: string;
       name: string;
       email?: string | null;
       address?: string | null;
       logo_url?: string | null;
+      receipt_paper_size?: ReceiptPaperSize;
     }) => {
       const { data, error } = await supabase
         .from('organizations')
-        .update({ name, email, address, logo_url })
+        .update({ name, email, address, logo_url, receipt_paper_size })
         .eq('id', id)
         .select()
         .single();

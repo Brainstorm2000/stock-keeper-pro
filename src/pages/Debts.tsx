@@ -276,7 +276,7 @@ export default function Debts() {
 
         {/* Record Payment Dialog */}
         <Dialog open={!!paymentDialog} onOpenChange={(o) => { if (!o) { setPaymentDialog(null); setUseSplit(false); setSplits([]); } }}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Record Payment - {paymentDialog?.customerName}</DialogTitle>
             </DialogHeader>
@@ -458,6 +458,7 @@ export default function Debts() {
                     <TableHead>Method</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead>Recorded by</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -467,6 +468,9 @@ export default function Debts() {
                       <TableCell className="capitalize">{p.payment_method.replace('_', ' ')}</TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(Number(p.amount))}</TableCell>
                       <TableCell className="max-w-[120px] truncate">{p.notes || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {p.paid_by_user?.full_name || p.paid_by_user?.email?.split('@')[0] || 'Unknown'}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

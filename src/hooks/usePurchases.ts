@@ -72,6 +72,7 @@ export interface PurchasePayment {
   amount: number;
   payment_date: string | null;
   created_by: string | null;
+  created_by_user?: { full_name: string | null; email: string | null } | null;
   created_at: string;
 }
 
@@ -115,7 +116,22 @@ export function usePurchasePayments(purchaseId: string) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as PurchasePayment[];
+
+      const payments = data as PurchasePayment[];
+      const userIds = [...new Set(payments.map((payment) => payment.created_by).filter((id): id is string => Boolean(id)))];
+      const profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
+
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.rpc('get_org_user_names', { _user_ids: userIds });
+        profiles?.forEach((profile) => {
+          profilesMap[profile.user_id] = { full_name: profile.full_name, email: profile.email };
+        });
+      }
+
+      return payments.map((payment) => ({
+        ...payment,
+        created_by_user: payment.created_by ? profilesMap[payment.created_by] || null : null,
+      }));
     },
   });
 }

@@ -274,15 +274,6 @@ function DashboardContent() {
     [filteredByExpiration, productTypeFilter, productCategoryFilter],
   );
 
-  const filteredProductsForAlerts = useMemo(
-    () => filteredBySearchAndStatus.filter((product) => {
-      const matchesType = productTypeFilter === "all" || getProductType(product) === productTypeFilter;
-      const matchesCategory = productCategoryFilter === "all" || product.product_category_id === productCategoryFilter;
-      return matchesType && matchesCategory;
-    }),
-    [filteredBySearchAndStatus, productTypeFilter, productCategoryFilter],
-  );
-
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
   const activePage = Math.min(currentPage, totalPages);
   const indexOfLastItem = activePage * itemsPerPage;
@@ -558,7 +549,10 @@ function DashboardContent() {
 )}
         </div>
 
-        <ExpirationAlerts products={filteredProductsForAlerts} />
+        <ExpirationAlerts
+          products={branchFilteredProducts.filter((product) => !product.is_archived)}
+          branchId={selectedBranchId}
+        />
 
         {/* --- Tabs with Horizontal Scroll for Mobile --- */}
         <Tabs defaultValue="overview" className="space-y-6">

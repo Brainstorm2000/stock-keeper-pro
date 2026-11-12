@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, Clock, Search, X } from 'lucide-react';
 import type { Product } from '@/hooks/useProducts';
 import { getExpirationStatus, type ExpirationStatus } from '@/lib/expiration-status';
+import { getExpirationAlertBatches } from '@/lib/expiration-alerts';
 import { usePagination } from '@/hooks/usePagination';
 import { useInventoryBatches } from '@/hooks/useInventoryBatches';
 import { TablePagination } from '@/components/ui/table-pagination';
@@ -25,7 +26,13 @@ import {
 
 const WARNING_WINDOW_DAYS = 30;
 
-export function ExpirationAlerts({ products }: { products: Product[] }) {
+export function ExpirationAlerts({
+  products,
+  branchId,
+}: {
+  products: Product[];
+  branchId?: string;
+}) {
   const today = new Date();
   const [selectedStatus, setSelectedStatus] = useState<ExpirationStatus | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,10 +43,7 @@ export function ExpirationAlerts({ products }: { products: Product[] }) {
     () => new Map(products.map((product) => [product.id, product])),
     [products],
   );
-  const trackedBatches = batches.filter((batch) => {
-    const product = batch.product_id ? productsById.get(batch.product_id) : null;
-    return product && product.item_type !== 'service' && batch.remaining_quantity > 0;
-  });
+  const trackedBatches = getExpirationAlertBatches(products, batches, branchId);
 
   const expiredProducts = trackedBatches
     .filter((batch) => getExpirationStatus(batch.expiration_date, today) === 'expired')

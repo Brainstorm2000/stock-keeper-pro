@@ -755,6 +755,7 @@ export function ProductTable({
       <ProductDetailsDialog
         product={detailsProduct}
         open={detailsProduct !== null}
+        canEditBatchExpiry={canEditProduct}
         onOpenChange={(open) => {
           if (!open) setDetailsProduct(null);
         }}

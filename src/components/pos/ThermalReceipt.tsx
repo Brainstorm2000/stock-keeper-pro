@@ -1,13 +1,15 @@
 import { forwardRef } from "react";
 import { format } from "date-fns";
-import type { Sale, PaymentDetail } from "@/hooks/useSales";
+import { useSaleCreatorProfile, type Sale, type PaymentDetail } from "@/hooks/useSales";
 import { useAuth } from "@/lib/auth";
 import { useUserProfile } from "@/hooks/useOrganization";
 import { formatCurrency } from "@/lib/currency";
 import { getPaymentMethodDisplayName } from "@/lib/payment-display";
+import type { ReceiptPaperSize } from "@/hooks/useOrganization";
 
 interface ThermalReceiptProps {
   sale: Sale;
+  paperSize?: ReceiptPaperSize;
   organizationName?: string;
   organizationLogoUrl?: string | null;
   organizationAddress?: string;
@@ -15,13 +17,21 @@ interface ThermalReceiptProps {
 }
 
 export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
-  ({ sale, organizationName, organizationLogoUrl, organizationAddress, organizationEmail }, ref) => {
+  ({ sale, paperSize = "80mm", organizationName, organizationLogoUrl, organizationAddress, organizationEmail }, ref) => {
     const { user } = useAuth();
     const { data: userProfile } = useUserProfile();
+    const { data: saleCreatorProfile } = useSaleCreatorProfile(sale.created_by);
+    const isCurrentUserCreator = !!sale.created_by && sale.created_by === user?.id;
+    const currentCreatorName = isCurrentUserCreator
+      ? (userProfile?.full_name as string | null) ||
+        (user?.user_metadata?.full_name as string | undefined) ||
+        (user?.user_metadata?.name as string | undefined) ||
+        user?.email
+      : null;
     const salesBy =
-      (user?.user_metadata?.full_name as string | undefined) ||
-      userProfile?.full_name ||
-      user?.email ||
+      saleCreatorProfile?.full_name ||
+      currentCreatorName ||
+      saleCreatorProfile?.email ||
       null;
     const currentYear = new Date().getFullYear();
     const paymentDetails = sale.payment_details as PaymentDetail[] | undefined;
@@ -29,34 +39,45 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
     const amountPaid = Number(sale.amount_paid ?? 0);
     const balanceDue = Number(sale.balance_due ?? Math.max(0, Number(sale.total_amount) - amountPaid));
     const shouldShowBalance = sale.payment_status === 'partial' || sale.payment_status === 'outstanding';
+    const isA4 = paperSize === "a4";
+    const paperWidth = isA4 ? "190mm" : paperSize;
+    const scale = paperSize === "57mm" ? 1 : isA4 ? 1.35 : 1.15;
+    const font = (size: number) => `${Math.round(size * scale)}px`;
+    const padding = isA4 ? "0" : paperSize === "57mm" ? "2mm" : "3mm";
+    const itemColumns = paperSize === "57mm"
+      ? "minmax(0, 1fr) 8mm 20mm"
+      : isA4
+        ? "minmax(0, 1fr) 20mm 40mm"
+        : "minmax(0, 1fr) 10mm 25mm";
 
     return (
       <div
         ref={ref}
         className="thermal-print-container"
         style={{
-          width: "58mm",
-          padding: "2mm",
+          width: paperWidth,
+          padding,
           backgroundColor: "white",
           color: "black",
-          fontFamily: "'Courier New', Courier, monospace",
-          fontSize: "12px", // Increased base size for readability
-          lineHeight: "1.3",
+          fontFamily: "Arial, Helvetica, sans-serif",
+          fontSize: font(12),
+          fontWeight: 700,
+          lineHeight: "1.4",
         }}
       >
         <style
           dangerouslySetInnerHTML={{
             __html: `
           @media print {
-            @page { margin: 0; size: 58mm auto; }
+              @page { margin: ${isA4 ? "10mm" : "0"}; size: ${isA4 ? "A4 portrait" : `${paperSize} auto`}; }
             body { margin: 0; padding: 0; }
-            .thermal-print-container { width: 58mm !important; margin: 0 !important; padding: 2mm !important; }
+              .thermal-print-container { width: ${paperWidth} !important; margin: 0 !important; padding: ${padding} !important; }
           }
           .receipt-divider { border-top: 1px dashed #000; margin: 6px 0; }
           .receipt-bold-divider { border-top: 1.5px solid #000; margin: 6px 0; }
           .item-grid {
             display: grid;
-            grid-template-columns: 1fr 25px 65px; /* Fixed widths for QTY and TOTAL */
+              grid-template-columns: ${itemColumns};
             gap: 4px;
             align-items: start;
           }
@@ -84,7 +105,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
           <div
             style={{
               fontWeight: "900", // Extra bold for brand name
-              fontSize: "16px",
+              fontSize: font(16),
               textTransform: "uppercase",
             }}
           >
@@ -92,20 +113,20 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
           </div>
           {organizationAddress && (
             <div
-              style={{ fontSize: "11px", marginTop: "2px", fontWeight: "600" }}
+              style={{ fontSize: font(11), marginTop: "2px", fontWeight: "700" }}
             >
               {organizationAddress.toUpperCase()}
             </div>
           )}
           {organizationEmail && (
-            <div style={{ fontSize: "10px" }}>{organizationEmail}</div>
+            <div style={{ fontSize: font(11), fontWeight: "700" }}>{organizationEmail}</div>
           )}
         </div>
 
         <div className="receipt-bold-divider" />
 
         {/* Sale Meta */}
-        <div style={{ fontSize: "11px", fontWeight: "700" }}>
+        <div style={{ fontSize: font(11), fontWeight: "700" }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>INVOICE NO:</span>
             <span>{sale.sale_number}</span>
@@ -133,7 +154,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         {/* Items Table Header */}
         <div
           className="item-grid"
-          style={{ fontWeight: "900", fontSize: "10px", marginBottom: "4px" }}
+          style={{ fontWeight: "900", fontSize: font(11), marginBottom: "4px" }}
         >
           <span>ITEM</span>
           <span style={{ textAlign: "center" }}>QTY</span>
@@ -144,7 +165,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         <div style={{ marginBottom: "6px" }}>
           {sale.sale_items?.map((item, idx) => (
             <div key={item.id || idx} style={{ marginBottom: "6px" }}>
-              <div className="item-grid" style={{ fontSize: "11px" }}>
+              <div className="item-grid" style={{ fontSize: font(12), fontWeight: "700" }}>
                 {/* Product Name Column - Will wrap automatically */}
                 <span
                   style={{
@@ -164,7 +185,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
               </div>
               {/* Unit Price row - shown underneath name for clarity */}
               <div
-                style={{ fontSize: "10px", color: "#333", marginTop: "1px" }}
+                style={{ fontSize: font(11), color: "#222", fontWeight: "700", marginTop: "1px" }}
               >
                 @{formatCurrency(Number(item.unit_price))}
               </div>
@@ -191,7 +212,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
             style={{
               display: "flex",
               justifyContent: "space-between",
-              fontSize: "15px",
+              fontSize: font(15),
               fontWeight: "900",
               marginTop: "4px",
               borderTop: "1px solid #000",
@@ -206,7 +227,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         <div className="receipt-divider" />
 
         {/* Payment */}
-        <div style={{ fontSize: "11px" }}>
+        <div style={{ fontSize: font(12), fontWeight: "700" }}>
           {hasSplitPayment ? (
             <div>
               <div
@@ -308,7 +329,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
 
         {/* Footer & Powered By */}
         <div
-          style={{ textAlign: "center", marginTop: "15px", fontSize: "11px" }}
+          style={{ textAlign: "center", marginTop: "15px", fontSize: font(12), fontWeight: "700" }}
         >
           <div className="receipt-divider" />
           <div style={{ fontWeight: "900", letterSpacing: "1px" }}>
@@ -317,7 +338,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
 
           <div
             style={{
-              fontSize: "9px",
+              fontSize: font(10),
               marginTop: "10px",
               fontWeight: "700",
               border: "1px solid #000",
@@ -327,7 +348,7 @@ export const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
             POWERED BY STOQKIP@{currentYear}
           </div>
 
-          <div style={{ fontSize: "8px", marginTop: "6px" }}>
+          <div style={{ fontSize: font(10), fontWeight: "700", marginTop: "6px" }}>
             {format(new Date(), "dd/MM/yyyy HH:mm:ss")}
           </div>
 

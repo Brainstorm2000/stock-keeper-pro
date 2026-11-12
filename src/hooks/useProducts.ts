@@ -4,8 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { parseDbError } from '@/lib/db-errors';
 import { generateSku } from '@/lib/sku';
-import { productsTable, readLocalFirst, saveLocal, removeLocal } from '@/lib/offline/repository';
-import { createId } from '@/lib/utils';
+import { productsTable, readLocalFirst } from '@/lib/offline/repository';
 import { getProductType, type ProductType } from '@/lib/product-type';
 
 export { getProductType } from '@/lib/product-type';
@@ -251,29 +250,6 @@ export function useCreateProduct() {
         ? product.sku.trim()
         : generateSku(product.item_type === 'service' ? 'SRV' : product.category === 'consumable' ? 'CON' : 'PRD');
 
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        const now = new Date().toISOString();
-        return saveLocal(productsTable, {
-          ...product,
-          id: createId(),
-          sku,
-          created_by: actorId,
-          organization_id: product.organization_id,
-          created_at: now,
-          updated_at: now,
-          supplier_id: product.supplier_id ?? null,
-          brand_id: product.brand_id ?? null,
-          description: product.description ?? null,
-          expiration_date: product.expiration_date ?? null,
-          item_type: product.item_type ?? 'product',
-          category: product.category ?? 'sellable',
-          is_taxable: product.is_taxable ?? true,
-          cost_price: product.cost_price ?? 0,
-          selling_price: product.selling_price ?? 0,
-          is_archived: false,
-        } as Product);
-      }
-
       const { data, error } = await supabase
         .from('products')
         .insert({
@@ -318,25 +294,9 @@ export function useUpdateProduct() {
 
   return useMutation({
     mutationFn: async ({ id, ...product }: ProductInput & { id: string }) => {
-      const existing = await productsTable.get(id);
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        if (!existing) throw new Error('Product is not available in the offline cache.');
-        const previousStock = Number(existing.data.current_stock);
-        const nextStock = Number(product.current_stock ?? previousStock);
-        if (
-          previousStock !== nextStock &&
-          existing.data.item_type !== 'service' &&
-          (product.item_type ?? existing.data.item_type) !== 'service'
-        ) {
-          throw new Error('Reconnect to change stock so the adjustment can be recorded against inventory batches.');
-        }
-        const updated = await saveLocal(productsTable, { ...existing.data, ...product, id } as Product);
-        return updated;
-      }
-
       const { data: previousProduct, error: previousProductError } = await supabase
         .from('products')
-        .select('current_stock, item_type')
+        .select('current_stock, item_type, expiration_date')
         .eq('id', id)
         .single();
 
@@ -359,6 +319,18 @@ export function useUpdateProduct() {
         .single();
 
       if (error) throw error;
+
+      const nextExpirationDate = product.expiration_date === undefined
+        ? previousProduct.expiration_date
+        : product.expiration_date;
+      if (previousProduct.expiration_date !== nextExpirationDate) {
+        const { error: batchExpirationError } = await supabase
+          .from('inventory_batches')
+          .update({ expiration_date: nextExpirationDate })
+          .eq('product_id', id)
+          .or('source_type.eq.opening,batch_number.like.OPEN-*');
+        if (batchExpirationError) throw batchExpirationError;
+      }
 
       if (previousProduct.item_type === 'product' && productType === 'product' && previousStock !== nextStock) {
         const { error: adjustmentError } = await supabase.rpc('adjust_product_batch_stock', {
@@ -390,10 +362,6 @@ export function useDeleteProduct() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        await removeLocal(productsTable, id);
-        return;
-      }
       const { data, error } = await supabase
         .from('products')
         .delete()

@@ -24,7 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ExpirationAlerts } from '@/components/products/ExpirationAlerts';
 
 export default function Reports() {
-  const { user, loading: authLoading, hasCompletedOnboarding, organizationId } = useAuth();
+  const { user, loading: authLoading, hasCompletedOnboarding, organizationId, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -59,6 +59,11 @@ export default function Reports() {
     if (!authLoading && !user) navigate('/auth');
     if (!authLoading && user && !hasCompletedOnboarding) navigate('/onboarding');
   }, [user, authLoading, hasCompletedOnboarding, navigate]);
+
+  useEffect(() => {
+    if (authLoading || branches.length === 0) return;
+    setSelectedBranch(isSuperAdmin ? 'all' : branches[0].id);
+  }, [authLoading, branches, isSuperAdmin]);
 
   if (authLoading) {
     return (
@@ -96,7 +101,10 @@ export default function Reports() {
             <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
           </div>
 
-          <ExpirationAlerts products={products.filter(p => selectedBranch === 'all' || p.branch_id === selectedBranch)} />
+          {/* <ExpirationAlerts
+            products={products.filter((product) => selectedBranch === 'all' || product.branch_id === selectedBranch)}
+            branchId={selectedBranch}
+          /> */}
 
           {/* Tabs */}
           <Tabs defaultValue="performance" className="space-y-4">

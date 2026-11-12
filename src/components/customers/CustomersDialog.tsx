@@ -29,9 +29,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useBulkCreateCustomers, Customer, CustomerInput } from '@/hooks/useCustomers';
+import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, useBulkCreateCustomers, isDuplicateCustomerContactError, Customer, CustomerInput } from '@/hooks/useCustomers';
 import { useOrganization } from '@/hooks/useOrganization';
-import { useBranches } from '@/hooks/useBranches';
+import { useBranches, useMyBranchAssignments } from '@/hooks/useBranches';
+import { useAuth } from '@/lib/auth';
+import { findDuplicateCustomerContact, type CustomerContact } from '@/lib/customer-identity';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { parseGenericCSV, exportToCSV, generateCustomersCSVTemplate, downloadCSV } from '@/lib/csv-utils';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +59,8 @@ export function CustomersDialog({ branchId, open, onOpenChange }: CustomersDialo
   const { data: customers = [], isLoading } = useCustomers();
   const { data: organization } = useOrganization();
   const { data: branches = [] } = useBranches();
+  const { data: branchAssignments = [] } = useMyBranchAssignments();
+  const { isSuperAdmin } = useAuth();
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const deleteCustomer = useDeleteCustomer();
@@ -76,6 +80,10 @@ export function CustomersDialog({ branchId, open, onOpenChange }: CustomersDialo
   const branchCustomers = branchId === undefined
     ? customers
     : customers.filter((customer) => !!branchId && customer.branch_id === branchId);
+  const assignedBranchIds = new Set(branchAssignments.map((assignment) => assignment.branch_id));
+  const accessibleBranches = isSuperAdmin
+    ? branches
+    : branches.filter((branch) => assignedBranchIds.has(branch.id));
 
   const filteredCustomers = branchCustomers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -111,10 +119,14 @@ export function CustomersDialog({ branchId, open, onOpenChange }: CustomersDialo
       return;
     }
 
-    if (editingCustomer) {
-      await updateCustomer.mutateAsync({ id: editingCustomer.id, ...formData });
-    } else {
-      await createCustomer.mutateAsync({ ...formData, organization_id: organization.id });
+    try {
+      if (editingCustomer) {
+        await updateCustomer.mutateAsync({ id: editingCustomer.id, ...formData });
+      } else {
+        await createCustomer.mutateAsync({ ...formData, organization_id: organization.id });
+      }
+    } catch {
+      return;
     }
     setFormOpen(false);
     resetForm();
@@ -151,7 +163,6 @@ export function CustomersDialog({ branchId, open, onOpenChange }: CustomersDialo
     try {
       const rows = await parseGenericCSV(file);
       
-      // Create a set of existing customer names (lowercase for case-insensitive comparison)
       const existingNames = new Set(customers.map(c => c.name.toLowerCase().trim()));
       
       const allParsed = rows.map(row => ({
@@ -164,16 +175,26 @@ export function CustomersDialog({ branchId, open, onOpenChange }: CustomersDialo
         organization_id: organization.id,
       })).filter(c => c.name);
 
-      // Filter out duplicates (existing in DB or duplicates within the CSV itself)
-      const seenInCsv = new Set<string>();
-      const customersToImport = allParsed.filter(c => {
-        const key = c.name.toLowerCase().trim();
-        if (existingNames.has(key) || seenInCsv.has(key)) {
-          return false;
+      const knownContacts: CustomerContact[] = [...customers];
+      const seenNames = new Set(existingNames);
+      const customersToImport: typeof allParsed = [];
+      for (const [index, customer] of allParsed.entries()) {
+        const nameKey = customer.name.toLowerCase().trim();
+        if (
+          seenNames.has(nameKey) ||
+          findDuplicateCustomerContact(customer, knownContacts)
+        ) {
+          continue;
         }
-        seenInCsv.add(key);
-        return true;
-      });
+        seenNames.add(nameKey);
+        customersToImport.push(customer);
+        knownContacts.push({
+          id: `pending-${index}`,
+          name: customer.name,
+          email: customer.email ?? null,
+          phone: customer.phone ?? null,
+        });
+      }
 
       const skippedCount = allParsed.length - customersToImport.length;
 
@@ -192,8 +213,10 @@ export function CustomersDialog({ branchId, open, onOpenChange }: CustomersDialo
       if (skippedCount > 0) {
         toast({ title: `Imported ${customersToImport.length} customers, skipped ${skippedCount} duplicates` });
       }
-    } catch {
-      toast({ title: 'Failed to parse CSV file', variant: 'destructive' });
+    } catch (error) {
+      if (!isDuplicateCustomerContactError(error)) {
+        toast({ title: 'Failed to parse CSV file', variant: 'destructive' });
+      }
     }
 
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -270,7 +293,7 @@ export function CustomersDialog({ branchId, open, onOpenChange }: CustomersDialo
                       <SelectValue placeholder="Select a branch" />
                     </SelectTrigger>
                     <SelectContent>
-                      {branches.map((branch) => (
+                      {accessibleBranches.map((branch) => (
                         <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
                       ))}
                     </SelectContent>

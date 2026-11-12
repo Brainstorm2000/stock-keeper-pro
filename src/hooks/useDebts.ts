@@ -13,6 +13,7 @@ export interface DebtPayment {
   payment_method_id?: string | null;
   notes: string | null;
   paid_by: string | null;
+  paid_by_user?: { full_name: string | null; email: string | null } | null;
   created_at: string;
 }
 
@@ -42,7 +43,22 @@ export function useDebtPayments(saleId: string | null) {
         .eq('sale_id', saleId)
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return data as DebtPayment[];
+
+      const payments = data as DebtPayment[];
+      const userIds = [...new Set(payments.map((payment) => payment.paid_by).filter((id): id is string => Boolean(id)))];
+      const profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
+
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.rpc('get_org_user_names', { _user_ids: userIds });
+        profiles?.forEach((profile) => {
+          profilesMap[profile.user_id] = { full_name: profile.full_name, email: profile.email };
+        });
+      }
+
+      return payments.map((payment) => ({
+        ...payment,
+        paid_by_user: payment.paid_by ? profilesMap[payment.paid_by] || null : null,
+      }));
     },
     enabled: !!saleId,
   });

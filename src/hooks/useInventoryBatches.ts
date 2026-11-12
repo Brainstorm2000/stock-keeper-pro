@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export interface InventoryBatch {
   id: string;
@@ -38,6 +39,36 @@ export function useInventoryBatches(
       const { data, error } = await query;
       if (error) throw error;
       return data as InventoryBatch[];
+    },
+  });
+}
+
+export function useUpdateInventoryBatchExpiration() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ batchId, expirationDate }: { batchId: string; expirationDate: string | null }) => {
+      const { data, error } = await supabase
+        .from("inventory_batches")
+        .update({ expiration_date: expirationDate })
+        .eq("id", batchId)
+        .select("id")
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) throw new Error("Batch expiry was not updated. Check your organization access.");
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["inventory-batches"] }),
+        queryClient.invalidateQueries({ queryKey: ["products"] }),
+        queryClient.invalidateQueries({ queryKey: ["purchases"] }),
+      ]);
+      toast({ title: "Batch expiry updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not update batch expiry", description: error.message, variant: "destructive" });
     },
   });
 }

@@ -6,7 +6,6 @@ import { parseDbError } from '@/lib/db-errors';
 import { getDefaultAttendanceHours } from '@/lib/attendance-hours';
 import { isOffline } from '@/lib/offline/interceptor';
 import { localDb } from '@/lib/offline/db';
-import { saveLocal } from '@/lib/offline/repository';
 import { createId } from '@/lib/utils';
 
 export interface Attendance {
@@ -186,19 +185,12 @@ export function useClockIn() {
   return useMutation({
     mutationFn: async ({ staffId, shiftId, branchId, departmentId }: { staffId: string; shiftId: string; branchId?: string | null; departmentId?: string | null }) => {
       if (!organizationId) throw new Error('No organization');
-      const offline = isOffline();
 
-      // Get shift info
-      const { data: shift, error: shiftErr } = offline
-        ? {
-            data: queryClient.getQueryData<any[]>(['shifts'])?.find((item) => item.id === shiftId),
-            error: null,
-          }
-        : await supabase
-            .from('shifts')
-            .select('*')
-            .eq('id', shiftId)
-            .single();
+      const { data: shift, error: shiftErr } = await supabase
+        .from('shifts')
+        .select('*')
+        .eq('id', shiftId)
+        .single();
       if (shiftErr || !shift) throw new Error('Shift not found');
 
       const now = new Date();
@@ -213,20 +205,13 @@ export function useClockIn() {
       }
 
       // Check existing
-      const { data: existing } = offline
-        ? {
-            data: (await localDb.attendance.toArray()).find((row) => {
-              const data = row.data as any;
-              return !row.deletedAt && data.staff_id === staffId && data.attendance_date === today && data.shift_id === shiftId;
-            })?.data as { id: string } | undefined,
-          }
-        : await supabase
-            .from('attendance')
-            .select('id')
-            .eq('staff_id', staffId)
-            .eq('attendance_date', today)
-            .eq('shift_id', shiftId)
-            .maybeSingle();
+      const { data: existing } = await supabase
+        .from('attendance')
+        .select('id')
+        .eq('staff_id', staffId)
+        .eq('attendance_date', today)
+        .eq('shift_id', shiftId)
+        .maybeSingle();
 
       if (existing) throw new Error('Already clocked in for today');
 
@@ -234,29 +219,6 @@ export function useClockIn() {
 
       const defaultHours = getDefaultAttendanceHours();
       const id = createId();
-      const nowIso = now.toISOString();
-      const localAttendance = {
-        id,
-        organization_id: organizationId,
-        staff_id: staffId,
-        shift_id: shiftId,
-        branch_id: branchId || null,
-        department_id: departmentId || null,
-        attendance_date: today,
-        clock_in_time: nowIso,
-        clock_out_time: null,
-        hours_worked: defaultHours.hoursWorked,
-        regular_hours: defaultHours.regularHours,
-        overtime_hours: defaultHours.overtimeHours,
-        status,
-        notes: null,
-        created_by: user?.id ?? null,
-        clocked_out_by: null,
-        created_at: nowIso,
-        updated_at: nowIso,
-        shifts: shift,
-      };
-      if (offline) await saveLocal(localDb.attendance, localAttendance);
 
       const { data, error } = await supabase
         .from('attendance')
@@ -320,24 +282,15 @@ export function useClockOut() {
     }) => {
       const now = new Date();
       const today = now.toISOString().split('T')[0];
-      const offline = isOffline();
 
-      const { data: record, error: recErr } = offline
-        ? {
-            data: (await localDb.attendance.toArray()).find((row) => {
-              const data = row.data as any;
-              return !row.deletedAt && data.staff_id === staffId && data.attendance_date === today && data.shift_id === shiftId && !data.clock_out_time;
-            })?.data as any,
-            error: null,
-          }
-        : await supabase
-            .from('attendance')
-            .select('*, shifts(start_time, end_time, overtime_start_time, auto_clockout_time, max_overtime_hours)')
-            .eq('staff_id', staffId)
-            .eq('attendance_date', today)
-            .eq('shift_id', shiftId)
-            .is('clock_out_time', null)
-            .maybeSingle();
+      const { data: record, error: recErr } = await supabase
+        .from('attendance')
+        .select('*, shifts(start_time, end_time, overtime_start_time, auto_clockout_time, max_overtime_hours)')
+        .eq('staff_id', staffId)
+        .eq('attendance_date', today)
+        .eq('shift_id', shiftId)
+        .is('clock_out_time', null)
+        .maybeSingle();
 
       if (recErr || !record) throw new Error('No active clock-in found for today');
 
@@ -359,19 +312,6 @@ export function useClockOut() {
 
       let status = record.status;
       if (overtimeHours > 0) status = 'overtime';
-
-      if (offline) {
-        await saveLocal(localDb.attendance, {
-          ...record,
-          clock_out_time: clockOut.toISOString(),
-          hours_worked: hoursWorked,
-          overtime_hours: overtimeHours,
-          regular_hours: regularHours,
-          status,
-          clocked_out_by: user?.id ?? null,
-          updated_at: now.toISOString(),
-        });
-      }
 
       const { data, error } = await supabase
         .from('attendance')

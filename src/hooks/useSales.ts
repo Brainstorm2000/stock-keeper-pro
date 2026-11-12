@@ -7,7 +7,6 @@ import { applySaleStockAdjustments, buildSaleStockAdjustments } from '@/lib/sale
 import type { Product } from '@/hooks/useProducts';
 import { localDb } from '@/lib/offline/db';
 import { readLocalFirst, saveLocal } from '@/lib/offline/repository';
-import { syncQueue } from '@/lib/offline/sync';
 import { createId } from '@/lib/utils';
 import { getLocalDateString, getSaleDateTimestamp } from '@/lib/sale-date';
 
@@ -143,6 +142,26 @@ export function useSales() {
           }[];
         })[];
       }, (sale) => sale.organization_id === organizationId);
+    },
+  });
+}
+
+export function useSaleCreatorProfile(createdBy: string | null) {
+  return useQuery({
+    queryKey: ['sale-creator-profile', createdBy],
+    enabled: !!createdBy,
+    queryFn: async () => {
+      if (!createdBy) return null;
+
+      const { data, error } = await supabase.rpc('get_org_user_names', {
+        _user_ids: [createdBy],
+      });
+      if (error) throw error;
+
+      const creator = data?.find((profile) => profile.user_id === createdBy);
+      return creator
+        ? { full_name: creator.full_name, email: creator.email }
+        : null;
     },
   });
 }
@@ -295,12 +314,15 @@ export function useCreateSale() {
           sale_items: input.items,
         };
         await saveLocal(localDb.sales, sale);
-        await localDb.saleItems.bulkPut(input.items.map((item) => ({
-          id: item.id ?? createId(),
-          data: { ...item, sale_id: sale.id },
-          isSynced: false,
-          updatedAt: now,
-        })));
+        await localDb.saleItems.bulkPut(input.items.map((item) => {
+          const itemId = item.id ?? createId();
+          return {
+            id: itemId,
+            data: { ...item, id: itemId, sale_id: sale.id },
+            isSynced: false,
+            updatedAt: now,
+          };
+        }));
         for (const item of input.items) {
           if (item.variation_id) continue;
           const product = await localDb.products.get(item.product_id);
@@ -312,9 +334,11 @@ export function useCreateSale() {
               ...product.data,
               current_stock: newStock,
             });
+            const historyId = createId();
             await localDb.stockHistory.put({
-              id: createId(),
+              id: historyId,
               data: {
+                id: historyId,
                 product_id: item.product_id,
                 previous_stock: previousStock,
                 new_stock: newStock,
@@ -329,7 +353,6 @@ export function useCreateSale() {
             });
           }
         }
-        void syncQueue();
         return sale;
       }
     },
